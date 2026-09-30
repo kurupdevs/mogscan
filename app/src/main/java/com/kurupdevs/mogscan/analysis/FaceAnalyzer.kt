@@ -82,7 +82,7 @@ object FaceAnalyzer {
             }
         }
         pair(face.landmark(FaceLandmark.LEFT_EYE), face.landmark(FaceLandmark.RIGHT_EYE))
-        pair(face.landmark(FaceLandmark.LEFT_MOUTH), face.landmark(FaceLandmark.RIGHT_MOUTH))
+        pair(face.landmark(FaceLandmark.MOUTH_LEFT), face.landmark(FaceLandmark.MOUTH_RIGHT))
         pair(face.landmark(FaceLandmark.LEFT_CHEEK), face.landmark(FaceLandmark.RIGHT_CHEEK))
         val lw = widthOf(face.contourPoints(FaceContour.LEFT_EYE))
         val rw = widthOf(face.contourPoints(FaceContour.RIGHT_EYE))
