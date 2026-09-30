@@ -9,12 +9,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -27,20 +29,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kurupdevs.mogscan.analysis.AnalysisUiState
 import com.kurupdevs.mogscan.analysis.AnalysisViewModel
 import com.kurupdevs.mogscan.camera.CameraCapture
-import com.kurupdevs.mogscan.ui.AnalyzingOverlay
 import com.kurupdevs.mogscan.ui.AnalysisErrorState
+import com.kurupdevs.mogscan.ui.AnalyzingScreen
+import com.kurupdevs.mogscan.ui.IntroVideoScreen
+import com.kurupdevs.mogscan.ui.PslBlack
+import com.kurupdevs.mogscan.ui.PslBlue
+import com.kurupdevs.mogscan.ui.PslGrey
+import com.kurupdevs.mogscan.ui.QuestionFlow
 import com.kurupdevs.mogscan.ui.ResultScreen
 import com.kurupdevs.mogscan.ui.theme.MogScanTheme
+import com.kurupdevs.mogscan.util.ProfileStore
+import com.kurupdevs.mogscan.util.UserProfile
+import kotlinx.coroutines.delay
 
-private enum class Screen { CAMERA, RESULT }
+private enum class Screen { INTRO, QUESTIONS, CAMERA, ANALYZING, RESULT }
 
 class MainActivity : ComponentActivity() {
 
@@ -64,7 +76,11 @@ private fun MogScanApp() {
     val context = LocalContext.current
     val vm: AnalysisViewModel = viewModel()
 
-    var screen by remember { mutableStateOf(Screen.CAMERA) }
+    var screen by remember { mutableStateOf(Screen.INTRO) }
+    var profile by remember { mutableStateOf<UserProfile?>(null) }
+    var pendingPhotos by remember { mutableStateOf<Triple<Bitmap, Bitmap, Bitmap>?>(null) }
+    var analyzingMinDone by remember { mutableStateOf(false) }
+
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
@@ -80,18 +96,44 @@ private fun MogScanApp() {
         permissionDenied = !granted
     }
 
-    LaunchedEffect(Unit) {
-        if (!hasCameraPermission && !permissionDenied) {
-            permissionLauncher.launch(Manifest.permission.CAMERA)
+    val analysisState by vm.uiState.collectAsState()
+
+    // Advance from ANALYZING once the animation has played AND the result is ready.
+    LaunchedEffect(analysisState, analyzingMinDone, screen) {
+        if (screen != Screen.ANALYZING) return@LaunchedEffect
+        if (!analyzingMinDone) return@LaunchedEffect
+        when (analysisState) {
+            is AnalysisUiState.Success -> screen = Screen.RESULT
+            is AnalysisUiState.Error -> {
+                pendingPhotos = null
+                vm.reset()
+                screen = Screen.CAMERA
+            }
+            else -> Unit
         }
     }
 
-    val analysisState by vm.uiState.collectAsState()
-    LaunchedEffect(analysisState) {
-        if (analysisState is AnalysisUiState.Success) screen = Screen.RESULT
-    }
-
     when (screen) {
+        Screen.INTRO -> {
+            IntroVideoScreen(
+                onGetStarted = {
+                    profile = ProfileStore.load(context)
+                    screen = if (profile != null) Screen.CAMERA else Screen.QUESTIONS
+                }
+            )
+        }
+
+        Screen.QUESTIONS -> {
+            QuestionFlow(
+                onComplete = { p ->
+                    ProfileStore.save(context, p)
+                    profile = p
+                    screen = Screen.CAMERA
+                },
+                onBackToIntro = { screen = Screen.INTRO }
+            )
+        }
+
         Screen.CAMERA -> {
             if (!hasCameraPermission) {
                 CameraPermissionRationale(
@@ -99,18 +141,35 @@ private fun MogScanApp() {
                     onRequest = { permissionLauncher.launch(Manifest.permission.CAMERA) }
                 )
             } else {
-                androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+                LaunchedEffect(Unit) {
+                    if (!permissionDenied) permissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+                Box(Modifier.fillMaxSize()) {
                     CameraCapture(
                         onAnalyze = { front: Bitmap, left: Bitmap, right: Bitmap ->
-                            vm.analyze(front, left, right)
+                            pendingPhotos = Triple(front, left, right)
+                            analyzingMinDone = false
+                            vm.reset()
+                            screen = Screen.ANALYZING
                         }
                     )
-                    when (val s = analysisState) {
-                        is AnalysisUiState.Loading -> AnalyzingOverlay(onCancel = { vm.reset() })
-                        is AnalysisUiState.Error -> AnalysisErrorState(s, onDismiss = { vm.reset() })
-                        else -> Unit
+                    val s = analysisState
+                    if (s is AnalysisUiState.Error) {
+                        AnalysisErrorState(s, onDismiss = { vm.reset() })
                     }
                 }
+            }
+        }
+
+        Screen.ANALYZING -> {
+            AnalyzingScreen()
+            LaunchedEffect(Unit) {
+                val photos = pendingPhotos
+                if (photos != null) {
+                    vm.analyze(photos.first, photos.second, photos.third)
+                }
+                delay(4600)
+                analyzingMinDone = true
             }
         }
 
@@ -119,13 +178,14 @@ private fun MogScanApp() {
             if (s is AnalysisUiState.Success) {
                 ResultScreen(
                     report = s.report,
+                    profile = profile ?: ProfileStore.load(context),
                     onRescan = {
                         vm.reset()
+                        pendingPhotos = null
                         screen = Screen.CAMERA
                     }
                 )
             } else {
-                // Report lost (e.g. process restart) — go back to camera
                 LaunchedEffect(Unit) { screen = Screen.CAMERA }
             }
         }
@@ -137,30 +197,39 @@ private fun CameraPermissionRationale(denied: Boolean, onRequest: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(PslBlack)
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(64.dp))
         Text(
-            text = "Camera access needed",
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground
+            text = "PSL AI Face Scan",
+            fontSize = 22.sp,
+            color = Color.White
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Your privacy is our priority",
+            fontSize = 13.sp,
+            color = PslGrey
+        )
+        Spacer(Modifier.height(24.dp))
         Text(
             text = if (denied)
-                "You denied camera access. MogScan needs it to capture your three scan angles. " +
+                "Camera access was denied. MogScan needs it to capture your three scan angles. " +
                     "Please allow it in Settings → Apps → MogScan → Permissions."
             else
                 "MogScan captures your face from three angles and rates it on your phone. " +
                     "No photo ever leaves your device.",
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = PslGrey
         )
         Spacer(Modifier.height(24.dp))
         if (!denied) {
-            Button(onClick = onRequest) { Text("Allow camera") }
+            Button(
+                onClick = onRequest,
+                colors = ButtonDefaults.buttonColors(containerColor = PslBlue)
+            ) { Text("Allow camera") }
         }
     }
 }

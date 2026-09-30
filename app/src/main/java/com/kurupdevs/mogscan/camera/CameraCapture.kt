@@ -175,6 +175,18 @@ fun CameraCapture(
     ) {
         // Step header
         Text(
+            text = "PSL AI Face Scan",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Text(
+            text = "Your privacy is our priority",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
             text = if (allDone) "All angles captured" else angles[step].title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
