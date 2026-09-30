@@ -5,10 +5,10 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,11 +38,9 @@ import com.kurupdevs.mogscan.camera.CameraCapture
 import com.kurupdevs.mogscan.ui.AnalyzingOverlay
 import com.kurupdevs.mogscan.ui.AnalysisErrorState
 import com.kurupdevs.mogscan.ui.ResultScreen
-import com.kurupdevs.mogscan.ui.SetupScreen
 import com.kurupdevs.mogscan.ui.theme.MogScanTheme
-import com.kurupdevs.mogscan.util.ApiKeyStore
 
-private enum class Screen { SETUP, CAMERA, RESULT }
+private enum class Screen { CAMERA, RESULT }
 
 class MainActivity : ComponentActivity() {
 
@@ -66,8 +64,7 @@ private fun MogScanApp() {
     val context = LocalContext.current
     val vm: AnalysisViewModel = viewModel()
 
-    var apiKey by remember { mutableStateOf(ApiKeyStore.get(context)) }
-    var screen by remember { mutableStateOf(if (apiKey == null) Screen.SETUP else Screen.CAMERA) }
+    var screen by remember { mutableStateOf(Screen.CAMERA) }
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
@@ -76,7 +73,7 @@ private fun MogScanApp() {
     }
     var permissionDenied by remember { mutableStateOf(false) }
 
-    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+    val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasCameraPermission = granted
@@ -95,12 +92,6 @@ private fun MogScanApp() {
     }
 
     when (screen) {
-        Screen.SETUP -> SetupScreen(onKeySaved = { key ->
-            ApiKeyStore.save(context, key)
-            apiKey = key
-            screen = Screen.CAMERA
-        })
-
         Screen.CAMERA -> {
             if (!hasCameraPermission) {
                 CameraPermissionRationale(
@@ -108,11 +99,10 @@ private fun MogScanApp() {
                     onRequest = { permissionLauncher.launch(Manifest.permission.CAMERA) }
                 )
             } else {
-                Box(Modifier.fillMaxSize()) {
+                androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
                     CameraCapture(
                         onAnalyze = { front: Bitmap, left: Bitmap, right: Bitmap ->
-                            val key = apiKey
-                            if (key != null) vm.analyze(key, front, left, right)
+                            vm.analyze(front, left, right)
                         }
                     )
                     when (val s = analysisState) {
@@ -132,12 +122,6 @@ private fun MogScanApp() {
                     onRescan = {
                         vm.reset()
                         screen = Screen.CAMERA
-                    },
-                    onChangeKey = {
-                        ApiKeyStore.clear(context)
-                        apiKey = null
-                        vm.reset()
-                        screen = Screen.SETUP
                     }
                 )
             } else {
@@ -169,8 +153,8 @@ private fun CameraPermissionRationale(denied: Boolean, onRequest: () -> Unit) {
                 "You denied camera access. MogScan needs it to capture your three scan angles. " +
                     "Please allow it in Settings → Apps → MogScan → Permissions."
             else
-                "MogScan captures your face from three angles to rate it. " +
-                    "Photos are only sent to Google's Gemini API for analysis.",
+                "MogScan captures your face from three angles and rates it on your phone. " +
+                    "No photo ever leaves your device.",
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

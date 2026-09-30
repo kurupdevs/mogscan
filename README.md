@@ -2,16 +2,21 @@
 
 MogScan scans your face from three angles (front, left profile, right profile) and gives you
 an honest PSL rating with a per-feature breakdown — jawline, cheekbones, eyes, symmetry,
-skin and more — plus concrete softmaxxing tips to level up. No paywall, no subscription.
+facial thirds, nose, lips, chin — plus concrete softmaxxing tips to level up.
+
+**100% free, 100% on-device.** No paywall, no subscription, no API key, no account.
+Your photos never leave your phone.
 
 ## How it works
 
 - **CameraX** captures the three required angles with a guided overlay.
-- **AnalysisViewModel** sends the three photos to Google's Gemini AI (`gemini-2.0-flash`)
-  with a structured prompt and parses the JSON report: overall PSL (1–9), a /100 score,
-  per-feature scores, strengths, and non-surgical improvement methods.
-- You bring your own **free** Gemini API key (from [Google AI Studio](https://aistudio.google.com/app/apikey)).
-  The key is stored only on your device.
+- **AnalysisViewModel** runs the three photos through ML Kit's on-device face detection
+  (bundled model, works offline) and feeds the landmarks + contours into an original
+  geometric scoring engine (`FaceAnalyzer`): symmetry, jaw/cheek ratios, facial thirds,
+  eye spacing and canthal tilt, nose/mouth and lip proportions — mapped onto the
+  1.0–9.0 PSL scale with a /100 score.
+- Weakest features get matched against a built-in softmaxxing advice database
+  (mewing, chewing, posture, sleep, skincare basics, hairstyle, grooming). Non-surgical only.
 
 ## Build
 
@@ -24,6 +29,6 @@ gradle :app:assembleDebug
 
 ## Notes
 
-- Scores estimate photo-based traits under your lighting/angle — they are not a verdict on your worth.
-- Improvement tips are softmaxxing only (skincare, hairstyle, posture, fitness, sleep, style).
-  The app never recommends surgery or medical procedures.
+- Scores come from facial geometry measured in your photos — they estimate traits, not worth.
+  Same lighting, same angle = comparable results.
+- Improvement tips are softmaxxing only. The app never recommends surgery or medical procedures.

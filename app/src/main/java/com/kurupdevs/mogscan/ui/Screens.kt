@@ -1,7 +1,5 @@
 package com.kurupdevs.mogscan.ui
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -22,123 +19,19 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kurupdevs.mogscan.analysis.AnalysisUiState
 import com.kurupdevs.mogscan.analysis.PslReport
 import java.util.Locale
-
-// ---------- Setup (API key) ----------
-
-@Composable
-fun SetupScreen(onKeySaved: (String) -> Unit) {
-    val context = LocalContext.current
-    var key by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(Modifier.height(32.dp))
-        Text(
-            text = "MogScan",
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = "Free PSL face rating.\n3 angles. Real breakdown. Zero paywall.",
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(Modifier.height(24.dp))
-
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Text(
-                    text = "One quick setup",
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "MogScan runs on Google's Gemini AI (free tier). " +
-                        "Paste your own free API key below — it stays on your phone " +
-                        "and is only used to analyze your photos.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(8.dp))
-                TextButton(onClick = {
-                    context.startActivity(
-                        Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/app/apikey"))
-                    )
-                }) {
-                    Text("Get a free key at Google AI Studio")
-                }
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = key,
-            onValueChange = { key = it; error = null },
-            label = { Text("Gemini API key") },
-            placeholder = { Text("AIza...") },
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        error?.let {
-            Spacer(Modifier.height(4.dp))
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        Button(
-            onClick = {
-                if (key.trim().length < 10) {
-                    error = "That doesn't look like a valid key."
-                } else {
-                    onKeySaved(key.trim())
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp)
-        ) {
-            Text("Save & start scanning", style = MaterialTheme.typography.titleMedium)
-        }
-    }
-}
 
 // ---------- Analyzing overlay ----------
 
@@ -159,9 +52,11 @@ fun AnalyzingOverlay(onCancel: () -> Unit) {
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "Rating jawline, cheekbones, symmetry and more",
+                text = "Measuring jawline, cheekbones, symmetry and more — on your phone",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 32.dp)
             )
             Spacer(Modifier.height(16.dp))
             TextButton(onClick = onCancel) { Text("Cancel") }
@@ -174,8 +69,7 @@ fun AnalyzingOverlay(onCancel: () -> Unit) {
 @Composable
 fun ResultScreen(
     report: PslReport,
-    onRescan: () -> Unit,
-    onChangeKey: () -> Unit
+    onRescan: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -189,6 +83,12 @@ fun ResultScreen(
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = "Read from ${report.anglesRead} of 3 angles · 100% on-device",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.height(16.dp))
 
@@ -238,8 +138,10 @@ fun ResultScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(f.name, fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            f.name, fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                         Text(
                             String.format(Locale.US, "%.1f", f.score),
                             fontWeight = FontWeight.Bold,
@@ -295,8 +197,10 @@ fun ResultScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(im.area, fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface)
+                            Text(
+                                im.area, fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                             EffortChip(im.effort)
                         }
                         Spacer(Modifier.height(4.dp))
@@ -327,15 +231,9 @@ fun ResultScreen(
             Text("Scan again")
         }
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(
-            onClick = onChangeKey,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Change API key")
-        }
-        Spacer(Modifier.height(8.dp))
         Text(
-            text = "Scores estimate photo-based traits, not your worth. Same lighting, same angle = comparable results.",
+            text = "Scores come from facial geometry measured on your phone — no photo ever leaves your device. " +
+                "Same lighting, same angle = comparable results.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -382,7 +280,7 @@ private fun pslLabel(psl: Double): String = when {
     else -> "Starting point — lots of room to level up"
 }
 
-// ---------- Error dialog ----------
+// ---------- Error ----------
 
 @Composable
 fun AnalysisErrorState(state: AnalysisUiState.Error, onDismiss: () -> Unit) {
@@ -399,16 +297,17 @@ fun AnalysisErrorState(state: AnalysisUiState.Error, onDismiss: () -> Unit) {
                 .padding(32.dp)
         ) {
             Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Analysis failed", fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Analysis failed", fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
                 Spacer(Modifier.height(8.dp))
-                Text(state.message, textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    state.message, textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodyMedium
+                )
                 Spacer(Modifier.height(16.dp))
-                Row {
-                    Button(onClick = onDismiss) { Text("Back to camera") }
-                    Spacer(Modifier.width(8.dp))
-                }
+                Button(onClick = onDismiss) { Text("Back to camera") }
             }
         }
     }

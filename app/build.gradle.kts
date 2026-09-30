@@ -55,8 +55,9 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.camera:camera-view:$cameraxVersion")
 
-    // Google Generative AI SDK (Gemini) - free tier, user supplies their own key
-    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+    // ML Kit on-device face detection (bundled model, no API key, works offline)
+    implementation("com.google.mlkit:face-detection:16.1.7")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
 }
