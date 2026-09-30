@@ -1,0 +1,46 @@
+name: Build Android APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Download Gradle
+        run: |
+          curl -sL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /tmp
+
+      - name: Build debug APK
+        run: /tmp/gradle-8.7/bin/gradle :app:assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk MogScan-${{ github.ref_name }}.apk
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: MogScan-${{ github.ref_name }}.apk
+          name: MogScan ${{ github.ref_name }}
+          body: |
+            MogScan for Android — free PSL face rating, 100% on-device.
+
+            How it works: watch the intro, answer a few quick questions, then capture your face from 3 angles (front, left profile, right profile). ML Kit measures your facial structure on your phone and rates your jawline, cheekbones, symmetry and more on the PSL scale, with concrete softmaxxing tips to level up. No API key, no account, no photo ever leaves your device, no paywall.
+
+            Install: download the APK on your phone, open it, allow "install unknown apps" if asked.
+            
