@@ -136,14 +136,16 @@ private fun MogScanApp() {
 
         Screen.CAMERA -> {
             if (!hasCameraPermission) {
+                if (!permissionDenied) {
+                    LaunchedEffect(Unit) {
+                        permissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
+                }
                 CameraPermissionRationale(
                     denied = permissionDenied,
                     onRequest = { permissionLauncher.launch(Manifest.permission.CAMERA) }
                 )
             } else {
-                LaunchedEffect(Unit) {
-                    if (!permissionDenied) permissionLauncher.launch(Manifest.permission.CAMERA)
-                }
                 Box(Modifier.fillMaxSize()) {
                     CameraCapture(
                         onAnalyze = { front: Bitmap, left: Bitmap, right: Bitmap ->
