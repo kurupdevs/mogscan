@@ -186,10 +186,6 @@ private val SKIN_QUESTIONS = listOf(
     SkinQuestion(
         "Sun time on a normal day?",
         listOf("Mostly indoors" to "low", "1–2 hrs outside" to "medium", "Long hours outside" to "high")
-    ),
-    SkinQuestion(
-        "Budget for the full routine?",
-        listOf("Under ₹300" to "low", "₹300–800" to "mid", "₹800+" to "high")
     )
 )
 
@@ -236,7 +232,6 @@ fun SkinQuizCard() {
                 sensitivity = answers[1]!!,
                 acne = answers[2]!!,
                 sun = answers[3]!!,
-                budget = answers[4]!!,
                 onRetake = { repeat(answers.size) { answers[it] = null } }
             )
         }
@@ -249,7 +244,6 @@ private fun SkinRoutineResult(
     sensitivity: String,
     acne: String,
     sun: String,
-    budget: String,
     onRetake: () -> Unit
 ) {
     // v2.6-hinglish: result guidance in the current language.
@@ -274,7 +268,6 @@ private fun SkinRoutineResult(
     val extras = buildList {
         if (sensitivity == "sensitive") add(Strings.s("skin_extra_sensitive", hi))
         if (acne == "often") add(Strings.s("skin_extra_acne", hi))
-        if (budget == "low") add(Strings.s("skin_extra_budget", hi))
     }
 
     SectionCard(

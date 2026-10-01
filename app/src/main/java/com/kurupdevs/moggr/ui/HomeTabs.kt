@@ -477,7 +477,7 @@ private fun VoiceCheckCard(onOpen: () -> Unit) {
 @Composable
 private fun MethodScreen(report: PslReport?) {
     val measuredCount = report?.features?.size ?: 15
-    // v2.6-hinglish begin: full Method tab translation + budget price tiers.
+    // v2.6-hinglish begin: full Method tab translation.
     val hi = LanguageStore.isHinglish
     Column(
         modifier = Modifier
@@ -584,9 +584,6 @@ private fun MethodScreen(report: PslReport?) {
             )
         }
 
-        // v2.6: grooming re-tiered by budget — ₹0 free habits, ₹100 basics, ₹500 level-up.
-        BudgetTierSection(hi)
-
         EqGlassCard(
             modifier = Modifier
                 .fillMaxWidth()
@@ -621,98 +618,6 @@ private fun MethodScreen(report: PslReport?) {
     }
     // v2.6-hinglish end
 }
-
-// v2.6-hinglish begin: grooming by budget — three tracks, generic safe skincare only.
-@Composable
-private fun BudgetTierSection(hi: Boolean) {
-    Column(Modifier.fillMaxWidth()) {
-        EqSectionLabel(Strings.s("caps_budget", hi))
-        Spacer(Modifier.height(8.dp))
-        EqHeadline(
-            text = Strings.s("budget_head1", hi),
-            size = 28
-        )
-        Text(
-            Strings.s("budget_head2", hi),
-            fontFamily = EqSerif,
-            fontStyle = FontStyle.Italic,
-            fontSize = 28.sp,
-            color = PslText,
-            lineHeight = 32.sp
-        )
-        Spacer(Modifier.height(8.dp))
-        EqBody(Strings.s("budget_sub", hi))
-        Spacer(Modifier.height(12.dp))
-
-        BudgetTierCard(
-            title = Strings.s("tier_free_title", hi),
-            subtitle = Strings.s("tier_free_sub", hi),
-            items = listOf(
-                Strings.s("free_0_name", hi) to Strings.s("free_0_desc", hi),
-                Strings.s("free_1_name", hi) to Strings.s("free_1_desc", hi),
-                Strings.s("free_2_name", hi) to Strings.s("free_2_desc", hi),
-                Strings.s("free_3_name", hi) to Strings.s("free_3_desc", hi)
-            )
-        )
-        BudgetTierCard(
-            title = Strings.s("tier_100_title", hi),
-            subtitle = Strings.s("tier_100_sub", hi),
-            items = listOf(
-                Strings.s("b100_0_name", hi) to Strings.s("b100_0_desc", hi),
-                Strings.s("b100_1_name", hi) to Strings.s("b100_1_desc", hi),
-                Strings.s("b100_2_name", hi) to Strings.s("b100_2_desc", hi),
-                Strings.s("b100_3_name", hi) to Strings.s("b100_3_desc", hi)
-            )
-        )
-        BudgetTierCard(
-            title = Strings.s("tier_500_title", hi),
-            subtitle = Strings.s("tier_500_sub", hi),
-            items = listOf(
-                Strings.s("b500_0_name", hi) to Strings.s("b500_0_desc", hi),
-                Strings.s("b500_1_name", hi) to Strings.s("b500_1_desc", hi),
-                Strings.s("b500_2_name", hi) to Strings.s("b500_2_desc", hi),
-                Strings.s("b500_3_name", hi) to Strings.s("b500_3_desc", hi)
-            )
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            Strings.s("budget_note", hi),
-            fontSize = 12.sp,
-            color = PslGrey
-        )
-        Spacer(Modifier.height(12.dp))
-    }
-}
-
-@Composable
-private fun BudgetTierCard(
-    title: String,
-    subtitle: String,
-    items: List<Pair<String, String>>
-) {
-    EqGlassCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp)
-    ) {
-        Column {
-            Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = PslText)
-            Spacer(Modifier.height(2.dp))
-            EqBody(subtitle, size = 13)
-            Spacer(Modifier.height(10.dp))
-            items.forEach { (name, desc) ->
-                Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.Top) {
-                    Text("• ", color = MogCoral, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Column(Modifier.weight(1f)) {
-                        Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = PslText)
-                        EqBody(desc, size = 13)
-                    }
-                }
-            }
-        }
-    }
-}
-// v2.6-hinglish end
 
 @Composable
 private fun MethodSection(title: String, content: @Composable () -> Unit) {
