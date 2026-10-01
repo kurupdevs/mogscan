@@ -2,6 +2,7 @@ package com.kurupdevs.moggr.ui
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,9 +30,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -46,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -78,21 +78,47 @@ fun MainTabs(
     Scaffold(
         containerColor = PslBlack,
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
-                tabs.forEachIndexed { idx, t ->
-                    NavigationBarItem(
-                        selected = tab == idx,
-                        onClick = { tab = idx },
-                        icon = { Icon(t.icon, contentDescription = t.label) },
-                        label = { Text(t.label, fontSize = 12.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = PslBlue,
-                            selectedTextColor = PslBlue,
-                            unselectedIconColor = PslGrey,
-                            unselectedTextColor = PslGrey,
-                            indicatorColor = PslBlue.copy(alpha = 0.15f)
-                        )
-                    )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFF1C1917))
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    tabs.forEachIndexed { idx, t ->
+                        val selected = tab == idx
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(if (selected) PslBlack else Color.Transparent)
+                                .clickable { tab = idx }
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                t.icon,
+                                contentDescription = t.label,
+                                tint = if (selected) PslText else Color(0xFFA8A29E),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            if (selected) {
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    t.label,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = PslText
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -132,27 +158,32 @@ private fun HomeTab(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            CapsLabel("WELCOME TO MOGGR")
+            Spacer(Modifier.height(14.dp))
             Text(
-                "No scan saved yet",
+                "Know your face.\nOwn your look.",
+                fontFamily = MogSerif,
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold,
                 color = PslText,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
+                textAlign = TextAlign.Center,
+                lineHeight = 42.sp
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
             Text(
                 "Take your 3-angle scan once — your face and report stay saved here.",
                 color = PslGrey,
                 textAlign = TextAlign.Center,
                 fontSize = 14.sp
             )
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(28.dp))
             Button(
                 onClick = onRescan,
                 colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.height(54.dp)
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.height(56.dp)
             ) {
-                Text("Scan now", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("Start your scan", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }
         return
@@ -175,7 +206,7 @@ private fun HomeTab(
                 modifier = Modifier
                     .weight(1f)
                     .height(54.dp),
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(50)
             ) {
                 Text("Scan again", color = PslBlue)
             }
@@ -185,7 +216,7 @@ private fun HomeTab(
                 modifier = Modifier
                     .weight(1f)
                     .height(54.dp),
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(50)
             ) {
                 Text("Share", fontWeight = FontWeight.Bold)
             }
@@ -205,10 +236,27 @@ private fun MethodScreen() {
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        Text("Method", fontSize = 27.sp, fontWeight = FontWeight.Bold, color = PslBlue)
-        Spacer(Modifier.height(4.dp))
+        CapsLabel("HOW IT WORKS")
+        Spacer(Modifier.height(8.dp))
         Text(
-            "Exactly how Moggr turns your photos into a PSL score. No black box.",
+            "The method,",
+            fontFamily = MogSerif,
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Bold,
+            color = PslText,
+            lineHeight = 36.sp
+        )
+        Text(
+            "no black box.",
+            fontFamily = MogSerif,
+            fontStyle = FontStyle.Italic,
+            fontSize = 32.sp,
+            color = PslText,
+            lineHeight = 36.sp
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Exactly how Moggr turns your photos into a PSL score.",
             fontSize = 14.sp,
             color = PslGrey
         )
@@ -345,8 +393,8 @@ private fun MethodSection(title: String, content: @Composable () -> Unit) {
             .padding(vertical = 6.dp)
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = PslBlue)
-            Spacer(Modifier.height(8.dp))
+            CapsLabel(title)
+            Spacer(Modifier.height(10.dp))
             content()
         }
     }
@@ -384,10 +432,27 @@ private fun RoutineScreen() {
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        Text("Routine", fontSize = 27.sp, fontWeight = FontWeight.Bold, color = PslBlue)
-        Spacer(Modifier.height(4.dp))
+        CapsLabel("DAILY CHECKLIST")
+        Spacer(Modifier.height(8.dp))
         Text(
-            "Small daily habits that stack up. Tick them off every day.",
+            "Small habits,",
+            fontFamily = MogSerif,
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Bold,
+            color = PslText,
+            lineHeight = 36.sp
+        )
+        Text(
+            "stacked daily.",
+            fontFamily = MogSerif,
+            fontStyle = FontStyle.Italic,
+            fontSize = 32.sp,
+            color = PslText,
+            lineHeight = 36.sp
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Tick them off every day — consistency is the whole game.",
             fontSize = 14.sp,
             color = PslGrey
         )
@@ -430,7 +495,7 @@ private fun RoutineScreen() {
                             .height(8.dp)
                             .clip(RoundedCornerShape(4.dp)),
                         color = PslBlue,
-                        trackColor = Color(0xFFE4E9F2)
+                        trackColor = Color(0xFFEDE7DB)
                     )
                 }
             }
