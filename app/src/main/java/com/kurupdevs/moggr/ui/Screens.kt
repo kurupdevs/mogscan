@@ -102,7 +102,7 @@ fun AnalyzingScreen() {
                 progress = { (step + 1) / ANALYZE_STEPS.size.toFloat() },
                 modifier = Modifier.size(190.dp),
                 color = PslBlue,
-                trackColor = Color(0xFFE4E9F2),
+                trackColor = Color(0xFFEDE7DB),
                 strokeWidth = 8.dp
             )
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -132,7 +132,7 @@ fun AnalyzingScreen() {
                                 color = PslBlue,
                                 strokeWidth = 2.5.dp
                             )
-                            else -> Text("○ ", color = Color(0xFFD0D5DD))
+                            else -> Text("○ ", color = Color(0xFFD8D0C2))
                         }
                         Spacer(Modifier.padding(4.dp))
                         Text(
@@ -180,7 +180,7 @@ fun ResultScreen(
                     modifier = Modifier
                         .weight(1f)
                         .height(54.dp),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(50)
                 ) {
                     Text("Scan again", color = PslBlue)
                 }
@@ -189,7 +189,7 @@ fun ResultScreen(
                     modifier = Modifier
                         .weight(1f)
                         .height(54.dp),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(50)
                 ) {
                     Text("Share", color = PslBlue)
                 }
@@ -273,11 +273,19 @@ fun ReportBody(
             }
             Spacer(Modifier.height(16.dp))
         }
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            CapsLabel(text = "FACE REPORT")
+        }
+        Spacer(Modifier.height(8.dp))
         Text(
-            text = if (profile != null) "${profile.name}'s Overall" else "Overall",
-            fontSize = 27.sp,
+            text = if (profile != null) "${profile.name}'s score" else "Your score",
+            fontFamily = MogSerif,
+            fontSize = 34.sp,
             fontWeight = FontWeight.Bold,
-            color = PslBlue,
+            color = PslText,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
@@ -533,7 +541,7 @@ private fun HeroCard(
         Box(
             modifier = Modifier.background(
                 brush = if (featured) {
-                    Brush.horizontalGradient(listOf(PslDeep, PslBlue))
+                    Brush.horizontalGradient(listOf(Color(0xFF2A2119), PslDeep))
                 } else {
                     Brush.verticalGradient(listOf(PslCard, PslCard))
                 },
@@ -555,8 +563,9 @@ private fun HeroCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         String.format(Locale.US, "%.1f", score),
-                        fontSize = 34.sp,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = MogSerif,
+                        fontSize = 38.sp,
+                        fontWeight = FontWeight.Bold,
                         color = scoreColorTxt
                     )
                     Spacer(Modifier.width(8.dp))
@@ -569,8 +578,8 @@ private fun HeroCard(
                         .fillMaxWidth()
                         .height(8.dp)
                         .clip(RoundedCornerShape(4.dp)),
-                    color = if (featured) Color.White else barColor,
-                    trackColor = if (featured) Color.White.copy(alpha = 0.25f) else Color(0xFFE4E9F2)
+                    color = if (featured) PslBlue else barColor,
+                    trackColor = if (featured) Color.White.copy(alpha = 0.25f) else Color(0xFFEDE7DB)
                 )
             }
         }
@@ -612,7 +621,7 @@ private fun FeatureCard(f: FeatureScore, modifier: Modifier = Modifier) {
                     .height(7.dp)
                     .clip(RoundedCornerShape(4.dp)),
                 color = scoreColor(f.score),
-                trackColor = Color(0xFFE4E9F2)
+                trackColor = Color(0xFFEDE7DB)
             )
         }
     }
@@ -649,7 +658,7 @@ private fun PillarCard(p: PillarScore, modifier: Modifier = Modifier) {
                     .height(7.dp)
                     .clip(RoundedCornerShape(4.dp)),
                 color = scoreColor(p.score),
-                trackColor = Color(0xFFE4E9F2)
+                trackColor = Color(0xFFEDE7DB)
             )
             if (p.note.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
@@ -700,19 +709,14 @@ fun shareReport(context: android.content.Context, profile: UserProfile?, report:
 
 @Composable
 private fun SectionTitle(text: String) {
-    Text(
-        text,
-        fontSize = 19.sp,
-        fontWeight = FontWeight.Bold,
-        color = PslBlue
-    )
+    CapsLabel(text)
 }
 
 @Composable
 private fun EffortChip(effort: String) {
     Card(
         colors = CardDefaults.cardColors(containerColor = PslBlue.copy(alpha = 0.18f)),
-        shape = RoundedCornerShape(10.dp)
+        shape = RoundedCornerShape(50)
     ) {
         Text(
             effort.replaceFirstChar { it.uppercase() },
@@ -755,7 +759,7 @@ fun AnalysisErrorState(state: AnalysisUiState.Error, onDismiss: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF101828).copy(alpha = 0.45f)),
+            .background(Color(0xFF1C1917).copy(alpha = 0.45f)),
         contentAlignment = Alignment.Center
     ) {
         Card(
