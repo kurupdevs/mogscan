@@ -52,7 +52,8 @@ fun InfoSlidesScreen(onDone: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(8.dp))
+                .background(Color.White, RoundedCornerShape(16.dp))
+                .border(1.dp, Color(0xFFE4E9F2), RoundedCornerShape(16.dp))
                 .padding(20.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -88,7 +89,8 @@ fun InfoSlidesScreen(onDone: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(24.dp))
+                .background(Color.White, RoundedCornerShape(24.dp))
+                .border(1.dp, Color(0xFFE4E9F2), RoundedCornerShape(24.dp))
                 .padding(horizontal = 24.dp, vertical = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -110,7 +112,7 @@ fun InfoSlidesScreen(onDone: () -> Unit) {
                 cardTitle,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = PslText,
                 textAlign = TextAlign.Center,
                 lineHeight = 36.sp
             )
@@ -118,7 +120,7 @@ fun InfoSlidesScreen(onDone: () -> Unit) {
             Text(
                 cardText,
                 fontSize = 15.sp,
-                color = Color(0xFFB0B0B0),
+                color = PslGrey,
                 textAlign = TextAlign.Center,
                 lineHeight = 22.sp
             )
@@ -144,20 +146,20 @@ private fun HaloVisual() {
             "THE HALO EFFECT",
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = Color.White,
+            color = PslText,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(8.dp))
         Text(
             "People assume attractive people are smarter, kinder and more successful.",
             fontSize = 13.sp,
-            color = Color(0xFFB0B0B0),
+            color = PslGrey,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(20.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            HaloCard(mark = "✓", markColor = Color(0xFF4CAF50), label = "attractive", sub = "seen as smart\nkind · successful")
-            HaloCard(mark = "✕", markColor = Color(0xFFE57373), label = "unattractive", sub = "assumed\nthe opposite")
+            HaloCard(mark = "✓", markColor = Color(0xFF12B76A), label = "attractive", sub = "seen as smart\nkind · successful")
+            HaloCard(mark = "✕", markColor = Color(0xFFF04438), label = "unattractive", sub = "assumed\nthe opposite")
         }
     }
 }
@@ -166,15 +168,15 @@ private fun HaloVisual() {
 private fun HaloCard(mark: String, markColor: Color, label: String, sub: String) {
     Column(
         modifier = Modifier
-            .border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(12.dp))
+            .border(1.dp, Color(0xFFE4E9F2), RoundedCornerShape(12.dp))
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(mark, fontSize = 34.sp, fontWeight = FontWeight.Bold, color = markColor)
         Spacer(Modifier.height(6.dp))
-        Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+        Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = PslText)
         Spacer(Modifier.height(4.dp))
-        Text(sub, fontSize = 12.sp, color = Color(0xFFB0B0B0), textAlign = TextAlign.Center)
+        Text(sub, fontSize = 12.sp, color = PslGrey, textAlign = TextAlign.Center)
     }
 }
 
@@ -185,7 +187,7 @@ private fun BarsVisual(title: String, bars: List<HBar>) {
             title,
             fontSize = 18.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = Color.White,
+            color = PslText,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
@@ -195,7 +197,7 @@ private fun BarsVisual(title: String, bars: List<HBar>) {
                 Text(
                     bar.label,
                     fontSize = 13.sp,
-                    color = Color.White,
+                    color = PslText,
                     modifier = Modifier.width(88.dp)
                 )
                 Box(
@@ -203,18 +205,18 @@ private fun BarsVisual(title: String, bars: List<HBar>) {
                         .weight(1f)
                         .height(26.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFF1E1E1E))
+                        .background(Color(0xFFE4E9F2))
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(bar.pct / 100f)
                             .height(26.dp)
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color.White)
+                            .background(PslBlue)
                     )
                 }
                 Spacer(Modifier.width(8.dp))
-                Text("${bar.pct}%", fontSize = 13.sp, color = Color.White, modifier = Modifier.width(44.dp))
+                Text("${bar.pct}%", fontSize = 13.sp, color = PslText, modifier = Modifier.width(44.dp))
             }
         }
     }
@@ -227,14 +229,14 @@ private fun EmblemVisual(top: String, bottom: String) {
             top,
             fontSize = 44.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = Color.White,
+            color = PslText,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(10.dp))
         Text(
             bottom,
             fontSize = 16.sp,
-            color = Color(0xFFB0B0B0),
+            color = PslGrey,
             textAlign = TextAlign.Center
         )
     }
@@ -250,7 +252,7 @@ private fun LikesVisual() {
             "AVG LIKES / WEEK",
             fontSize = 16.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = Color.White
+            color = PslText
         )
         Spacer(Modifier.height(16.dp))
         Row(
@@ -261,7 +263,7 @@ private fun LikesVisual() {
             values.forEachIndexed { i, v ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
                     if (v > 0) {
-                        Text("$v", fontSize = 10.sp, color = Color.White)
+                        Text("$v", fontSize = 10.sp, color = PslText)
                     } else {
                         Spacer(Modifier.height(14.dp))
                     }
@@ -270,14 +272,14 @@ private fun LikesVisual() {
                             .width(22.dp)
                             .height((8 + (v / max) * 120).dp)
                             .clip(RoundedCornerShape(4.dp))
-                            .background(if (i >= 8) PslBlue else Color.White)
+                            .background(if (i >= 8) PslBlue else Color(0xFFD0D5DD))
                     )
                     Spacer(Modifier.height(4.dp))
-                    Text("${(i + 1) * 10}%", fontSize = 8.sp, color = Color(0xFFB0B0B0))
+                    Text("${(i + 1) * 10}%", fontSize = 8.sp, color = PslGrey)
                 }
             }
         }
         Spacer(Modifier.height(8.dp))
-        Text("ATTRACTIVENESS SCORE", fontSize = 12.sp, color = Color(0xFFB0B0B0))
+        Text("ATTRACTIVENESS SCORE", fontSize = 12.sp, color = PslGrey)
     }
 }
