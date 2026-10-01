@@ -78,20 +78,14 @@ fun MainTabs(
     Scaffold(
         containerColor = PslBlack,
         bottomBar = {
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 14.dp),
-                contentAlignment = Alignment.Center
+                    .background(Color(0xFF1C1917))
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(Color(0xFF1C1917))
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
                     tabs.forEachIndexed { idx, t ->
                         val selected = tab == idx
                         Row(
@@ -120,7 +114,6 @@ fun MainTabs(
                         }
                     }
                 }
-            }
         }
     ) { pad ->
         Box(
