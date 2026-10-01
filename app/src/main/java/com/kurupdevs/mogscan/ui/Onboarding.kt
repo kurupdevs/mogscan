@@ -1,7 +1,5 @@
 package com.kurupdevs.mogscan.ui
 
-import android.net.Uri
-import android.widget.VideoView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,13 +40,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import com.kurupdevs.mogscan.util.ProfileStore
 import com.kurupdevs.mogscan.util.UserProfile
 
@@ -57,37 +53,46 @@ val PslBlack = Color(0xFF000000)
 val PslCard = Color(0xFF141414)
 val PslGrey = Color(0xFF9E9E9E)
 
-// ---------- Intro: full-screen looping video ----------
+// ---------- Intro: static splash (no video) ----------
 
 @Composable
 fun IntroVideoScreen(onGetStarted: () -> Unit) {
-    val context = LocalContext.current
     Box(Modifier.fillMaxSize().background(PslBlack)) {
-        AndroidView(
-            factory = { ctx ->
-                VideoView(ctx).apply {
-                    setVideoURI(
-                        Uri.parse("android.resource://${ctx.packageName}/raw/intro")
-                    )
-                    setOnPreparedListener { mp ->
-                        mp.isLooping = true
-                        start()
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
-        // Bottom scrim + CTA
+        // Subtle blue glow backdrop
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.55f), Color.Black),
-                        startY = 600f
+                    Brush.radialGradient(
+                        colors = listOf(
+                            PslBlue.copy(alpha = 0.25f),
+                            Color.Transparent
+                        ),
+                        radius = 900f
                     )
                 )
         )
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "MogScan",
+                fontSize = 44.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Free PSL face rating — 3 angles, real scores,\nno paywall, photos never leave your phone.",
+                color = Color.White.copy(alpha = 0.85f),
+                textAlign = TextAlign.Center,
+                fontSize = 15.sp
+            )
+        }
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -95,20 +100,6 @@ fun IntroVideoScreen(onGetStarted: () -> Unit) {
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                "MogScan",
-                fontSize = 34.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "Free PSL face rating — 3 angles, real scores,\nno paywall, photos never leave your phone.",
-                color = Color.White.copy(alpha = 0.85f),
-                textAlign = TextAlign.Center,
-                fontSize = 15.sp
-            )
-            Spacer(Modifier.height(20.dp))
             Button(
                 onClick = onGetStarted,
                 colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
