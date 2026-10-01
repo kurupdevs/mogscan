@@ -8,6 +8,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -122,6 +124,30 @@ fun CoachScreen(
 
     fun history(): List<Pair<Boolean, String>> = messages.map { it.isUser to it.text }
 
+    fun streamReply(sys: String, h: List<Pair<Boolean, String>>, prompt: String) {
+        val sb = StringBuilder()
+        messages = messages + ChatMsg(false, "")
+        CoachClient.askStream(sys, h, prompt,
+            onToken = { tok ->
+                sb.append(tok)
+                val cur = messages
+                if (cur.isNotEmpty()) {
+                    messages = cur.dropLast(1) + cur.last().copy(text = sb.toString())
+                }
+            },
+            onDone = { reply ->
+                waiting = false
+                val cur = messages
+                val finalText = reply ?: if (sb.isNotEmpty()) sb.toString() else COACH_FALLBACK
+                messages = if (cur.isNotEmpty()) {
+                    cur.dropLast(1) + cur.last().copy(text = finalText)
+                } else {
+                    cur + ChatMsg(false, finalText)
+                }
+            }
+        )
+    }
+
     fun sendText(text: String) {
         val clean = text.trim()
         if (clean.isEmpty() || waiting) return
@@ -129,10 +155,14 @@ fun CoachScreen(
         messages = messages + ChatMsg(true, clean)
         input = ""
         waiting = true
-        CoachClient.ask(baseSystem, h, clean) { reply ->
-            waiting = false
-            messages = messages + ChatMsg(false, reply ?: COACH_FALLBACK)
-        }
+        streamReply(baseSystem, h, clean)
+    }
+
+    // Instant quick replies — answered locally from the scan, zero network wait.
+    fun sendQuick(kind: String, label: String) {
+        if (waiting) return
+        messages = messages + ChatMsg(true, label)
+        messages = messages + ChatMsg(false, instantAnswer(kind, report))
     }
 
     fun sendPhoto(uri: Uri) {
@@ -160,12 +190,11 @@ fun CoachScreen(
                     "breakdown: verdict, why, top 3 fixes, what not to worry about. " +
                     "Note: this is a single-photo read, so treat it as a limited estimate — " +
                     "say so briefly."
-                CoachClient.ask(
-                    sys, h,
-                    "I just sent a photo — give me your full analysis of it."
-                ) { reply ->
-                    waiting = false
-                    messages = messages + ChatMsg(false, reply ?: COACH_FALLBACK)
+                withContext(Dispatchers.Main) {
+                    streamReply(
+                        sys, h,
+                        "I just sent a photo — give me your full analysis of it."
+                    )
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -272,6 +301,20 @@ fun CoachScreen(
             }
         }
 
+        // Quick replies — instant answers, no network wait
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            QuickChip("Top 3 fixes") { sendQuick("fixes", "Top 3 fixes") }
+            QuickChip("Weakest feature") { sendQuick("weakest", "Weakest feature") }
+            QuickChip("Skin routine") { sendQuick("skin", "Skin routine") }
+            QuickChip("Hair advice") { sendQuick("hair", "Hair advice") }
+        }
+
         // Input row
         Row(
             modifier = Modifier
@@ -321,7 +364,8 @@ fun CoachScreen(
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            "Coach runs on a free API — replies can be slow. Your photos never leave your phone; only your questions and measurement numbers may be sent to the AI service.",
+            "Quick replies answer instantly. Longer questions stream live from the free AI — " +
+            "your photos never leave your phone; only your questions and measurement numbers may be sent to the AI service.",
             fontSize = 11.sp,
             color = PslGrey,
             modifier = Modifier
@@ -362,6 +406,77 @@ private fun ChatBubble(msg: ChatMsg) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun QuickChip(label: String, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF4EFE7)),
+        shape = RoundedCornerShape(50)
+    ) {
+        Text(
+            label,
+            color = PslBlue,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+        )
+    }
+}
+
+private val FEATURE_TIPS = mapOf(
+    "Brows" to "Clean up strays but keep them natural — thicker, straighter brows read stronger. Don't over-pluck.",
+    "Cheekbones" to "Nothing pops cheekbones like lower body fat. Side lighting in photos helps too.",
+    "Chin" to "Mostly genetic — but no forward-head posture and staying lean keep the jaw-to-chin line clean.",
+    "Eye spacing" to "Genetic, don't chase millimeters here — brows, sleep and grooming matter more.",
+    "Eyes" to "Fix what's fixable: 7-9h sleep for under-eyes, groomed brows, clean eye area.",
+    "FWHR" to "Bone structure — leanness sharpens it. Chase low body fat, not the number.",
+    "Facial thirds" to "Balance beats any single third — the right haircut and beard can visually rebalance thirds.",
+    "Facial fifths" to "Mostly genetic. Beard and hair framing can tweak perceived width.",
+    "Jaw angle" to "Genetic gonial angle — leanness, posture and neck training give the sharpest look your structure allows.",
+    "Jawline" to "Debloat (less salt, more water, good sleep) + low body fat = sharper jawline. Chewing builds masseter tone over months.",
+    "Lips" to "Keep them healthy — balm, hydration, no picking. Fullness is genetic.",
+    "Midface ratio" to "Mostly genetic. Avoid long hair dragging the face down; groomed brows help balance.",
+    "Nose" to "Genetic. Glasses and haircut balance it in photos — that's the play.",
+    "Side profile" to "Chin-to-neck angle: fix forward head posture, stay lean. Profile = posture + leanness + genetics.",
+    "Symmetry" to "Nobody is symmetric. Sleep on your back, chew evenly both sides — small habits, small gains."
+)
+
+private fun instantAnswer(kind: String, report: PslReport?): String {
+    val feats = report?.features?.sortedBy { it.score } ?: emptyList()
+    val fmt = { d: Double -> String.format(Locale.US, "%.1f", d) }
+    return when (kind) {
+        "fixes" -> if (feats.isEmpty()) {
+            "No scan on file yet — scan your face first and I'll rank your exact fixes."
+        } else buildString {
+            append("Verdict: fix your failos first, not your halos.\n\n")
+            feats.take(3).forEachIndexed { i, f ->
+                append("${i + 1}. ${f.name} (${fmt(f.score)}) — ${FEATURE_TIPS[f.name] ?: "Softmaxxing basics: leanness, skin, sleep, posture."}\n")
+            }
+            append("\nWhat NOT to worry about: your strongest features are already carrying you.")
+        }
+        "weakest" -> if (feats.isEmpty()) {
+            "No scan on file yet — scan your face first."
+        } else {
+            val f = feats.first()
+            "Verdict: your weakest measured feature is ${f.name} (${fmt(f.score)}).\n\n" +
+                "Why it matters: it's your biggest failo, so fixing it moves your whole read.\n\n" +
+                "What to do: ${FEATURE_TIPS[f.name] ?: "Softmaxxing basics — leanness, skin, sleep, posture."}\n\n" +
+                "What NOT to worry about: one weak feature doesn't define the face — harmony does."
+        }
+        "skin" -> "Verdict: skin is the highest-ROI fix in softmaxxing.\n\n" +
+            "1. Wash twice daily — gentle cleanser, not soap.\n" +
+            "2. Moisturize + sunscreen every morning.\n" +
+            "3. Sleep 7-9h — under-eyes and dullness start here.\n" +
+            "4. Stop touching your face; change pillowcases often.\n\n" +
+            "What NOT to worry about: chasing 10 products. Consistency beats a shelf full of serums."
+        else -> "Verdict: haircut is framing for your face.\n\n" +
+            "1. Match the cut to your face shape — volume on top lengthens, shorter sides widen.\n" +
+            "2. Clean neckline and edges beat an expensive cut gone shaggy.\n" +
+            "3. Beard optional: stubble sharpens jawlines; a patchy beard hurts more than it helps.\n\n" +
+            "What NOT to worry about: trends. Fit for YOUR face beats what's viral."
     }
 }
 
