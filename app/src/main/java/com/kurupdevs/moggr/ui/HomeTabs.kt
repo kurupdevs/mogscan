@@ -78,7 +78,7 @@ fun MainTabs(
     Scaffold(
         containerColor = PslBlack,
         bottomBar = {
-            NavigationBar(containerColor = Color(0xFF0A0A0A)) {
+            NavigationBar(containerColor = Color.White) {
                 tabs.forEachIndexed { idx, t ->
                     NavigationBarItem(
                         selected = tab == idx,
@@ -134,7 +134,7 @@ private fun HomeTab(
         ) {
             Text(
                 "No scan saved yet",
-                color = Color.White,
+                color = PslText,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -177,7 +177,7 @@ private fun HomeTab(
                     .height(54.dp),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                Text("Scan again", color = Color.White)
+                Text("Scan again", color = PslBlue)
             }
             Button(
                 onClick = { shareReport(context, profile, report) },
@@ -221,7 +221,7 @@ private fun MethodScreen() {
                     "The pillars combine into your overall PSL. Big deviations cap your tier — " +
                     "one weak area drags the whole score, like community raters tend to judge.",
                 fontSize = 14.sp,
-                color = Color.White
+                color = PslText
             )
         }
 
@@ -256,7 +256,7 @@ private fun MethodScreen() {
                     Text(
                         buildString { append(name); append(" — "); append(desc) },
                         fontSize = 14.sp,
-                        color = Color.White
+                        color = PslText
                     )
                 }
             }
@@ -279,7 +279,7 @@ private fun MethodScreen() {
                         .padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(score, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(score, color = PslText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Text(tier, color = PslGrey, fontSize = 14.sp)
                 }
             }
@@ -294,6 +294,7 @@ private fun MethodScreen() {
         Card(
             colors = CardDefaults.cardColors(containerColor = PslCard),
             shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 6.dp)
@@ -314,7 +315,7 @@ private fun MethodScreen() {
             tips.forEach { tip ->
                 Row(Modifier.padding(vertical = 4.dp)) {
                     Text("• ", color = PslBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(tip, fontSize = 14.sp, color = Color.White)
+                    Text(tip, fontSize = 14.sp, color = PslText)
                 }
             }
         }
@@ -326,7 +327,7 @@ private fun MethodScreen() {
                     "A number from your camera is a starting point for the stuff you control " +
                     "(skin, hair, fitness, style, posture), not a verdict on your worth.",
                 fontSize = 14.sp,
-                color = Color.White
+                color = PslText
             )
         }
         Spacer(Modifier.height(20.dp))
@@ -338,6 +339,7 @@ private fun MethodSection(title: String, content: @Composable () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = PslCard),
         shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
@@ -358,7 +360,7 @@ private fun PillarRow(name: String, weight: String, desc: String) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Text(name, color = PslText, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             Text(weight, color = PslBlue, fontWeight = FontWeight.Bold, fontSize = 15.sp)
         }
         Spacer(Modifier.height(2.dp))
@@ -394,6 +396,7 @@ private fun RoutineScreen() {
         Card(
             colors = CardDefaults.cardColors(containerColor = PslCard),
             shape = RoundedCornerShape(18.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -408,7 +411,7 @@ private fun RoutineScreen() {
                         "${state.streak}",
                         fontSize = 40.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.White
+                        color = PslText
                     )
                     Text("day streak", fontSize = 14.sp, color = PslGrey)
                 }
@@ -417,7 +420,7 @@ private fun RoutineScreen() {
                         "$doneCount/$total today",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = PslText
                     )
                     Spacer(Modifier.height(8.dp))
                     LinearProgressIndicator(
@@ -427,7 +430,7 @@ private fun RoutineScreen() {
                             .height(8.dp)
                             .clip(RoundedCornerShape(4.dp)),
                         color = PslBlue,
-                        trackColor = Color(0xFF2A2A2A)
+                        trackColor = Color(0xFFE4E9F2)
                     )
                 }
             }
@@ -438,7 +441,7 @@ private fun RoutineScreen() {
             val checked = task.id in state.done
             Card(
                 colors = CardDefaults.cardColors(
-                    containerColor = if (checked) Color(0xFF12261A) else PslCard
+                    containerColor = if (checked) Color(0xFFECFDF3) else PslCard
                 ),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
@@ -455,7 +458,7 @@ private fun RoutineScreen() {
                         checked = checked,
                         onCheckedChange = { state = RoutineStore.toggle(context, task.id) },
                         colors = CheckboxDefaults.colors(
-                            checkedColor = Color(0xFF4ADE80),
+                            checkedColor = Color(0xFF12B76A),
                             uncheckedColor = PslGrey
                         )
                     )
@@ -463,7 +466,7 @@ private fun RoutineScreen() {
                     Column {
                         Text(
                             task.title,
-                            color = Color.White,
+                            color = PslText,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 15.sp
                         )
@@ -476,7 +479,7 @@ private fun RoutineScreen() {
             Spacer(Modifier.height(12.dp))
             Text(
                 "All done today. Consistency is the whole game.",
-                color = Color(0xFF4ADE80),
+                color = Color(0xFF067647),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
