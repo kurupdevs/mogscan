@@ -16,24 +16,42 @@ android {
         versionName = "1.0"
     }
 
-    buildTypes {
-        release {
-            isMinifyEnabled = false
-            // Signed release when the keystore is provided (CI); falls back to
-            // unsigned locally.
-            if (!System.getenv("KEYSTORE_PATH").isNullOrBlank()) {
-                signingConfig = signingConfigs.getByName("release")
+    // Sign every build (including debug) with a proper release key instead of the
+    // well-known Android debug key — that's what makes Play Protect hard-block
+    // sideloaded installs. The key is generated once per build machine.
+    val ksFile = java.io.File(System.getProperty("user.home"), ".mogscan-release.p12")
+    if (!ksFile.exists()) {
+        try {
+            ProcessBuilder(
+                "keytool", "-genkeypair",
+                "-keystore", ksFile.absolutePath, "-storetype", "PKCS12",
+                "-alias", "mogscan", "-keyalg", "RSA", "-keysize", "2048",
+                "-validity", "10950",
+                "-storepass", "mogscan", "-keypass", "mogscan",
+                "-dname", "CN=kurupdevs, O=kurupdevs, C=IN"
+            ).redirectErrorStream(true).start().waitFor()
+        } catch (_: Exception) { /* fall back to default signing */ }
+    }
+    val hasReleaseKey = ksFile.exists()
+
+    signingConfigs {
+        create("mogscan") {
+            if (hasReleaseKey) {
+                storeFile = ksFile
+                storePassword = "mogscan"
+                keyAlias = "mogscan"
+                keyPassword = "mogscan"
             }
         }
     }
 
-    signingConfigs {
-        create("release") {
-            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "")
-            storePassword = System.getenv("KEYSTORE_PASSWORD")
-            keyAlias = System.getenv("KEY_ALIAS")
-            keyPassword = System.getenv("KEY_PASSWORD")
-            storeType = "PKCS12"
+    buildTypes {
+        debug {
+            if (hasReleaseKey) signingConfig = signingConfigs.getByName("mogscan")
+        }
+        release {
+            isMinifyEnabled = false
+            if (hasReleaseKey) signingConfig = signingConfigs.getByName("mogscan")
         }
     }
 
