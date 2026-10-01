@@ -1,12 +1,22 @@
 package com.kurupdevs.moggr.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
@@ -22,10 +32,106 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kurupdevs.moggr.R
+
+// ---------- Glow-up cards: swipeable visual guides ----------
+
+data class GlowUpCard(val imageRes: Int, val title: String)
+
+val GLOWUP_CARDS: List<GlowUpCard> = listOf(
+    GlowUpCard(R.drawable.glowup_cover, "Glow-Up Tips"),
+    GlowUpCard(R.drawable.glowup_facewash, "Face Wash Technique"),
+    GlowUpCard(R.drawable.glowup_breath, "Fresh Breath Routine"),
+    GlowUpCard(R.drawable.glowup_posture, "Backpack Posture Reset"),
+    GlowUpCard(R.drawable.glowup_outfit, "Outfit Fit Guide"),
+    GlowUpCard(R.drawable.glowup_shoes, "Shoe Cleanup Guide")
+)
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun GlowUpCarousel() {
+    val pagerState = rememberPagerState(pageCount = { GLOWUP_CARDS.size })
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            CapsLabel("GLOW-UP CARDS")
+            Text(
+                "${pagerState.currentPage + 1} / ${GLOWUP_CARDS.size}",
+                fontSize = 12.sp,
+                color = PslGrey
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxWidth()
+        ) { page ->
+            val card = GLOWUP_CARDS[page]
+            Card(
+                colors = CardDefaults.cardColors(containerColor = PslCard),
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 2.dp)
+            ) {
+                Column {
+                    Image(
+                        painter = painterResource(card.imageRes),
+                        contentDescription = card.title,
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(0.72f)
+                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    )
+                    Text(
+                        card.title,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = PslText,
+                        modifier = Modifier.padding(14.dp)
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            repeat(GLOWUP_CARDS.size) { i ->
+                val active = i == pagerState.currentPage
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 3.dp)
+                        .size(if (active) 9.dp else 7.dp)
+                        .clip(CircleShape)
+                        .background(if (active) PslBlue else PslGrey.copy(alpha = 0.35f))
+                )
+            }
+        }
+        Text(
+            "Swipe for the next card",
+            fontSize = 12.sp,
+            color = PslGrey,
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .padding(top = 6.dp)
+        )
+    }
+}
 
 // ---------- Softmaxx guides library ----------
 // Every method Moggr recommends, rewritten in our own words.
@@ -119,6 +225,8 @@ val GUIDES: List<Guide> = listOf(
 @Composable
 fun GuidesSection() {
     Column(Modifier.fillMaxWidth()) {
+        GlowUpCarousel()
+        Spacer(Modifier.height(20.dp))
         CapsLabel("SOFTMAXX GUIDES")
         Spacer(Modifier.height(8.dp))
         Text(
