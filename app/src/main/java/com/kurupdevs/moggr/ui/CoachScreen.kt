@@ -58,10 +58,13 @@ import androidx.compose.ui.unit.sp
 import com.kurupdevs.moggr.analysis.FaceAnalyzer
 import com.kurupdevs.moggr.analysis.PslReport
 import com.kurupdevs.moggr.coach.CoachClient
+import com.kurupdevs.moggr.util.CoachMemory
+import com.kurupdevs.moggr.util.RoutineStore
 import com.kurupdevs.moggr.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 import java.util.Locale
 
 private data class ChatMsg(
@@ -82,6 +85,18 @@ fun CoachScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // Coach state: vibe dial, morning check-in, celebrations, guided flows.
+    var vibe by remember { mutableStateOf(CoachMemory.getVibe(context)) }
+    var checkinNonce by remember { mutableStateOf(0) }
+    var showCheckin by remember { mutableStateOf(false) }
+    var celebration by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var activeFlow by remember { mutableStateOf<GuidedFlow?>(null) }
+    val vibeLabel = when (vibe) {
+        CoachMemory.VIBE_BIGBRO -> "warm big-bro mode"
+        CoachMemory.VIBE_HYPE -> "hype mode"
+        else -> "blunt & honest"
+    }
+
     val metricsCtx = remember(report) {
         report?.let {
             CoachClient.reportContext(
@@ -96,8 +111,12 @@ fun CoachScreen(
             )
         } ?: "No scan yet — user hasn't completed a face scan."
     }
-    val baseSystem = remember(userName, metricsCtx) {
-        CoachClient.systemPrompt(userName.ifBlank { "there" }, metricsCtx)
+    val baseSystem = remember(userName, metricsCtx, vibe, checkinNonce) {
+        CoachClient.systemPrompt(
+            userName.ifBlank { "there" },
+            metricsCtx,
+            CoachMemory.getMemoryContext(context)
+        )
     }
     val greeting = remember(report) {
         if (report != null) {
@@ -119,6 +138,49 @@ fun CoachScreen(
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+    }
+
+    // Morning check-in (once/day) + routine-streak celebrations.
+    LaunchedEffect(Unit) {
+        if (!CoachMemory.checkinCardShownToday(context)) {
+            CoachMemory.markCheckinCardShown(context)
+            showCheckin = true
+        }
+        val streak = RoutineStore.load(context).streak
+        val streakKey = when {
+            streak >= 30 && !CoachMemory.hasSeenCelebration(context, "streak_30") -> "streak_30"
+            streak >= 7 && !CoachMemory.hasSeenCelebration(context, "streak_7") -> "streak_7"
+            else -> null
+        }
+        if (streakKey != null && celebration == null) {
+            CoachMemory.markCelebration(context, streakKey)
+            val text = if (streakKey == "streak_30")
+                "30-day streak — a whole month locked in. Keep the streak alive."
+            else
+                "7-day streak — a full week of showing up. Keep the streak alive."
+            celebration = streakKey to text
+        }
+    }
+
+    // Save each scan's summary to coach memory; celebrate a new all-time best.
+    LaunchedEffect(report) {
+        val rep = report ?: return@LaunchedEffect
+        val weakest = rep.features.sortedBy { it.score }.take(3).map { it.name }
+        val isBest = CoachMemory.saveReportSummary(
+            context,
+            CoachMemory.ReportSummary(
+                psl = rep.overallPsl,
+                tier = pslLabel(rep.overallPsl),
+                weakest = weakest,
+                date = LocalDate.now().toString()
+            )
+        )
+        if (isBest) {
+            val pslStr = String.format(Locale.US, "%.1f", rep.overallPsl)
+            val key = "pb_$pslStr"
+            CoachMemory.markCelebration(context, key)
+            celebration = key to "New all-time best: $pslStr PSL — the work is paying off. Keep the streak alive."
+        }
     }
 
     fun history(): List<Pair<Boolean, String>> = messages.map { it.isUser to it.text }
@@ -226,6 +288,16 @@ fun CoachScreen(
             ) {
                 Text("‹ Back", color = PslText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             }
+            VibeSegmentedControl(
+                vibe = vibe,
+                onVibe = { v ->
+                    CoachMemory.saveVibe(context, v)
+                    vibe = v
+                },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+            )
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -239,12 +311,28 @@ fun CoachScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "Looksmaxing AI · softmaxxing guidance · blunt & honest",
+                    "Looksmaxing AI · softmaxxing guidance · $vibeLabel",
                     color = Color.White.copy(alpha = 0.85f),
                     fontSize = 12.sp
                 )
             }
         }
+
+        // Morning check-in, celebrations, guided flows — all above the chat.
+        if (showCheckin) {
+            MorningCheckinCard(
+                onDone = { sleep, puff, focus ->
+                    CoachMemory.logCheckin(context, CoachMemory.Checkin(sleep, puff, focus))
+                    showCheckin = false
+                    checkinNonce++ // rebuild baseSystem so the next reply sees the check-in
+                },
+                onSkip = { showCheckin = false }
+            )
+        }
+        celebration?.let { (_, text) ->
+            CelebrationBanner(text = text, onDismiss = { celebration = null })
+        }
+        GuidedFlowCards(onFlow = { activeFlow = it })
 
         // Messages
         LazyColumn(
@@ -346,6 +434,18 @@ fun CoachScreen(
                 .padding(bottom = 10.dp),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
+
+        // Guided-diagnosis full-screen dialog (separate dialog — never chips in the input).
+        activeFlow?.let { flow ->
+            GuidedFlowDialog(
+                flow = flow,
+                onDismiss = { activeFlow = null },
+                onSend = { msg ->
+                    activeFlow = null
+                    sendText(msg)
+                }
+            )
+        }
     }
 }
 

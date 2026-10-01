@@ -54,7 +54,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.kurupdevs.moggr.util.ProfileStore
 import com.kurupdevs.moggr.util.UserProfile
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -179,7 +178,8 @@ fun IntroVideoScreen(onGetStarted: () -> Unit) {
 @Composable
 fun QuestionFlow(
     onComplete: (UserProfile) -> Unit,
-    onBackToIntro: () -> Unit
+    onSkip: () -> Unit,
+    onBack: () -> Unit
 ) {
     var step by remember { mutableIntStateOf(0) }
     var name by remember { mutableStateOf("") }
@@ -203,7 +203,7 @@ fun QuestionFlow(
     val totalSteps = 5
 
     fun next() { if (step < totalSteps - 1) step++ }
-    fun back() { if (step > 0) step-- else onBackToIntro() }
+    fun back() { if (step > 0) step-- else onBack() }
 
     Column(
         Modifier
@@ -230,7 +230,15 @@ fun QuestionFlow(
         }
         Spacer(Modifier.height(24.dp))
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            CapsLabel("STEP ${step + 1} OF $totalSteps")
+            CapsLabel("Set up your profile (optional)")
+        }
+        Spacer(Modifier.height(6.dp))
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Text(
+                "Step ${step + 1} of $totalSteps",
+                fontSize = 12.sp,
+                color = PslGrey
+            )
         }
         Spacer(Modifier.height(16.dp))
 
@@ -251,6 +259,7 @@ fun QuestionFlow(
                 )
                 Spacer(Modifier.height(24.dp))
                 PslNextButton("Next", enabled = name.isNotBlank(), onClick = ::next)
+                SkipForNowButton(onSkip)
             }
 
             1 -> {
@@ -265,6 +274,7 @@ fun QuestionFlow(
                 )
                 Spacer(Modifier.height(24.dp))
                 PslNextButton("Next", enabled = language.isNotBlank(), onClick = ::next)
+                SkipForNowButton(onSkip)
             }
 
             2 -> {
@@ -287,6 +297,7 @@ fun QuestionFlow(
                 )
                 Spacer(Modifier.height(24.dp))
                 PslNextButton("Next", enabled = parseHeightCm(heightText) != null, onClick = ::next)
+                SkipForNowButton(onSkip)
             }
 
             3 -> {
@@ -320,6 +331,7 @@ fun QuestionFlow(
                 }
                 Spacer(Modifier.height(24.dp))
                 PslNextButton("Next", enabled = true, onClick = ::next)
+                SkipForNowButton(onSkip)
             }
 
             4 -> {
@@ -357,6 +369,7 @@ fun QuestionFlow(
                         )
                     }
                 )
+                SkipForNowButton(onSkip)
             }
         }
     }
@@ -439,6 +452,28 @@ private fun WheelColumn(
                 .height(itemHeight)
                 .clip(RoundedCornerShape(10.dp))
                 .background(PslBlue.copy(alpha = 0.08f))
+        )
+    }
+}
+
+/** Outlined pill under each question step — profile setup is optional. */
+@Composable
+private fun SkipForNowButton(onSkip: () -> Unit) {
+    Spacer(Modifier.height(12.dp))
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(RoundedCornerShape(50))
+            .border(1.dp, Color(0xFFE2DCD2), RoundedCornerShape(50))
+            .clickable(onClick = onSkip),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            "Skip for now",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = PslText
         )
     }
 }

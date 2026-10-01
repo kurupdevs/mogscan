@@ -87,7 +87,13 @@ object CoachClient {
         }.start()
     }
 
-    fun systemPrompt(userName: String, metricsContext: String): String = """
+    /**
+     * @param memoryContext 2–4 lines of what the coach remembers about the user
+     * (from [com.kurupdevs.moggr.util.CoachMemory.getMemoryContext]); blank means
+     * nothing is remembered yet. Kept optional so older call sites keep working.
+     */
+    fun systemPrompt(userName: String, metricsContext: String, memoryContext: String = ""): String {
+        val base = """
         You are Moggr's Looksmaxing AI — the in-app looksmaxxing coach (Moggr Coach).
         Blunt older-brother energy, Gen-Z register, zero corporate speak. Honest first,
         kind second. Never cruel about things the user can't change.
@@ -134,6 +140,14 @@ object CoachClient {
         $metricsContext
         User's name: $userName. Use it occasionally, not every message.
     """.trimIndent()
+        return if (memoryContext.isBlank()) {
+            base
+        } else {
+            base + "\n\nWhat you remember about the user (from earlier in-app " +
+                "activity — don't restate it all, just use it to be more specific):\n" +
+                memoryContext.trim()
+        }
+    }
 
     fun reportContext(
         overallPsl: Double,

@@ -3,12 +3,14 @@ package com.kurupdevs.moggr.camera
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,13 +35,16 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,9 +57,22 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import androidx.compose.foundation.Image
+import com.kurupdevs.moggr.ui.BestPicPicker
+import com.kurupdevs.moggr.ui.CapsLabel
+import com.kurupdevs.moggr.ui.GhostOverlay
+import com.kurupdevs.moggr.ui.PslBlack
+import com.kurupdevs.moggr.ui.PslBlue
+import com.kurupdevs.moggr.ui.PslGrey
+import com.kurupdevs.moggr.ui.PslText
+import com.kurupdevs.moggr.ui.loadGhostBitmap
+import com.kurupdevs.moggr.util.PhotoGrade
+import com.kurupdevs.moggr.util.PhotoQuality
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -76,8 +94,12 @@ enum class CaptureAngle(val title: String, val guide: String) {
 
 /**
  * CameraX-based capture flow. Guides the user through the three angles,
- * shows live preview with a face frame overlay, and returns the three
- * bitmaps once all angles are captured.
+ * shows live preview with a face frame overlay, grades each capture
+ * on-device (quality gate), and returns the three bitmaps once all angles
+ * are captured.
+ *
+ * Extras: live low-light hint from preview frames, ghost overlay of the
+ * last scan for rescans, and a "Rank my pics" gallery picker.
  */
 @Composable
 fun CameraCapture(
@@ -87,11 +109,25 @@ fun CameraCapture(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val angles = remember { CaptureAngle.entries.toList() }
+    val scope = rememberCoroutineScope()
+    val mainExecutor = remember { ContextCompat.getMainExecutor(context) }
 
     var step by remember { mutableIntStateOf(0) }
     val shots = remember { mutableStateMapOf<CaptureAngle, Bitmap>() }
     var capturing by remember { mutableStateOf(false) }
+    var grading by remember { mutableStateOf(false) }
     var captureError by remember { mutableStateOf<String?>(null) }
+    var lowLight by remember { mutableStateOf(false) }
+
+    // --- quality gate state ---
+    var pendingAngle by remember { mutableStateOf<CaptureAngle?>(null) }
+    var pendingShot by remember { mutableStateOf<Bitmap?>(null) }
+    var pendingGrade by remember { mutableStateOf<PhotoGrade?>(null) }
+
+    // --- ghost + picker state ---
+    var ghostOn by remember { mutableStateOf(false) }
+    var ghostBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var showPicker by remember { mutableStateOf(false) }
 
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     val previewView = remember {
@@ -104,19 +140,62 @@ fun CameraCapture(
     }
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
 
+    // Lightweight lighting sampler: averages the Y plane of every 30th
+    // preview frame (~1/sec). Cheap by design — samples every 32nd byte,
+    // closes the proxy immediately, never runs ML Kit here.
+    val lightAnalyzer = remember {
+        var frames = 0
+        var darkStreak = 0
+        ImageAnalysis.Analyzer { proxy ->
+            try {
+                frames++
+                if (frames % 30 == 0) {
+                    val buf = proxy.planes.getOrNull(0)?.buffer
+                    if (buf != null) {
+                        val dup = buf.duplicate()
+                        var sum = 0L
+                        var n = 0
+                        val remaining = dup.remaining()
+                        var i = 0
+                        while (i < remaining) {
+                            sum += (dup.get(i).toInt() and 0xFF)
+                            n++
+                            i += 32
+                        }
+                        val avg = if (n > 0) sum / n else 255L
+                        if (avg < 55) darkStreak++ else darkStreak = 0
+                        val dark = darkStreak >= 3
+                        mainExecutor.execute { lowLight = dark }
+                    }
+                }
+            } catch (_: Exception) {
+                // never let the sampler break the preview
+            } finally {
+                proxy.close()
+            }
+        }
+    }
+    val imageAnalysis = remember {
+        ImageAnalysis.Builder()
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .build()
+    }
+
     DisposableEffect(lifecycleOwner) {
         var provider: ProcessCameraProvider? = null
         val listener = Runnable {
             provider = cameraProviderFuture.get()
             val preview = Preview.Builder().build()
                 .also { it.setSurfaceProvider(previewView.surfaceProvider) }
+            imageAnalysis.setAnalyzer(cameraExecutor, lightAnalyzer)
             try {
                 provider?.unbindAll()
                 provider?.bindToLifecycle(
                     lifecycleOwner,
                     CameraSelector.DEFAULT_FRONT_CAMERA,
                     preview,
-                    imageCapture
+                    imageCapture,
+                    imageAnalysis
                 )
             } catch (_: Exception) {
                 captureError = "Could not start the camera on this device."
@@ -124,13 +203,35 @@ fun CameraCapture(
         }
         cameraProviderFuture.addListener(listener, ContextCompat.getMainExecutor(context))
         onDispose {
+            imageAnalysis.clearAnalyzer()
             provider?.unbindAll()
             cameraExecutor.shutdown()
         }
     }
 
+    // Load the ghost bitmap once (last scan photo, downscaled).
+    LaunchedEffect(Unit) {
+        ghostBitmap = loadGhostBitmap(context)
+    }
+
+    fun clearPending() {
+        pendingAngle = null
+        pendingShot = null
+        pendingGrade = null
+    }
+
+    fun acceptPending() {
+        val angle = pendingAngle
+        val bmp = pendingShot
+        if (angle != null && bmp != null) {
+            shots[angle] = bmp
+            if (step < angles.lastIndex) step++
+        }
+        clearPending()
+    }
+
     fun takePhoto() {
-        if (capturing) return
+        if (capturing || grading || pendingGrade != null) return
         capturing = true
         captureError = null
         val angle = angles[step]
@@ -142,13 +243,25 @@ fun CameraCapture(
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(results: ImageCapture.OutputFileResults) {
                     val bmp = BitmapFactory.decodeFile(file.absolutePath)
+                    capturing = false
                     if (bmp != null) {
-                        shots[angle] = bmp
-                        if (step < angles.lastIndex) step++
+                        // Quality gate: grade off the main thread, then show the sheet.
+                        grading = true
+                        scope.launch(Dispatchers.Default) {
+                            val grade = try {
+                                PhotoQuality.grade(bmp)
+                            } catch (_: Exception) {
+                                // fail-open: never trap the user on a grading hiccup
+                                PhotoGrade(70, emptyList(), true)
+                            }
+                            pendingAngle = angle
+                            pendingShot = bmp
+                            pendingGrade = grade
+                            grading = false
+                        }
                     } else {
                         captureError = "Photo failed to save. Try again."
                     }
-                    capturing = false
                 }
 
                 override fun onError(exc: ImageCaptureException) {
@@ -160,199 +273,444 @@ fun CameraCapture(
     }
 
     fun retake(angle: CaptureAngle) {
+        clearPending()
         shots.remove(angle)
         step = angles.indexOf(angle)
         captureError = null
     }
 
-    val allDone = shots.size == angles.size
+    // Passing shots auto-continue after ~1.2s (chip shows with a retake link).
+    val shownGrade = pendingGrade
+    LaunchedEffect(shownGrade) {
+        if (shownGrade != null && shownGrade.pass) {
+            delay(1200)
+            acceptPending()
+        }
+    }
 
-    Column(
+    val allDone = shots.size == angles.size
+    val grade = pendingGrade
+    val shot = pendingShot
+
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp)
     ) {
-        // Step header
-        Text(
-            text = "Moggr Face Scan",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Text(
-            text = "Your privacy is our priority",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = if (allDone) "All angles captured" else angles[step].title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(Modifier.height(8.dp))
-
-        if (!allDone) {
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = angles[step].guide,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(12.dp)
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-        }
-
-        // Preview with face frame overlay
-        Box(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(3f / 4f)
-                .clip(RoundedCornerShape(20.dp))
+                .fillMaxSize()
+                .padding(16.dp)
         ) {
-            AndroidView(
-                factory = { previewView },
-                modifier = Modifier.fillMaxSize()
-            )
-            // face frame overlay
-            Box(
-                modifier = Modifier
-                    .fillMaxSize(0.72f)
-                    .align(Alignment.Center)
-                    .border(
-                        BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
-                        RoundedCornerShape(120.dp)
-                    )
-            )
-            if (capturing) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.35f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-        }
-
-        captureError?.let {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = it,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        // Thumbnails of captured angles
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
-        ) {
-            angles.forEach { angle ->
-                val bmp = shots[angle]
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .border(
-                            BorderStroke(
-                                2.dp,
-                                if (bmp != null) MaterialTheme.colorScheme.primary
-                                else Color.Transparent
-                            ),
-                            RoundedCornerShape(12.dp)
-                        )
-                        .clickable(enabled = bmp != null) { retake(angle) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (bmp != null) {
-                        Image(
-                            bitmap = bmp.asImageBitmap(),
-                            contentDescription = "${angle.name} photo, tap to retake",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Text(
-                            text = angle.name.take(1),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-        Text(
-            text = "Tap a photo to retake it",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 4.dp),
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(Modifier.weight(1f))
-
-        if (allDone) {
-            Button(
-                onClick = {
-                    onAnalyze(shots[CaptureAngle.FRONT]!!, shots[CaptureAngle.LEFT]!!, shots[CaptureAngle.RIGHT]!!)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Text("Analyze my face", style = MaterialTheme.typography.titleMedium)
-            }
-        } else {
-            // Big round shutter button
-            Box(
+            // Top bar: titles + ghost toggle + rank-my-pics
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(76.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                        .clickable(enabled = !capturing) { takePhoto() }
-                        .border(4.dp, Color.White.copy(alpha = 0.7f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (capturing) {
-                        CircularProgressIndicator(
-                            color = Color.White,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = "Moggr Face Scan",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "Your privacy is our priority",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
+                if (ghostBitmap != null) {
+                    TopPill(
+                        text = "Ghost",
+                        active = ghostOn,
+                        onClick = { ghostOn = !ghostOn }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+                TopPill(text = "Rank my pics", onClick = { showPicker = true })
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "Good lighting, plain background, no filters",
+                text = if (allDone) "All angles captured" else angles[step].title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(Modifier.height(8.dp))
+
+            if (!allDone) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = angles[step].guide,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
+            // Preview with face frame overlay (+ ghost, low-light pill)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(3f / 4f)
+                    .clip(RoundedCornerShape(20.dp))
+            ) {
+                AndroidView(
+                    factory = { previewView },
+                    modifier = Modifier.fillMaxSize()
+                )
+                // ghost of the last scan, behind the framing guides
+                GhostOverlay(
+                    bitmap = ghostBitmap,
+                    visible = ghostOn
+                )
+                // face frame overlay
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(0.72f)
+                        .align(Alignment.Center)
+                        .border(
+                            BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+                            RoundedCornerShape(120.dp)
+                        )
+                )
+                if (lowLight) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(10.dp),
+                        contentAlignment = Alignment.TopCenter
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(Color.Black.copy(alpha = 0.65f))
+                                .padding(horizontal = 12.dp, vertical = 7.dp)
+                        ) {
+                            Text(
+                                "Low light — face a window",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+                if (capturing || grading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.35f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(color = Color.White)
+                            if (grading) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    "Checking quality…",
+                                    color = Color.White,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            captureError?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // Thumbnails of captured angles
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+            ) {
+                angles.forEach { angle ->
+                    val bmp = shots[angle]
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .border(
+                                BorderStroke(
+                                    2.dp,
+                                    if (bmp != null) MaterialTheme.colorScheme.primary
+                                    else Color.Transparent
+                                ),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable(enabled = bmp != null) { retake(angle) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (bmp != null) {
+                            Image(
+                                bitmap = bmp.asImageBitmap(),
+                                contentDescription = "${angle.name} photo, tap to retake",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Text(
+                                text = angle.name.take(1),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+            Text(
+                text = "Tap a photo to retake it",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
                 textAlign = TextAlign.Center
             )
+
+            Spacer(Modifier.weight(1f))
+
+            if (allDone) {
+                Button(
+                    onClick = {
+                        onAnalyze(shots[CaptureAngle.FRONT]!!, shots[CaptureAngle.LEFT]!!, shots[CaptureAngle.RIGHT]!!)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Analyze my face", style = MaterialTheme.typography.titleMedium)
+                }
+            } else {
+                // Big round shutter button
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(76.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                            .clickable(enabled = !capturing && !grading && grade == null) { takePhoto() }
+                            .border(4.dp, Color.White.copy(alpha = 0.7f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (capturing || grading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "Good lighting, plain background, no filters",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            }
+            Spacer(Modifier.width(1.dp))
         }
-        Spacer(Modifier.width(1.dp))
+
+        // --- quality gate overlays ---
+        if (grade != null && shot != null) {
+            if (grade.pass) {
+                // compact non-blocking chip, auto-continues
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 132.dp),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(PslText)
+                            .padding(horizontal = 14.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Quality ${grade.score}/100 ✓",
+                            color = PslBlack,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "retake",
+                            color = PslBlack.copy(alpha = 0.65f),
+                            fontSize = 13.sp,
+                            modifier = Modifier.clickable { clearPending() }
+                        )
+                    }
+                }
+            } else {
+                // full sheet: score ring, issues, retake / use-anyway
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.55f)),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                            .background(PslBlack)
+                            .padding(20.dp)
+                    ) {
+                        CapsLabel("photo check")
+                        Spacer(Modifier.height(10.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            ScoreRing(score = grade.score, pass = false)
+                            Spacer(Modifier.width(16.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    "Not scan-ready yet",
+                                    fontWeight = FontWeight.Bold,
+                                    color = PslText,
+                                    fontSize = 18.sp
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "Fix the lighting or hold stiller, then retake — or roll with it.",
+                                    color = PslGrey,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                        if (grade.issues.isNotEmpty()) {
+                            Spacer(Modifier.height(12.dp))
+                            grade.issues.forEach { issue ->
+                                Row(
+                                    modifier = Modifier.padding(vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(PslBlue)
+                                    )
+                                    Spacer(Modifier.width(10.dp))
+                                    Text(issue, color = PslText, fontSize = 14.sp)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            TextButton(
+                                onClick = { clearPending() },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Retake", color = PslText, fontSize = 16.sp)
+                            }
+                            Button(
+                                onClick = { acceptPending() },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = PslBlue)
+                            ) {
+                                Text("Use anyway →", color = PslBlack, fontSize = 16.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- best-pic picker overlay ---
+        if (showPicker) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(PslBlack)
+            ) {
+                BestPicPicker(
+                    onPick = { bmp ->
+                        showPicker = false
+                        // single-photo path: reuse the existing analyze entry
+                        // point with the picked photo for all three angles
+                        onAnalyze(bmp, bmp, bmp)
+                    },
+                    onDismiss = { showPicker = false }
+                )
+            }
+        }
+    }
+}
+
+/** Small pill button for the camera top bar. */
+@Composable
+private fun TopPill(
+    text: String,
+    onClick: () -> Unit,
+    active: Boolean = false
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (active) PslText else PslText.copy(alpha = 0.07f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = if (active) PslBlack else PslText,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+/** Score ring: coral for pass, red for fail. */
+@Composable
+private fun ScoreRing(score: Int, pass: Boolean) {
+    Box(
+        modifier = Modifier.size(96.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(
+            progress = { score / 100f },
+            modifier = Modifier.fillMaxSize(),
+            color = if (pass) PslBlue else Color(0xFFD64545),
+            trackColor = PslText.copy(alpha = 0.1f),
+            strokeWidth = 8.dp
+        )
+        Text(
+            text = "$score",
+            fontWeight = FontWeight.Bold,
+            color = PslText,
+            fontSize = 24.sp
+        )
     }
 }

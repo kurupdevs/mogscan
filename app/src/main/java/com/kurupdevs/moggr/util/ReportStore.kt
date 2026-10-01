@@ -98,6 +98,14 @@ object ReportStore {
         val thirds = JSONArray()
         r.thirdsY.forEach { thirds.put(it.toDouble()) }
         o.put("thirdsY", thirds)
+        o.put("faceShape", r.faceShape)
+        o.put("faceShapeNote", r.faceShapeNote)
+        o.put("skinUndertone", r.skinUndertone)
+        o.put("canthalTiltDeg", r.canthalTiltDeg)
+        o.put("timestamp", r.timestamp)
+        val details = JSONObject()
+        r.measureDetails.forEach { (k, v) -> details.put(k, v) }
+        o.put("measureDetails", details)
         return o
     }
 
@@ -138,6 +146,15 @@ object ReportStore {
         val thirds = mutableListOf<Float>()
         val ta = o.optJSONArray("thirdsY") ?: JSONArray()
         for (i in 0 until ta.length()) thirds.add(ta.optDouble(i).toFloat())
+        val details = mutableMapOf<String, String>()
+        val da = o.optJSONObject("measureDetails")
+        if (da != null) {
+            val keys = da.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                details[k] = da.optString(k)
+            }
+        }
         return PslReport(
             overallPsl = o.optDouble("overallPsl"),
             overall100 = o.optInt("overall100"),
@@ -157,7 +174,13 @@ object ReportStore {
             thirdsY = thirds,
             confidence = o.optDouble("confidence"),
             uncertainty = o.optDouble("uncertainty", 0.5),
-            potentialPsl = o.optDouble("potentialPsl")
+            potentialPsl = o.optDouble("potentialPsl"),
+            faceShape = o.optString("faceShape"),
+            faceShapeNote = o.optString("faceShapeNote"),
+            measureDetails = details,
+            skinUndertone = o.optString("skinUndertone"),
+            canthalTiltDeg = o.optDouble("canthalTiltDeg"),
+            timestamp = o.optLong("timestamp")
         )
     }
 }

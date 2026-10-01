@@ -36,6 +36,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -56,10 +57,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kurupdevs.moggr.analysis.PslReport
-import com.kurupdevs.moggr.util.ROUTINE_TASKS
+import com.kurupdevs.moggr.util.PlanStore
+import com.kurupdevs.moggr.util.ReportStore
 import com.kurupdevs.moggr.util.RoutineStore
+import com.kurupdevs.moggr.util.RoutineTask
+import com.kurupdevs.moggr.util.TaskCategory
 import com.kurupdevs.moggr.util.UserProfile
-import java.util.Locale
+import kotlinx.coroutines.delay
 
 // ---------- Main tabs ----------
 
@@ -135,7 +139,7 @@ fun MainTabs(
         ) {
             when (tab) {
                 0 -> HomeTab(report = report, profile = profile, photo = frontPhoto, onRescan = onRescan)
-                1 -> MethodScreen()
+                1 -> MethodScreen(report = report)
                 2 -> CoachScreen(report = report, userName = userName, onBack = { tab = 0 })
                 3 -> RoutineScreen()
             }
@@ -268,6 +272,13 @@ private fun HomeTab(
         Spacer(Modifier.height(18.dp))
         ReportBody(report = report, profile = profile, photo = photo)
         Spacer(Modifier.height(20.dp))
+        CapsLabel("PROGRESS")
+        Spacer(Modifier.height(10.dp))
+        ProgressTimeline()
+        Spacer(Modifier.height(14.dp))
+        SleepMiniCard()
+        DebloatMorningMini()
+        Spacer(Modifier.height(20.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -299,7 +310,8 @@ private fun HomeTab(
 // ---------- Method: how the rating works ----------
 
 @Composable
-private fun MethodScreen() {
+private fun MethodScreen(report: PslReport?) {
+    val measuredCount = report?.features?.size ?: 15
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -333,9 +345,12 @@ private fun MethodScreen() {
         )
         Spacer(Modifier.height(18.dp))
 
+        SeasonCard(report)
+        Spacer(Modifier.height(12.dp))
+
         MethodSection("How scoring works") {
             Text(
-                "Your face is measured 15 ways from your 3 photos. Each measurement is scored " +
+                "Your face is measured $measuredCount ways from your 3 photos. Each measurement is scored " +
                     "1–8 by distance from the community ideal, then grouped into 4 pillars. " +
                     "The pillars combine into your overall PSL. Big deviations cap your tier — " +
                     "one weak area drags the whole score, like community raters tend to judge.",
@@ -351,7 +366,7 @@ private fun MethodScreen() {
             PillarRow("Angularity", "15%", "Sharp vs soft — jaw angle, cheek definition.")
         }
 
-        MethodSection("The 15 measurements") {
+        MethodSection("The $measuredCount measurements") {
             val items = listOf(
                 "Symmetry" to "Left-right balance of the whole face.",
                 "Facial thirds" to "Forehead, midface and lower face in balance.",
@@ -487,14 +502,21 @@ private fun PillarRow(name: String, weight: String, desc: String) {
     }
 }
 
-// ---------- Routine: daily softmaxx checklist ----------
+// ---------- Routine: 90-day plan + daily softmaxx ----------
 
 @Composable
 private fun RoutineScreen() {
     val context = LocalContext.current
-    var state by remember { mutableStateOf(RoutineStore.load(context)) }
-    val doneCount = state.done.size
-    val total = ROUTINE_TASKS.size
+    val report = remember { ReportStore.loadReport(context) }
+    var routineState by remember { mutableStateOf(RoutineStore.load(context)) }
+    val planDay = remember { PlanStore.planDay(context) }
+    val plan = remember { PlanStore.buildPlan(report) }
+    val phase = plan.phases[PlanStore.phaseForDay(planDay).coerceIn(0, 2)]
+    val tasks = remember(planDay, routineState.done) {
+        PlanStore.todayTasks(report, planDay, routineState.done)
+    }
+    val doneCount = tasks.count { it.id in routineState.done }
+    val onToggle: (String) -> Unit = { id -> routineState = RoutineStore.toggle(context, id) }
 
     Column(
         modifier = Modifier
@@ -503,10 +525,10 @@ private fun RoutineScreen() {
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        CapsLabel("DAILY CHECKLIST")
+        CapsLabel("90-DAY ASCENSION")
         Spacer(Modifier.height(8.dp))
         Text(
-            "Small habits,",
+            "The plan,",
             fontFamily = MogSerif,
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
@@ -514,7 +536,7 @@ private fun RoutineScreen() {
             lineHeight = 36.sp
         )
         Text(
-            "stacked daily.",
+            "day by day.",
             fontFamily = MogSerif,
             fontStyle = FontStyle.Italic,
             fontSize = 32.sp,
@@ -523,95 +545,89 @@ private fun RoutineScreen() {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "Tick them off every day — consistency is the whole game.",
+            "Built from your scan — your weakest areas get the most reps.",
             fontSize = 14.sp,
             color = PslGrey
         )
         Spacer(Modifier.height(16.dp))
 
+        // Phase header card
         Card(
             colors = CardDefaults.cardColors(containerColor = PslCard),
             shape = RoundedCornerShape(18.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        "${state.streak}",
-                        fontSize = 40.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = PslText
-                    )
-                    Text("day streak", fontSize = 14.sp, color = PslGrey)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        "$doneCount/$total today",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PslText
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = { doneCount / total.toFloat() },
-                        modifier = Modifier
-                            .width(140.dp)
-                            .height(8.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                        color = PslBlue,
-                        trackColor = Color(0xFFEDE7DB)
+            Column(Modifier.padding(18.dp)) {
+                Text(
+                    "Day $planDay / 90 · Phase ${phase.index + 1}: ${phase.title}",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PslText
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(phase.goal, fontSize = 13.sp, color = PslGrey)
+                Spacer(Modifier.height(12.dp))
+                LinearProgressIndicator(
+                    progress = { planDay / 90f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = PslBlue,
+                    trackColor = Color(0xFFEDE7DB)
+                )
+                Spacer(Modifier.height(8.dp))
+                val weekIdx = (((planDay - 1) % 30) / 7).coerceIn(0, phase.weeklyFocus.size - 1)
+                Text(
+                    "This week: ${phase.weeklyFocus[weekIdx]}",
+                    fontSize = 12.sp,
+                    color = PslGrey
+                )
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        // Streak flame row
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("🔥", fontSize = 22.sp)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "${routineState.streak}-day streak",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = PslText
+            )
+            Spacer(Modifier.weight(1f))
+            Text("$doneCount/${tasks.size} today", fontSize = 14.sp, color = PslGrey)
+        }
+
+        Spacer(Modifier.height(14.dp))
+        CapsLabel("TODAY'S PLAN")
+        Spacer(Modifier.height(4.dp))
+
+        TaskCategory.entries.forEach { cat ->
+            val group = tasks.filter { it.category == cat }
+            if (group.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                CapsLabel(cat.label.uppercase())
+                Spacer(Modifier.height(4.dp))
+                group.forEach { task ->
+                    SmartTaskRow(
+                        task = task,
+                        checked = task.id in routineState.done,
+                        count = routineState.counters[task.id] ?: 0,
+                        onToggle = { onToggle(task.id) },
+                        onBump = { d ->
+                            routineState = RoutineStore.bumpCounter(context, task.id, d)
+                        }
                     )
                 }
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-        ROUTINE_TASKS.forEach { task ->
-            val checked = task.id in state.done
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = if (checked) Color(0xFFECFDF3) else PslCard
-                ),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 5.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = checked,
-                        onCheckedChange = { state = RoutineStore.toggle(context, task.id) },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = Color(0xFF12B76A),
-                            uncheckedColor = PslGrey
-                        )
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            task.title,
-                            color = PslText,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
-                        )
-                        Text(task.detail, color = PslGrey, fontSize = 13.sp)
-                    }
-                }
-            }
-        }
-        if (doneCount >= total) {
+        if (tasks.isNotEmpty() && doneCount >= tasks.size) {
             Spacer(Modifier.height(12.dp))
             Text(
                 "All done today. Consistency is the whole game.",
@@ -622,14 +638,212 @@ private fun RoutineScreen() {
                 modifier = Modifier.fillMaxWidth()
             )
         }
+
+        Spacer(Modifier.height(10.dp))
+        PostureTrackCard(done = routineState.done, onToggle = onToggle)
+        DebloatCheckinCard()
+        ChewingCard(done = routineState.done, onToggle = onToggle)
+        SleepTrackerCard()
+        MonthlyRecapCard(report = report)
+
         Spacer(Modifier.height(8.dp))
         Text(
-            String.format(Locale.US, "Tip: rescan every few weeks under the same lighting to track real change."),
+            "Tip: rescan every few weeks under the same lighting to track real change.",
             fontSize = 12.sp,
             color = PslGrey,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(20.dp))
+    }
+}
+
+@Composable
+private fun SmartTaskRow(
+    task: RoutineTask,
+    checked: Boolean,
+    count: Int,
+    onToggle: () -> Unit,
+    onBump: (Int) -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (checked) Color(0xFFECFDF3) else PslCard
+        ),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 5.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = checked,
+                onCheckedChange = { onToggle() },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = Color(0xFF12B76A),
+                    uncheckedColor = PslGrey
+                )
+            )
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    task.title,
+                    color = PslText,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                )
+                Text(task.detail, color = PslGrey, fontSize = 13.sp)
+            }
+            if (task.counterTarget > 0) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TaskCounterBtn("−") { onBump(-1) }
+                        Text(
+                            "$count/${task.counterTarget}",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PslText,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                        TaskCounterBtn("+") { onBump(1) }
+                    }
+                    if (task.counterUnit.isNotBlank()) {
+                        Text(task.counterUnit, fontSize = 10.sp, color = PslGrey)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskCounterBtn(label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(30.dp)
+            .clip(CircleShape)
+            .background(Color(0xFFEDE7DB))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = PslText)
+    }
+}
+
+// ---------- Chewing: 10-min gum timer ----------
+
+@Composable
+private fun ChewingCard(
+    done: Set<String>,
+    onToggle: (String) -> Unit
+) {
+    var secondsLeft by remember { mutableIntStateOf(10 * 60) }
+    var running by remember { mutableStateOf(false) }
+    var marked by remember { mutableStateOf(false) }
+
+    LaunchedEffect(running) {
+        while (running && secondsLeft > 0) {
+            delay(1000L)
+            secondsLeft--
+        }
+        if (secondsLeft == 0 && running) {
+            running = false
+            if (!marked) {
+                marked = true
+                onToggle("chew_gum")
+            }
+        }
+    }
+
+    val mm = secondsLeft / 60
+    val ss = (secondsLeft % 60).toString().padStart(2, '0')
+    val logged = marked || "chew_gum" in done
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = PslCard),
+        shape = RoundedCornerShape(18.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+    ) {
+        Column(Modifier.padding(18.dp)) {
+            CapsLabel("JAW SESSION")
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "10-min gum timer",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = PslText
+            )
+            Text(
+                "Chew evenly on both sides — not just your strong side.",
+                fontSize = 13.sp,
+                color = PslGrey
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "$mm:$ss",
+                fontSize = 46.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = PslDeep,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { 1f - secondsLeft / 600f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = PslBlue,
+                trackColor = Color(0xFFEDE7DB)
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Button(
+                    onClick = { running = !running },
+                    colors = ButtonDefaults.buttonColors(containerColor = PslDeep),
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(50)
+                ) {
+                    Text(
+                        if (running) "Pause" else if (secondsLeft < 600) "Resume" else "Start",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                OutlinedButton(
+                    onClick = { running = false; secondsLeft = 600; marked = false },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(50)
+                ) {
+                    Text("Reset", color = PslBlue)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Stop if your jaw clicks or hurts — pushing through pain is how TMJ starts.",
+                fontSize = 12.sp,
+                color = Color(0xFFB42318)
+            )
+            if (logged) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Logged for today — nice work.",
+                    fontSize = 12.sp,
+                    color = Color(0xFF067647),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
     }
 }

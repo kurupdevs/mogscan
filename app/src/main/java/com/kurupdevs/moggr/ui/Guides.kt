@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kurupdevs.moggr.R
+import com.kurupdevs.moggr.analysis.PslReport
 
 // ---------- Glow-up cards: swipeable visual guides ----------
 
@@ -357,15 +358,61 @@ val GUIDES: List<Guide> = listOf(
             "rise as you inhale. Stay hydrated through the day and keep an upright posture so the " +
             "throat stays open. Read aloud for 5 minutes daily at a steady, calm pace and record " +
             "yourself — you'll hear the difference within weeks."
+    ),
+    Guide(
+        "Eyebrow grooming basics",
+        "Face",
+        "Brush your brows straight up with a clean spoolie or an old toothbrush. Anything that " +
+            "sticks way past your natural brow line, trim with tiny scissors — comb up, snip only " +
+            "the tips. Tweeze just the obvious strays below the arch, one hair at a time, stepping " +
+            "back between pulls. Your natural arch is the blueprint — don't carve a new shape. " +
+            "Over-plucked brows take months to grow back, so take less than you think."
+    ),
+    Guide(
+        "Smile & teeth basics",
+        "Face",
+        "Brush twice a day for two full minutes, floss before bed, and brush your tongue — most " +
+            "bad breath lives there. See a dentist twice a year even if nothing hurts. Rinse with " +
+            "water after coffee or chai so stains don't set. Skip chemical whitening strips and " +
+            "DIY bleach hacks — they wreck enamel. Clean teeth beat white teeth."
+    ),
+    Guide(
+        "30-day jawline program",
+        "Jawline",
+        "The plan: sugar-free gum 10-15 minutes a day, 4 days a week; the under-chin drill daily; " +
+            "neck curls twice a week. TMJ SAFETY — read this first: if your jaw clicks, aches, or " +
+            "locks, stop immediately and rest it for a few days. Never force your jaw open or grind " +
+            "through pain. Jaw pain that doesn't settle in a week is a dentist visit, not a harder " +
+            "workout. This builds muscle tone over months — it does not change bone, and anyone " +
+            "claiming 30-day bone change is lying."
+    ),
+    Guide(
+        "Chewing for tone",
+        "Jawline",
+        "Chew evenly on both sides — favoring one side builds one side more. Keep your tongue on " +
+            "the roof of your mouth between meals and breathe through your nose. Tougher foods or " +
+            "gum a few times a week keeps the masseters active. Honest framing: this builds muscle " +
+            "tone and a sharper look over months. It does not reshape your jawbone. Posture and low " +
+            "face bloat matter more than any chew count."
     )
 )
 
 @Composable
-fun GuidesSection() {
+fun GuidesSection(report: PslReport? = null) {
     Column(Modifier.fillMaxWidth()) {
         GlowUpCarousel()
         Spacer(Modifier.height(20.dp))
         WinterArcSection()
+        Spacer(Modifier.height(20.dp))
+        HairSection(report)
+        Spacer(Modifier.height(20.dp))
+        SkinQuizCard()
+        Spacer(Modifier.height(20.dp))
+        DebloatSection()
+        Spacer(Modifier.height(20.dp))
+        PostureSection()
+        Spacer(Modifier.height(20.dp))
+        SeasonQuizCard(report)
         Spacer(Modifier.height(20.dp))
         CapsLabel("SOFTMAXX GUIDES")
         Spacer(Modifier.height(8.dp))

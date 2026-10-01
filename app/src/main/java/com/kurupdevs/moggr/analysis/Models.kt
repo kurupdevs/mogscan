@@ -54,8 +54,22 @@ data class PslReport(
     /** ± points of score uncertainty shown next to the PSL. */
     val uncertainty: Double = 0.5,
     /** Softmaxx ceiling recomputed from measured gaps (0.0 = pre-1.7 report). */
-    val potentialPsl: Double = 0.0
-)
+    val potentialPsl: Double = 0.0,
+    /** Face shape classification, e.g. "Oval" ("" = not measured). */
+    val faceShape: String = "",
+    val faceShapeNote: String = "",
+    /** Key = FeatureScore.name, value = "yours vs ideal" string (filled by the measure chunk). */
+    val measureDetails: Map<String, String> = emptyMap(),
+    /** "Warm" / "Cool" / "Neutral" / "" (unknown). */
+    val skinUndertone: String = "",
+    val canthalTiltDeg: Double = 0.0,
+    /** Epoch millis of the scan; 0 = legacy report. */
+    val timestamp: Long = 0L
+) {
+    /** Top 3 scored features, best first. */
+    val topTraits: List<FeatureScore>
+        get() = features.sortedByDescending { it.score }.take(3)
+}
 
 sealed interface AnalysisUiState {
     data object Idle : AnalysisUiState

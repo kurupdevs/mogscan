@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -41,7 +42,6 @@ import com.kurupdevs.moggr.analysis.AnalysisViewModel
 import com.kurupdevs.moggr.camera.CameraCapture
 import com.kurupdevs.moggr.ui.AnalysisErrorState
 import com.kurupdevs.moggr.ui.AnalyzingScreen
-import com.kurupdevs.moggr.ui.InfoSlidesScreen
 import com.kurupdevs.moggr.ui.IntroVideoScreen
 import com.kurupdevs.moggr.ui.MainTabs
 import com.kurupdevs.moggr.ui.MoggrBg
@@ -84,6 +84,8 @@ private fun MoggrApp() {
     var profile by remember { mutableStateOf<UserProfile?>(null) }
     var pendingPhotos by remember { mutableStateOf<Triple<Bitmap, Bitmap, Bitmap>?>(null) }
     var analyzingMinDone by remember { mutableStateOf(false) }
+    // Where CAMERA's back press goes: INTRO for first-run scans, MAIN for rescans.
+    var scanReturnTo by remember { mutableStateOf(Screen.INTRO) }
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -127,31 +129,38 @@ private fun MoggrApp() {
             IntroVideoScreen(
                 onGetStarted = {
                     profile = ProfileStore.load(context)
-                    screen = when {
-                        profile != null && ReportStore.hasSaved(context) -> Screen.MAIN
-                        profile != null -> Screen.CAMERA
-                        else -> Screen.INFO
+                    if (profile != null && ReportStore.hasSaved(context)) {
+                        screen = Screen.MAIN
+                    } else {
+                        // v2.5 scan-first: straight to CAMERA, no info slides or
+                        // questions up front. Works with zero profile.
+                        scanReturnTo = Screen.INTRO
+                        screen = Screen.CAMERA
                     }
                 }
             )
         }
 
-        Screen.INFO -> {
-            InfoSlidesScreen(onDone = { screen = Screen.QUESTIONS })
-        }
+        // Screen.INFO (info slides) retired from the critical path in v2.5 —
+        // scan-first flow goes INTRO → CAMERA. The InfoSlidesScreen composable
+        // stays in ui/InfoSlides.kt untouched. The enum value is kept unused
+        // so other references don't break.
 
         Screen.QUESTIONS -> {
             QuestionFlow(
                 onComplete = { p ->
                     ProfileStore.save(context, p)
                     profile = p
-                    screen = Screen.CAMERA
+                    screen = Screen.MAIN
                 },
-                onBackToIntro = { screen = Screen.INTRO }
+                onSkip = { screen = Screen.MAIN },
+                onBack = { screen = Screen.RESULT }
             )
         }
 
         Screen.CAMERA -> {
+            // First-run: back goes to INTRO, not an app exit. Rescans return to MAIN.
+            BackHandler { screen = scanReturnTo }
             if (!hasCameraPermission) {
                 if (!permissionDenied) {
                     LaunchedEffect(Unit) {
@@ -204,7 +213,12 @@ private fun MoggrApp() {
                         pendingPhotos = null
                         screen = Screen.CAMERA
                     },
-                    onNext = { screen = Screen.MAIN }
+                    // v2.5: optional profile setup after the result, skippable.
+                    // Users who already have a profile skip straight to MAIN.
+                    onNext = {
+                        profile = profile ?: ProfileStore.load(context)
+                        screen = if (profile == null) Screen.QUESTIONS else Screen.MAIN
+                    }
                 )
             } else {
                 LaunchedEffect(Unit) { screen = Screen.CAMERA }
@@ -221,6 +235,7 @@ private fun MoggrApp() {
                 onRescan = {
                     vm.reset()
                     pendingPhotos = null
+                    scanReturnTo = Screen.MAIN
                     screen = Screen.CAMERA
                 }
             )

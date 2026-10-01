@@ -2,9 +2,13 @@ package com.kurupdevs.moggr.ui
 
 import android.content.Intent
 import android.graphics.Bitmap
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -27,35 +31,49 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.kurupdevs.moggr.analysis.AnalysisUiState
 import com.kurupdevs.moggr.analysis.FeatureScore
 import com.kurupdevs.moggr.analysis.PillarScore
 import com.kurupdevs.moggr.analysis.PslReport
 import com.kurupdevs.moggr.util.ProfileStore
+import com.kurupdevs.moggr.util.ScanHistoryStore
 import com.kurupdevs.moggr.util.UserProfile
 import kotlinx.coroutines.delay
+import java.io.File
 import java.util.Locale
+import kotlin.math.roundToInt
 
 // ---------- Analyzing ----------
 
@@ -159,10 +177,66 @@ fun ResultScreen(
     onNext: () -> Unit
 ) {
     val context = LocalContext.current
+    // Per-report keys: the guess + reveal run once for each distinct scan.
+    val scanKeys: Array<Any> = arrayOf(
+        report.timestamp,
+        report.overallPsl,
+        report.features.hashCode()
+    )
+    var guessDone by rememberSaveable(*scanKeys) { mutableStateOf(false) }
+    var guess by rememberSaveable(*scanKeys) { mutableStateOf(5f) }
+    var revealDone by rememberSaveable(*scanKeys) { mutableStateOf(false) }
+
+    // Append to the on-device scan history once per report (deduped by timestamp).
+    val entryTs = remember(report) {
+        if (report.timestamp != 0L) report.timestamp else System.currentTimeMillis()
+    }
+    LaunchedEffect(entryTs) {
+        val photoFile = File(context.filesDir, "last_face.jpg")
+        ScanHistoryStore.append(
+            context,
+            report.copy(timestamp = entryTs),
+            if (photoFile.exists()) photoFile.absolutePath else null
+        )
+    }
+
+    if (!guessDone) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MoggrBg),
+            contentAlignment = Alignment.Center
+        ) {
+            GuessDialog(
+                guess = guess,
+                onGuessChange = { guess = it },
+                onConfirm = { guessDone = true }
+            )
+        }
+        return
+    }
+    if (!revealDone) {
+        StagedReveal(
+            report = report,
+            photo = photo,
+            guess = guess,
+            onDone = { revealDone = true }
+        )
+        return
+    }
+
+    var bodyVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { bodyVisible = true }
+    val bodyAlpha by animateFloatAsState(
+        targetValue = if (bodyVisible) 1f else 0f,
+        animationSpec = tween(400),
+        label = "bodyFade"
+    )
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MoggrBg)
+            .alpha(bodyAlpha)
     ) {
         Column(
             modifier = Modifier
@@ -208,6 +282,254 @@ fun ResultScreen(
             Text("NEXT", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
         }
     }
+}
+
+// ---------- Guess-then-reveal ----------
+
+@Composable
+private fun GuessDialog(
+    guess: Float,
+    onGuessChange: (Float) -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(onDismissRequest = {}) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = PslCard),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                CapsLabel("BEFORE WE SHOW YOU")
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "What PSL do you think you are?",
+                    fontFamily = MogSerif,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PslText,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Be honest — no wrong answers. The scan decides.",
+                    fontSize = 13.sp,
+                    color = PslGrey,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    String.format(Locale.US, "%.1f", guess),
+                    fontFamily = MogSerif,
+                    fontSize = 56.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PslBlue
+                )
+                Slider(
+                    value = guess,
+                    onValueChange = {
+                        onGuessChange(((it * 2).roundToInt() / 2f).coerceIn(1f, 8f))
+                    },
+                    valueRange = 1f..8f,
+                    steps = 13,
+                    colors = SliderDefaults.colors(
+                        thumbColor = PslBlue,
+                        activeTrackColor = PslBlue,
+                        inactiveTrackColor = Color(0xFFEDE7DB)
+                    )
+                )
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text("1.0", fontSize = 12.sp, color = PslGrey)
+                    Spacer(Modifier.weight(1f))
+                    Text("8.0", fontSize = 12.sp, color = PslGrey)
+                }
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = onConfirm,
+                    colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp)
+                ) {
+                    Text("LOCK IT IN", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Staged rating reveal, <4s total, tap anywhere to skip:
+ * scan sweep → landmark dots → PSL count-up → tier slam → guess/gap line.
+ */
+@Composable
+private fun StagedReveal(
+    report: PslReport,
+    photo: Bitmap?,
+    guess: Float,
+    onDone: () -> Unit
+) {
+    var stage by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        delay(800); stage = 1   // sweep done
+        delay(600); stage = 2   // dots in
+        delay(1100); stage = 3  // count-up done
+        delay(650); stage = 4   // tier slammed
+        delay(750); onDone()    // gap line shown → body
+    }
+
+    val sweep by animateFloatAsState(1f, tween(800), label = "sweep")
+    val dotsIn by animateFloatAsState(
+        targetValue = if (stage >= 1) 1f else 0f,
+        animationSpec = tween(500),
+        label = "dots"
+    )
+    val count by animateFloatAsState(
+        targetValue = if (stage >= 2) report.overallPsl.toFloat() else 0f,
+        animationSpec = tween(1000),
+        label = "count"
+    )
+    val tierScale by animateFloatAsState(
+        targetValue = if (stage >= 3) 1f else 1.3f,
+        animationSpec = spring(dampingRatio = 0.45f),
+        label = "tierScale"
+    )
+    val tierAlpha by animateFloatAsState(
+        targetValue = if (stage >= 3) 1f else 0f,
+        animationSpec = tween(250),
+        label = "tierAlpha"
+    )
+    val gapAlpha by animateFloatAsState(
+        targetValue = if (stage >= 4) 1f else 0f,
+        animationSpec = tween(400),
+        label = "gapAlpha"
+    )
+
+    val dots = remember(report) { revealDots(report) }
+    val potential = (report.overallPsl + 1.3).coerceAtMost(8.0)
+    val coral = Color(0xFFE07856)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MoggrBg)
+            .clickable { onDone() },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(24.dp)
+        ) {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .size(220.dp)
+                    .clip(RoundedCornerShape(28.dp))
+            ) {
+                if (photo != null) {
+                    Image(
+                        bitmap = photo.asImageBitmap(),
+                        contentDescription = "Your scan photo",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    // ContentScale.Crop math so dots land on the face.
+                    val bw = photo.width.toFloat()
+                    val bh = photo.height.toFloat()
+                    val cw = constraints.maxWidth.toFloat().coerceAtLeast(1f)
+                    val ch = constraints.maxHeight.toFloat().coerceAtLeast(1f)
+                    val scale = maxOf(cw / bw, ch / bh)
+                    val dx = (cw - bw * scale) / 2f
+                    val dy = (ch - bh * scale) / 2f
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        if (stage == 0) {
+                            val y = sweep * size.height
+                            drawRect(
+                                coral.copy(alpha = 0.16f),
+                                Offset(0f, (y - 44.dp.toPx()).coerceAtLeast(0f)),
+                                Offset(size.width, y)
+                            )
+                            drawLine(coral, Offset(0f, y), Offset(size.width, y), 3.dp.toPx())
+                        } else {
+                            val n = (dotsIn * dots.size).toInt()
+                            dots.take(n).forEach { (fx, fy) ->
+                                drawCircle(
+                                    coral,
+                                    3.dp.toPx(),
+                                    Offset(fx * bw * scale + dx, fy * bh * scale + dy)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(PslCard)
+                    )
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+            CapsLabel("MEASURED PSL")
+            Spacer(Modifier.height(4.dp))
+            Text(
+                String.format(Locale.US, "%.1f", count),
+                fontFamily = MogSerif,
+                fontSize = 64.sp,
+                fontWeight = FontWeight.Bold,
+                color = PslText
+            )
+            Text(
+                pslLabel(report.overallPsl),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = PslBlue,
+                modifier = Modifier
+                    .alpha(tierAlpha)
+                    .graphicsLayer {
+                        scaleX = tierScale
+                        scaleY = tierScale
+                    }
+            )
+            Spacer(Modifier.height(12.dp))
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.alpha(gapAlpha)
+            ) {
+                Text(
+                    "You guessed ${String.format(Locale.US, "%.1f", guess)} · measured ${String.format(Locale.US, "%.1f", report.overallPsl)}",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = PslText,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "${String.format(Locale.US, "%.1f", report.overallPsl)} → ${String.format(Locale.US, "%.1f", potential)} potential · 3 moves to close it",
+                    fontSize = 14.sp,
+                    color = PslGrey,
+                    textAlign = TextAlign.Center
+                )
+            }
+            Spacer(Modifier.height(28.dp))
+            Text("tap to skip", fontSize = 12.sp, color = PslGrey)
+        }
+    }
+}
+
+/** Dots for the reveal: real mesh when available, decorative grid otherwise. */
+private fun revealDots(report: PslReport): List<Pair<Float, Float>> {
+    val mesh = report.landmarkMesh.filter { it.kind != 0 }
+    if (mesh.isNotEmpty()) {
+        return mesh.filterIndexed { i, _ -> i % 2 == 0 }.take(30).map { it.x to it.y }
+    }
+    val pts = mutableListOf<Pair<Float, Float>>()
+    for (i in 0..6) for (j in 0..8) {
+        pts.add((0.2f + 0.6f * i / 6) to (0.12f + 0.76f * j / 8))
+    }
+    return pts.take(30)
 }
 
 /** Face-mapping scan overlay drawn from the REAL measured ML Kit mesh.
@@ -323,6 +645,9 @@ fun ReportBody(
     photo: Bitmap?
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
+        var faceMapOn by remember { mutableStateOf(false) }
+        var selectedFeature by remember { mutableStateOf<FeatureScore?>(null) }
+        val context = LocalContext.current
         photo?.let {
             Box(
                 modifier = Modifier
@@ -337,8 +662,45 @@ fun ReportBody(
                     contentScale = ContentScale.Crop
                 )
                 ScanOverlay(it, report)
+                if (faceMapOn) FaceMapGuides()
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .clickable { faceMapOn = !faceMapOn }
+                    .padding(horizontal = 12.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Face map",
+                    color = PslText,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp
+                )
+                Spacer(Modifier.width(8.dp))
+                Switch(
+                    checked = faceMapOn,
+                    onCheckedChange = { faceMapOn = it },
+                    colors = SwitchDefaults.switchColors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = PslBlue,
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = Color(0xFFE2DCD2)
+                    )
+                )
+            }
+            if (faceMapOn) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "Proportional guides — not landmark-anchored",
+                    fontSize = 12.sp,
+                    color = PslGrey,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Spacer(Modifier.height(14.dp))
         }
         Box(
             modifier = Modifier.fillMaxWidth(),
@@ -420,6 +782,19 @@ fun ReportBody(
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
+        Spacer(Modifier.height(10.dp))
+        OutlinedButton(
+            onClick = { shareFaceCard(context, report) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(50)
+        ) {
+            Text("Share face card", color = PslBlue, fontWeight = FontWeight.SemiBold)
+        }
+
+        Spacer(Modifier.height(18.dp))
+        TraitMeters(report)
 
         if (report.photoNotes.isNotEmpty()) {
             Spacer(Modifier.height(14.dp))
@@ -452,7 +827,7 @@ fun ReportBody(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                row.forEach { f -> FeatureCard(f, Modifier.weight(1f)) }
+                row.forEach { f -> FeatureCard(f, Modifier.weight(1f), onClick = { selectedFeature = f }) }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
             }
             Spacer(Modifier.height(12.dp))
@@ -619,6 +994,55 @@ fun ReportBody(
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
+
+        selectedFeature?.let { f ->
+            WhyThisScoreDialog(
+                feature = f,
+                report = report,
+                onDismiss = { selectedFeature = null }
+            )
+        }
+    }
+}
+
+/** Proportional face-map guides: thirds, fifths and the center symmetry axis. */
+@Composable
+private fun FaceMapGuides() {
+    val density = LocalDensity.current
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val w = size.width
+        val h = size.height
+        val guide = Color(0xFFE07856).copy(alpha = 0.65f)
+        // horizontal thirds
+        listOf(1f / 3f, 2f / 3f).forEach { fy ->
+            drawLine(guide, Offset(0f, h * fy), Offset(w, h * fy), 1.5.dp.toPx())
+        }
+        // vertical fifths
+        listOf(0.2f, 0.4f, 0.6f, 0.8f).forEach { fx ->
+            drawLine(
+                guide.copy(alpha = 0.45f),
+                Offset(w * fx, 0f), Offset(w * fx, h),
+                1.dp.toPx()
+            )
+        }
+        // center symmetry axis, dashed
+        drawLine(
+            Color(0xFFE07856),
+            Offset(w / 2f, 0f), Offset(w / 2f, h),
+            2.dp.toPx(),
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f)
+        )
+        // small labels
+        val paint = android.graphics.Paint().apply {
+            color = android.graphics.Color.parseColor("#1C1917")
+            alpha = 160
+            textSize = with(density) { 11.sp.toPx() }
+            isAntiAlias = true
+        }
+        val native = drawContext.canvas.nativeCanvas
+        native.drawText("⅓", 8.dp.toPx(), h / 3f - 6.dp.toPx(), paint)
+        native.drawText("⅔", 8.dp.toPx(), 2f * h / 3f - 6.dp.toPx(), paint)
+        native.drawText("axis", w / 2f + 8.dp.toPx(), 22.dp.toPx(), paint)
     }
 }
 
@@ -688,8 +1112,9 @@ private fun HeroCard(
 }
 
 @Composable
-private fun FeatureCard(f: FeatureScore, modifier: Modifier = Modifier) {
+private fun FeatureCard(f: FeatureScore, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
     Card(
+        onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = PslCard),
         shape = RoundedCornerShape(18.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -777,7 +1202,8 @@ private fun featLabel(score: Double): String = when {
     else -> "Weak"
 }
 
-private fun pslTierShort(psl: Double): String = when {
+/** Short tier name, shared with the history store and timeline. */
+fun pslTierShort(psl: Double): String = when {
     psl >= 7.75 -> "Gigachad"
     psl >= 7.0 -> "Chad"
     psl >= 6.0 -> "Chadlite"

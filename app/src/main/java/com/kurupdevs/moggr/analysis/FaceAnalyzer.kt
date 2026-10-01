@@ -13,8 +13,10 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.acos
+import kotlin.math.atan2
 import kotlin.math.exp
 import kotlin.math.hypot
+import kotlin.math.sign
 
 /**
  * On-device PSL analysis. Runs ML Kit face detection (bundled model, no network,
@@ -44,6 +46,7 @@ object FaceAnalyzer {
             .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
             .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
             .setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
+            .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
             .build()
         val detector = FaceDetection.getClient(options)
         try {
@@ -106,9 +109,43 @@ object FaceAnalyzer {
     private fun unreliable(name: String) =
         FeatureScore(name, 4.0, "Couldn't measure reliably from this photo.")
 
+    private fun noRead(name: String): Pair<FeatureScore, String> =
+        unreliable(name) to "couldn't measure from this photo"
+
+    /** Like scoreFromDeviation, but zero deviation across the whole band [lo, hi]. */
+    private fun scoreFromBand(v: Float, lo: Float, hi: Float, tol: Float): Double {
+        val dev = when {
+            v < lo -> lo - v
+            v > hi -> v - hi
+            else -> 0f
+        }
+        return scoreFromDeviation(dev, tol)
+    }
+
+    /** Signed degrees with one decimal, e.g. "+4.2°" / "-1.5°". */
+    private fun fmtDeg(d: Float): String =
+        "${if (d >= 0) "+" else ""}${"%.1f".format(d)}°"
+
+    /** Vertical thirds divisions from the face oval: top, brow, nose base, chin. */
+    private data class Thirds(val top: Float, val brow: Float, val nose: Float, val chin: Float)
+
+    private fun thirdsOf(face: Face): Thirds? {
+        val oval = face.contourPoints(FaceContour.FACE)
+        val browPts = face.contourPoints(FaceContour.LEFT_EYEBROW_TOP) +
+            face.contourPoints(FaceContour.RIGHT_EYEBROW_TOP)
+        val noseBase = face.landmark(FaceLandmark.NOSE_BASE)
+        if (oval.isEmpty() || browPts.isEmpty() || noseBase == null) return null
+        return Thirds(
+            top = oval.minOf { it.y },
+            brow = browPts.map { it.y }.average().toFloat(),
+            nose = noseBase.y,
+            chin = oval.maxOf { it.y }
+        )
+    }
+
     // ================= HARMONY (40%) =================
 
-    private fun symmetry(face: Face): FeatureScore {
+    private fun symmetry(face: Face): Pair<FeatureScore, String> {
         val h = face.boundingBox.height().toFloat().coerceAtLeast(1f)
         var dev = 0f
         var n = 0
@@ -127,7 +164,7 @@ object FaceAnalyzer {
             dev += abs(lw - rw) / h
             n++
         }
-        if (n == 0) return unreliable("Symmetry")
+        if (n == 0) return noRead("Symmetry")
         // Mild penalty: phone cameras exaggerate left-right differences, and raters
         // barely dock for asymmetry unless it's visible at a glance.
         val score = scoreFromDeviation(dev / n, 0.05f)
@@ -136,26 +173,53 @@ object FaceAnalyzer {
             score >= 5 -> "Mostly even — small left-right differences are normal."
             else -> "Some left-right difference; usually reads softer in person than on camera."
         }
-        return FeatureScore("Symmetry", score, note)
+        val detail = regionDeviations(face)?.let { (u, m, l) ->
+            "upper ${"%.1f".format(u)} · mid ${"%.1f".format(m)} · " +
+                "lower ${"%.1f".format(l)} (avg px-dev, lower is better)"
+        } ?: "dev ${"%.1f".format(dev / n * 100)}% · ideal ≈ 0%"
+        return FeatureScore("Symmetry", score, note) to detail
     }
 
-    private fun facialThirds(face: Face): FeatureScore {
-        val oval = face.contourPoints(FaceContour.FACE)
-        val browPts = face.contourPoints(FaceContour.LEFT_EYEBROW_TOP) +
-            face.contourPoints(FaceContour.RIGHT_EYEBROW_TOP)
-        val noseBase = face.landmark(FaceLandmark.NOSE_BASE)
-        if (oval.isEmpty() || browPts.isEmpty() || noseBase == null) {
-            return unreliable("Facial thirds")
+    /**
+     * Per-region left-right mirror deviation in px: within each vertical third,
+     * compare mean |x - centerX| of left vs right contour points. Lower = more
+     * symmetric. Null when landmarks are missing. Feeds the "why" dialog —
+     * the results chunk draws the face map.
+     */
+    private fun regionDeviations(face: Face): Triple<Float, Float, Float>? {
+        val t = thirdsOf(face) ?: return null
+        val cx = (face.boundingBox.left + face.boundingBox.right) / 2f
+        fun devOf(pts: List<PointF>, yLo: Float, yHi: Float): Float? {
+            val left = pts.filter { it.y in yLo..yHi && it.x < cx }
+            val right = pts.filter { it.y in yLo..yHi && it.x >= cx }
+            if (left.size < 3 || right.size < 3) return null
+            val ml = left.map { abs(it.x - cx) }.average().toFloat()
+            val mr = right.map { abs(it.x - cx) }.average().toFloat()
+            return abs(ml - mr)
         }
-        val topY = oval.minOf { it.y }
-        val chinY = oval.maxOf { it.y }
-        val faceH = (chinY - topY).coerceAtLeast(1f)
-        val browY = browPts.map { it.y }.average().toFloat()
-        val upper = browY - topY
-        val mid = noseBase.y - browY
-        val lower = chinY - noseBase.y
+        val brows = face.contourPoints(FaceContour.LEFT_EYEBROW_TOP) +
+            face.contourPoints(FaceContour.RIGHT_EYEBROW_TOP)
+        val eyesC = face.contourPoints(FaceContour.LEFT_EYE) +
+            face.contourPoints(FaceContour.RIGHT_EYE)
+        val noseC = face.contourPoints(FaceContour.NOSE_BRIDGE) +
+            face.contourPoints(FaceContour.NOSE_BOTTOM)
+        val lipsC = face.contourPoints(FaceContour.UPPER_LIP_TOP) +
+            face.contourPoints(FaceContour.LOWER_LIP_BOTTOM)
+        val oval = face.contourPoints(FaceContour.FACE)
+        val upper = devOf(brows + eyesC, t.top, t.brow) ?: return null
+        val mid = devOf(eyesC + noseC, t.brow, t.nose) ?: return null
+        val lower = devOf(lipsC + oval, t.nose, t.chin) ?: return null
+        return Triple(upper, mid, lower)
+    }
+
+    private fun facialThirds(face: Face): Pair<FeatureScore, String> {
+        val t = thirdsOf(face) ?: return noRead("Facial thirds")
+        val faceH = (t.chin - t.top).coerceAtLeast(1f)
+        val upper = t.brow - t.top
+        val mid = t.nose - t.brow
+        val lower = t.chin - t.nose
         if (upper <= 0 || mid <= 0 || lower <= 0) {
-            return unreliable("Facial thirds")
+            return noRead("Facial thirds")
         }
         val avg = (upper + mid + lower) / 3f
         val dev = (abs(upper - avg) + abs(mid - avg) + abs(lower - avg)) / 3f / faceH
@@ -166,11 +230,12 @@ object FaceAnalyzer {
             score >= 5 -> "Fairly balanced thirds."
             else -> "The $longest runs long — hairstyle and framing can rebalance it visually."
         }
-        return FeatureScore("Facial thirds", score, note)
+        val detail = "${upper.toInt()}/${mid.toInt()}/${lower.toInt()}px · ideal ≈ equal thirds"
+        return FeatureScore("Facial thirds", score, note) to detail
     }
 
     /** Facial fifths: eye width, inter-eye gap and nose width should each be ~1/5 of face width. */
-    private fun facialFifths(face: Face): FeatureScore {
+    private fun facialFifths(face: Face): Pair<FeatureScore, String> {
         val le = face.landmark(FaceLandmark.LEFT_EYE)
         val re = face.landmark(FaceLandmark.RIGHT_EYE)
         val oval = face.contourPoints(FaceContour.FACE)
@@ -178,12 +243,12 @@ object FaceAnalyzer {
         val reC = face.contourPoints(FaceContour.RIGHT_EYE)
         val nosePts = face.contourPoints(FaceContour.NOSE_BOTTOM)
         if (le == null || re == null || oval.isEmpty() || leC.size < 4 || reC.size < 4 || nosePts.size < 2) {
-            return unreliable("Facial fifths")
+            return noRead("Facial fifths")
         }
         val h = face.boundingBox.height().toFloat().coerceAtLeast(1f)
         val eyeY = (le.y + re.y) / 2f
         val bandW = widthOf(oval.filter { abs(it.y - eyeY) < h * 0.06f })
-        if (bandW <= 0) return unreliable("Facial fifths")
+        if (bandW <= 0) return noRead("Facial fifths")
         val eyeW = (widthOf(leC) + widthOf(reC)) / 2f
         val gap = (dist(le, re) - eyeW).coerceAtLeast(0f)
         val noseW = widthOf(nosePts)
@@ -195,18 +260,19 @@ object FaceAnalyzer {
             score >= 5 -> "Fifths are roughly balanced."
             else -> "Fifths run uneven — a side part and face-framing hair rebalance it visually."
         }
-        return FeatureScore("Facial fifths", score, note)
+        val detail = "${eyeW.toInt()}/${gap.toInt()}/${noseW.toInt()}px vs ${fifth.toInt()}px each"
+        return FeatureScore("Facial fifths", score, note) to detail
     }
 
     /** Midface ratio = IPD / (brow to upper lip). Community ideal ~1.0 (compact = youthful). */
-    private fun midfaceRatio(face: Face): FeatureScore {
+    private fun midfaceRatio(face: Face): Pair<FeatureScore, String> {
         val le = face.landmark(FaceLandmark.LEFT_EYE)
         val re = face.landmark(FaceLandmark.RIGHT_EYE)
         val browPts = face.contourPoints(FaceContour.LEFT_EYEBROW_TOP) +
             face.contourPoints(FaceContour.RIGHT_EYEBROW_TOP)
         val lipTop = face.contourPoints(FaceContour.UPPER_LIP_TOP)
         if (le == null || re == null || browPts.isEmpty() || lipTop.isEmpty()) {
-            return unreliable("Midface ratio")
+            return noRead("Midface ratio")
         }
         val browY = browPts.map { it.y }.average().toFloat()
         val lipY = lipTop.minOf { it.y }
@@ -219,15 +285,16 @@ object FaceAnalyzer {
             else -> if (ratio > 1.0f) "Midface runs long — keep hair volume on the sides, not on top."
             else "Midface reads short — some height on top balances it."
         }
-        return FeatureScore("Midface ratio", score, note)
+        val detail = "${"%.2f".format(ratio)} · ideal ≈ 1.00"
+        return FeatureScore("Midface ratio", score, note) to detail
     }
 
     /** ESR = interpupillary distance / bizygomatic width. Community ideal 0.45-0.47. */
-    private fun eyeSpacing(face: Face, cheekW: Float): FeatureScore {
+    private fun eyeSpacing(face: Face, cheekW: Float): Pair<FeatureScore, String> {
         val le = face.landmark(FaceLandmark.LEFT_EYE)
         val re = face.landmark(FaceLandmark.RIGHT_EYE)
         if (le == null || re == null || cheekW <= 0) {
-            return unreliable("Eye spacing")
+            return noRead("Eye spacing")
         }
         val ratio = dist(le, re) / cheekW
         val score = scoreFromDeviation(abs(ratio - 0.46f), 0.05f)
@@ -236,16 +303,17 @@ object FaceAnalyzer {
             score >= 4.5 -> "Eye spacing is average."
             else -> "Eyes read close-set or wide-set versus the ideal ratio."
         }
-        return FeatureScore("Eye spacing", score, note)
+        val detail = "${"%.2f".format(ratio)} · ideal ≈ 0.45–0.47"
+        return FeatureScore("Eye spacing", score, note) to detail
     }
 
     /** FWHR = bizygomatic width / midface height. Community sweet spot ~1.8-1.95; both extremes penalized. */
-    private fun fwhr(face: Face, cheekW: Float): FeatureScore {
+    private fun fwhr(face: Face, cheekW: Float): Pair<FeatureScore, String> {
         val browPts = face.contourPoints(FaceContour.LEFT_EYEBROW_TOP) +
             face.contourPoints(FaceContour.RIGHT_EYEBROW_TOP)
         val noseBase = face.landmark(FaceLandmark.NOSE_BASE)
         if (cheekW <= 0 || browPts.isEmpty() || noseBase == null) {
-            return unreliable("FWHR")
+            return noRead("FWHR")
         }
         val browY = browPts.map { it.y }.average().toFloat()
         val midfaceH = (noseBase.y - browY).coerceAtLeast(1f)
@@ -256,22 +324,23 @@ object FaceAnalyzer {
             score >= 4.5 -> "FWHR in the average range."
             else -> "FWHR off the ideal band — leanness and angles influence this most."
         }
-        return FeatureScore("FWHR", score, note)
+        val detail = "${"%.2f".format(ratio)} · community ideal ≈ 1.85–2.05"
+        return FeatureScore("FWHR", score, note) to detail
     }
 
     // ================= FEATURES (25%) =================
 
-    private fun eyes(face: Face): FeatureScore {
+    private fun eyes(face: Face): Pair<FeatureScore, String> {
         val leC = face.contourPoints(FaceContour.LEFT_EYE)
         val reC = face.contourPoints(FaceContour.RIGHT_EYE)
         val le = face.landmark(FaceLandmark.LEFT_EYE)
         val re = face.landmark(FaceLandmark.RIGHT_EYE)
         if (leC.size < 4 || reC.size < 4 || le == null || re == null) {
-            return unreliable("Eyes")
+            return noRead("Eyes")
         }
         val eyeW = (widthOf(leC) + widthOf(reC)) / 2f
         val eyeH = (heightOf(leC) + heightOf(reC)) / 2f
-        if (eyeW <= 0 || eyeH <= 0) return unreliable("Eyes")
+        if (eyeW <= 0 || eyeH <= 0) return noRead("Eyes")
         // Gap between the eyes, in eye-widths. Ideal ~= 1.0 (one-eye-apart rule).
         val gapRatio = (dist(le, re) - eyeW) / eyeW
         val spacingScore = scoreFromDeviation(abs(gapRatio - 1.0f), 0.35f)
@@ -292,17 +361,100 @@ object FaceAnalyzer {
             spacingScore >= 6 && tiltScore >= 6 -> "Good spacing with a positive canthal tilt."
             else -> "Average eye area; spacing, tilt and shape are all workable."
         }
-        return FeatureScore("Eyes", score, note)
+        val tiltDeg = Math.toDegrees(atan2(avgTilt.toDouble(), 1.0)).toFloat()
+        val detail = "gap ${"%.1f".format(gapRatio)}× eye · tilt ${fmtDeg(tiltDeg)} · ideals 1.0× / +3–8°"
+        return FeatureScore("Eyes", score, note) to detail
     }
 
-    private fun nose(face: Face, cheekW: Float): FeatureScore {
+    /**
+     * Canthal tilt in degrees: angle of the medial→lateral canthus line vs
+     * horizontal, averaged over both eyes. Canthi are approximated from the
+     * eye contour's extreme x-points (first/last contour points are adjacent
+     * on the closed loop, so min/max x is the correct corner estimate).
+     * Positive = lateral corner higher. Community ideal band +3° to +8°.
+     */
+    private fun canthalTiltDeg(face: Face): Float? {
+        val leC = face.contourPoints(FaceContour.LEFT_EYE)
+        val reC = face.contourPoints(FaceContour.RIGHT_EYE)
+        if (leC.size < 4 || reC.size < 4) return null
+        fun tiltDeg(pts: List<PointF>, isLeft: Boolean): Float {
+            val medial = if (isLeft) pts.maxBy { it.x } else pts.minBy { it.x }
+            val lateral = if (isLeft) pts.minBy { it.x } else pts.maxBy { it.x }
+            val dx = abs(lateral.x - medial.x).coerceAtLeast(1f)
+            // Image y grows downward: lateral higher ⇒ medial.y - lateral.y > 0.
+            return Math.toDegrees(
+                atan2((medial.y - lateral.y).toDouble(), dx.toDouble())
+            ).toFloat()
+        }
+        return (tiltDeg(leC, true) + tiltDeg(reC, false)) / 2f
+    }
+
+    private fun canthalTilt(face: Face): Pair<FeatureScore, String> {
+        val tilt = canthalTiltDeg(face) ?: return noRead("Canthal tilt")
+        val score = scoreFromBand(tilt, 3f, 8f, 6f)
+        val note = when {
+            tilt < 0f -> "Negative canthal tilt — lateral corners sit lower than the inner corners."
+            score >= 7 -> "Positive canthal tilt right in the community ideal band."
+            tilt > 8f -> "Canthal tilt reads steep — past the usual ideal band."
+            else -> "Canthal tilt is average."
+        }
+        val detail = "${fmtDeg(tilt)} · community ideal ≈ +3° to +8° (positive tilt)"
+        return FeatureScore("Canthal tilt", score, note) to detail
+    }
+
+    /**
+     * PFL (palpebral fissure length): eye width relative to face width.
+     * Community PFL ~28-32mm vs bizygomatic ~140mm ⇒ ideal ratio 0.20-0.23.
+     * Visibility read combines ML Kit eye-open probability with the
+     * brow-to-eye gap.
+     */
+    private fun eyeSizePfl(face: Face, cheekW: Float): Pair<FeatureScore, String> {
+        val leC = face.contourPoints(FaceContour.LEFT_EYE)
+        val reC = face.contourPoints(FaceContour.RIGHT_EYE)
+        if (leC.size < 4 || reC.size < 4 || cheekW <= 0) return noRead("Eye size (PFL)")
+        val eyeW = (widthOf(leC) + widthOf(reC)) / 2f
+        val ratio = eyeW / cheekW
+        val score = scoreFromBand(ratio, 0.20f, 0.23f, 0.035f)
+        val openP = listOfNotNull(face.leftEyeOpenProbability, face.rightEyeOpenProbability)
+            .takeIf { it.isNotEmpty() }?.average()?.toFloat()
+        val lbBot = face.contourPoints(FaceContour.LEFT_EYEBROW_BOTTOM)
+        val rbBot = face.contourPoints(FaceContour.RIGHT_EYEBROW_BOTTOM)
+        val browGap: Float? = if (lbBot.isNotEmpty() && rbBot.isNotEmpty()) {
+            val eyeH = ((heightOf(leC) + heightOf(reC)) / 2f).coerceAtLeast(1f)
+            val eyeTopY = (leC.minOf { it.y } + reC.minOf { it.y }) / 2f
+            val browBotY = (lbBot.maxOf { it.y } + rbBot.maxOf { it.y }) / 2f
+            (eyeTopY - browBotY) / eyeH
+        } else null
+        val note = when {
+            score >= 7 -> "Eye width sits in the community ideal range."
+            score >= 5 -> "Eye width is average."
+            else -> if (ratio < 0.20f) "Eyes read small relative to face width — brow density frames them best."
+            else "Eyes read large relative to face width."
+        }
+        val mm = (eyeW * 140f / cheekW).toInt()
+        val show = when {
+            openP == null -> null
+            openP >= 0.75f -> "good scleral show"
+            openP >= 0.45f -> "some lid cover"
+            else -> "heavy lid cover"
+        }
+        val lid = if (browGap != null && browGap < 0.35f) "upper lid slightly heavy" else null
+        val detail = buildString {
+            append("${mm}mm est.")
+            if (show != null) append(" · $show")
+            if (lid != null) append(" · $lid")
+        }.toString()
+        return FeatureScore("Eye size (PFL)", score, note) to detail
+    }
+
+    private fun nose(face: Face, cheekW: Float): Pair<FeatureScore, String> {
         val noseW = widthOf(face.contourPoints(FaceContour.NOSE_BOTTOM))
         val lipW = widthOf(
             face.contourPoints(FaceContour.UPPER_LIP_BOTTOM) +
                 face.contourPoints(FaceContour.LOWER_LIP_TOP)
         )
         if (noseW <= 0 || lipW <= 0 || cheekW <= 0) {
-            return unreliable("Nose")
+            return noRead("Nose")
         }
         // Mouth ~1.5x nose width; nose width ~22-26% of face width.
         val ratioScore = scoreFromDeviation(abs(lipW / noseW - 1.5f), 0.3f)
@@ -313,38 +465,98 @@ object FaceAnalyzer {
             score >= 5 -> "Nose proportions are average."
             else -> "Nose reads wide relative to the mouth — alar base width is the main read; framing and angles matter most here."
         }
-        return FeatureScore("Nose", score, note)
+        // Iris-scaled mm: bizygomatic width ≈ 140mm as reference. Always "est.".
+        val mm = (noseW * 140f / cheekW).toInt()
+        val detail = "${mm}mm est. · ideal ≈ 32–36mm"
+        return FeatureScore("Nose", score, note) to detail
     }
 
-    private fun lips(face: Face): FeatureScore {
+    private fun lips(face: Face): Pair<FeatureScore, String> {
         val upperPts = face.contourPoints(FaceContour.UPPER_LIP_TOP) +
             face.contourPoints(FaceContour.UPPER_LIP_BOTTOM)
         val lowerPts = face.contourPoints(FaceContour.LOWER_LIP_TOP) +
             face.contourPoints(FaceContour.LOWER_LIP_BOTTOM)
-        if (upperPts.size < 4 || lowerPts.size < 4) return unreliable("Lips")
+        if (upperPts.size < 4 || lowerPts.size < 4) return noRead("Lips")
         val w = widthOf(upperPts + lowerPts)
         val h = heightOf(upperPts + lowerPts)
-        if (w <= 0) return unreliable("Lips")
+        if (w <= 0) return noRead("Lips")
         val fullness = h / w
         val fullnessScore = scoreFromDeviation(abs(fullness - 0.30f), 0.10f)
         // Lower:upper lip height. Community band ~1.4-2.0.
         val upperH = heightOf(upperPts).coerceAtLeast(1f)
-        val ratioScore = scoreFromDeviation(abs(heightOf(lowerPts) / upperH - 1.6f), 0.5f)
+        val luRatio = heightOf(lowerPts) / upperH
+        val ratioScore = scoreFromDeviation(abs(luRatio - 1.6f), 0.5f)
         val score = fullnessScore * 0.6 + ratioScore * 0.4
         val note = when {
             score >= 7 -> "Good lip fullness and definition."
             score >= 5 -> "Average lip volume."
             else -> "Thinner lips — hydration and lip care help them read fuller."
         }
-        return FeatureScore("Lips", score, note)
+        val detail = "full ${"%.2f".format(fullness)} · L:U ${"%.1f".format(luRatio)}:1 · ideals 0.30 / 1.6:1"
+        return FeatureScore("Lips", score, note) to detail
+    }
+
+    /**
+     * Skin clarity from the cheek region: Laplacian variance of a grayscale
+     * crop, normalized to 0-100 (smooth = low variance = high score), then
+     * mapped onto the 1-8 feature scale. Labeled as lighting-sensitive —
+     * it is a texture read, not a diagnosis.
+     */
+    private fun skinClarity(face: Face, bitmap: Bitmap): Pair<FeatureScore, String> {
+        val cheek = face.landmark(FaceLandmark.LEFT_CHEEK)
+            ?: face.landmark(FaceLandmark.RIGHT_CHEEK)
+            ?: return noRead("Skin clarity")
+        val half = (face.boundingBox.height() / 12).coerceIn(12, 60)
+        val l = (cheek.x - half).toInt().coerceIn(0, bitmap.width - 1)
+        val t = (cheek.y - half).toInt().coerceIn(0, bitmap.height - 1)
+        val r = (cheek.x + half).toInt().coerceIn(0, bitmap.width)
+        val b = (cheek.y + half).toInt().coerceIn(0, bitmap.height)
+        if (r - l < 16 || b - t < 16) return noRead("Skin clarity")
+        val step = 3
+        val cols = (r - l) / step
+        val rows = (b - t) / step
+        if (cols < 6 || rows < 6) return noRead("Skin clarity")
+        val gray = FloatArray(cols * rows)
+        for (gy in 0 until rows) {
+            for (gx in 0 until cols) {
+                val px = bitmap.getPixel(l + gx * step, t + gy * step)
+                gray[gy * cols + gx] = 0.299f * ((px shr 16) and 0xFF) +
+                    0.587f * ((px shr 8) and 0xFF) + 0.114f * (px and 0xFF)
+            }
+        }
+        var sum = 0.0
+        var sumSq = 0.0
+        var n = 0
+        for (gy in 1 until rows - 1) {
+            for (gx in 1 until cols - 1) {
+                val i = gy * cols + gx
+                val lap = 4f * gray[i] - gray[i - 1] - gray[i + 1] -
+                    gray[i - cols] - gray[i + cols]
+                sum += lap
+                sumSq += lap * lap
+                n++
+            }
+        }
+        if (n == 0) return noRead("Skin clarity")
+        val mean = sum / n
+        val variance = (sumSq / n - mean * mean).coerceAtLeast(0.0)
+        val texture = (100.0 / (1.0 + variance / 250.0)).coerceIn(0.0, 100.0)
+        val score = (1.0 + texture / 100.0 * 7.0).coerceIn(1.0, 8.0)
+        val note = when {
+            texture >= 70 -> "Skin texture reads smooth in this light."
+            texture >= 45 -> "Some texture visible — normal skin, lighting affects this read."
+            else -> "Rougher texture read — lighting and photo quality affect this a lot."
+        }
+        return FeatureScore("Skin clarity", score, note) to
+            "texture score ${texture.toInt()}/100 · lighting affects this read"
     }
 
     // ================= DIMORPHISM (20%) =================
 
-    private fun jawline(face: Face, cheekW: Float): FeatureScore {
+    private fun jawline(face: Face, cheekW: Float): Pair<FeatureScore, String> {
         val oval = face.contourPoints(FaceContour.FACE)
         if (oval.isEmpty() || cheekW <= 0) {
-            return unreliable("Jawline")
+            return noRead("Jawline")
         }
         val topY = oval.minOf { it.y }
         val chinY = oval.maxOf { it.y }
@@ -360,13 +572,14 @@ object FaceAnalyzer {
             score >= 5 -> "Decent jaw width — definition is the main lever."
             else -> "Narrower jaw line with a soft gonial read; leanness brings out what bone is there."
         }
-        return FeatureScore("Jawline", score, note)
+        val detail = "jaw/cheek ${"%.2f".format(ratio)} · ideal ≈ 0.85–0.92"
+        return FeatureScore("Jawline", score, note) to detail
     }
 
-    private fun chin(face: Face, jawW: Float): FeatureScore {
+    private fun chin(face: Face, jawW: Float): Pair<FeatureScore, String> {
         val oval = face.contourPoints(FaceContour.FACE)
         if (oval.isEmpty() || jawW <= 0) {
-            return unreliable("Chin")
+            return noRead("Chin")
         }
         val chinY = oval.maxOf { it.y }
         val topY = oval.minOf { it.y }
@@ -380,11 +593,12 @@ object FaceAnalyzer {
             score >= 5 -> "Average chin shape."
             else -> "Chin reads narrow or recessed relative to the jaw — chin projection is the main read."
         }
-        return FeatureScore("Chin", score, note)
+        val detail = "chin/jaw ${"%.2f".format(ratio)} · ideal ≈ 0.55"
+        return FeatureScore("Chin", score, note) to detail
     }
 
     /** Brows: thicker, lower-set brows read more dimorphic. Coarse ML Kit estimate. */
-    private fun brows(face: Face): FeatureScore {
+    private fun brows(face: Face): Pair<FeatureScore, String> {
         val lbTop = face.contourPoints(FaceContour.LEFT_EYEBROW_TOP)
         val lbBot = face.contourPoints(FaceContour.LEFT_EYEBROW_BOTTOM)
         val rbTop = face.contourPoints(FaceContour.RIGHT_EYEBROW_TOP)
@@ -394,7 +608,7 @@ object FaceAnalyzer {
         if (lbTop.isEmpty() || lbBot.isEmpty() || rbTop.isEmpty() || rbBot.isEmpty() ||
             leC.size < 4 || reC.size < 4
         ) {
-            return unreliable("Brows")
+            return noRead("Brows")
         }
         val eyeH = ((heightOf(leC) + heightOf(reC)) / 2f).coerceAtLeast(1f)
         val thick = (heightOf(lbTop + lbBot) + heightOf(rbTop + rbBot)) / 2f / eyeH
@@ -402,21 +616,23 @@ object FaceAnalyzer {
         // Setedness: smaller brow-to-eye gap = lower-set = more dimorphic.
         val eyeTopY = (leC.minOf { it.y } + reC.minOf { it.y }) / 2f
         val browBotY = ((lbBot.maxOf { it.y } + rbBot.maxOf { it.y }) / 2f)
-        val gapScore = scoreFromDeviation(abs((eyeTopY - browBotY) / eyeH - 0.5f), 0.4f)
+        val gap = (eyeTopY - browBotY) / eyeH
+        val gapScore = scoreFromDeviation(abs(gap - 0.5f), 0.4f)
         val score = thickScore * 0.6 + gapScore * 0.4
         val note = when {
             score >= 7 -> "Thick, well-set brows — strong eye-area framing."
             score >= 5 -> "Average brows; grooming keeps them intentional."
             else -> "Brows read thin or high-set — growing them thicker is the #1 eye-area lever."
         }
-        return FeatureScore("Brows", score, note)
+        val detail = "thick ${"%.2f".format(thick)} · gap ${"%.1f".format(gap)} eye-H · ideals 0.55 / 0.5"
+        return FeatureScore("Brows", score, note) to detail
     }
 
     // ================= ANGULARITY (15%) =================
 
-    private fun cheekbones(face: Face, cheekW: Float, jawW: Float): FeatureScore {
+    private fun cheekbones(face: Face, cheekW: Float, jawW: Float): Pair<FeatureScore, String> {
         if (cheekW <= 0 || jawW <= 0) {
-            return unreliable("Cheekbones")
+            return noRead("Cheekbones")
         }
         val ratio = cheekW / jawW
         val score = scoreFromDeviation(abs(ratio - 1.12f), 0.12f)
@@ -425,22 +641,23 @@ object FaceAnalyzer {
             score >= 5 -> "Average cheekbone projection."
             else -> "Flatter zygo area; leanness brings the most out here."
         }
-        return FeatureScore("Cheekbones", score, note)
+        val detail = "zygo/jaw ${"%.2f".format(ratio)} · ideal ≈ 1.12"
+        return FeatureScore("Cheekbones", score, note) to detail
     }
 
     /**
      * Jaw frontal angle: angle at the chin between the two jaw (gonion-proxy) points.
      * Community ideal ~84-95 deg for men (sharper = more angular).
      */
-    private fun jawFrontalAngle(face: Face): FeatureScore {
+    private fun jawFrontalAngle(face: Face): Pair<FeatureScore, String> {
         val oval = face.contourPoints(FaceContour.FACE)
-        if (oval.size < 12) return unreliable("Jaw angle")
+        if (oval.size < 12) return noRead("Jaw angle")
         val chinY = oval.maxOf { it.y }
         val topY = oval.minOf { it.y }
         val faceH = (chinY - topY).coerceAtLeast(1f)
         val jawY = chinY - faceH * 0.28f
         val jawPts = oval.filter { abs(it.y - jawY) < faceH * 0.06f }
-        if (jawPts.size < 2) return unreliable("Jaw angle")
+        if (jawPts.size < 2) return noRead("Jaw angle")
         val chinX = oval.filter { it.y >= chinY - faceH * 0.02f }.map { it.x }.average().toFloat()
         val leftJaw = jawPts.minBy { it.x }
         val rightJaw = jawPts.maxBy { it.x }
@@ -449,7 +666,7 @@ object FaceAnalyzer {
         val v2x = rightJaw.x - chinX
         val v2y = rightJaw.y - chinY
         val mag = hypot(v1x, v1y) * hypot(v2x, v2y)
-        if (mag <= 0f) return unreliable("Jaw angle")
+        if (mag <= 0f) return noRead("Jaw angle")
         val cos = ((v1x * v2x + v1y * v2y) / mag).coerceIn(-1f, 1f).toDouble()
         val angleDeg = Math.toDegrees(acos(cos)).toFloat()
         val score = scoreFromDeviation(abs(angleDeg - 89f), 8f)
@@ -458,26 +675,33 @@ object FaceAnalyzer {
             score >= 5 -> "Jaw angularity is average."
             else -> "Gonial angle reads soft/round — leanness sharpens this more than anything."
         }
-        return FeatureScore("Jaw angle", score, note)
+        val detail = "${angleDeg.toInt()}° · community ideal ≈ 84–95°"
+        return FeatureScore("Jaw angle", score, note) to detail
     }
 
     // ================= SIDE PROFILE (15% bonus) =================
 
+    private data class SideRead(val feature: FeatureScore, val detail: String, val ok: Boolean)
+
     /**
      * Side profile estimate from the most-turned profile photo: how far the chin
      * sits behind the nose tip, relative to face height. Small offset = straight
-     * profile / good forward growth. Crude but directionally real. Returns the
-     * score plus whether a usable profile photo existed.
+     * profile / good forward growth. Crude but directionally real.
+     * Extras (gonial angle, chin-neck angle, Ricketts E-line note) go only into
+     * the detail line — never new pillars.
      */
-    private fun sideProfile(faces: List<Face>, primary: Face): Pair<FeatureScore, Boolean> {
-        val fallback = unreliable("Side profile")
-            .copy(note = "Profile photo wasn't clear enough to assess.")
+    private fun sideProfile(faces: List<Face>, primary: Face): SideRead {
+        val noPhoto = SideRead(
+            unreliable("Side profile").copy(note = "Profile photo wasn't clear enough to assess."),
+            "needs a side photo",
+            false
+        )
         val profile = faces
             .filter { it !== primary && abs(it.headEulerAngleY) > 15f }
             .maxByOrNull { abs(it.headEulerAngleY) }
-            ?: return fallback to false
+            ?: return noPhoto
         val contour = profile.contourPoints(FaceContour.FACE)
-        if (contour.size < 12) return fallback to false
+        if (contour.size < 12) return noPhoto
         val minY = contour.minOf { it.y }
         val maxY = contour.maxOf { it.y }
         val h = (maxY - minY).coerceAtLeast(1f)
@@ -485,7 +709,7 @@ object FaceAnalyzer {
         val centerX = contour.map { it.x }.average()
         // Nose tip: farthest point from face center in the middle vertical band.
         val band = contour.filter { abs(it.y - midY) < h * 0.22f }
-        if (band.isEmpty()) return fallback to false
+        if (band.isEmpty()) return noPhoto
         val noseTip = band.maxBy { abs(it.x - centerX) }
         val chin = contour.maxBy { it.y }
         val dev = abs(noseTip.x - chin.x) / h
@@ -498,7 +722,107 @@ object FaceAnalyzer {
             score >= 4.5 -> "Profile is average; slight recession or projection.$angleCaveat"
             else -> "Chin reads recessed behind the nose — weak chin projection / flat maxilla read; posture and photo angle help most.$angleCaveat"
         }
-        return FeatureScore("Side profile", score, note) to true
+        val detail = buildString {
+            append("chin offset ${"%.2f".format(dev)}h · ideal ≈ 0")
+            gonialAngleDeg(contour, noseTip, chin, h)?.let { append(" · gonial ≈ ${it.toInt()}°") }
+            chinNeckAngleDeg(contour, noseTip, chin, h)?.let { append(" · chin-neck ≈ ${it.toInt()}°") }
+            rickettsLipNote(profile, noseTip, chin, centerX, h)?.let { append(" · $it") }
+        }.toString()
+        return SideRead(FeatureScore("Side profile", score, note), detail, true)
+    }
+
+    /**
+     * Gonial angle from the side contour: angle at the jaw corner (gonion,
+     * approximated as the most posterior-inferior lower-contour point) between
+     * the chin and the ramus. Typical adult range ~120-135°. Null when the
+     * contour can't support the read.
+     */
+    private fun gonialAngleDeg(
+        contour: List<PointF>,
+        noseTip: PointF,
+        chin: PointF,
+        h: Float
+    ): Float? {
+        val cx = contour.map { it.x }.average()
+        val p = sign(noseTip.x - cx).toFloat() // +1 when posterior is +x
+        if (p == 0f) return null
+        val midY = (contour.minOf { it.y } + contour.maxOf { it.y }) / 2f
+        val lower = contour.filter { it.y > midY }
+        if (lower.size < 6) return null
+        val gonion = lower.maxBy { (it.x - cx) * p + (it.y - midY) }
+        val ramus = contour
+            .filter { it.y < gonion.y - h * 0.04f && (it.x - cx) * p > 0 }
+            .maxByOrNull { (it.x - cx) * p - abs(it.y - (gonion.y - h * 0.15f)) * 0.5f }
+            ?: return null
+        val v1x = chin.x - gonion.x
+        val v1y = chin.y - gonion.y
+        val v2x = ramus.x - gonion.x
+        val v2y = ramus.y - gonion.y
+        val mag = hypot(v1x, v1y) * hypot(v2x, v2y)
+        if (mag <= 0f) return null
+        val cos = ((v1x * v2x + v1y * v2y) / mag).coerceIn(-1f, 1f).toDouble()
+        val deg = Math.toDegrees(acos(cos)).toFloat()
+        return if (deg in 90f..170f) deg else null
+    }
+
+    /**
+     * Chin-neck (mentocervical) angle: at the throat dip under the chin,
+     * between the chin and the lower neck. Crude on-device estimate.
+     */
+    private fun chinNeckAngleDeg(
+        contour: List<PointF>,
+        noseTip: PointF,
+        chin: PointF,
+        h: Float
+    ): Float? {
+        val cx = contour.map { it.x }.average()
+        val p = sign(noseTip.x - cx).toFloat() // +1 when posterior is +x
+        if (p == 0f) return null
+        val throat = contour
+            .filter { (it.x - cx) * p > h * 0.02f && it.y > chin.y - h * 0.12f && it.y < chin.y + h * 0.25f }
+            .maxByOrNull { (it.x - cx) * p }
+            ?: return null
+        val neckPt = contour
+            .filter { (it.x - cx) * p > h * 0.02f && it.y > throat.y + h * 0.03f }
+            .maxByOrNull { it.y }
+            ?: return null
+        val v1x = chin.x - throat.x
+        val v1y = chin.y - throat.y
+        val v2x = neckPt.x - throat.x
+        val v2y = neckPt.y - throat.y
+        val mag = hypot(v1x, v1y) * hypot(v2x, v2y)
+        if (mag <= 0f) return null
+        val cos = ((v1x * v2x + v1y * v2y) / mag).coerceIn(-1f, 1f).toDouble()
+        val deg = Math.toDegrees(acos(cos)).toFloat()
+        return if (deg in 60f..170f) deg else null
+    }
+
+    /**
+     * Ricketts E-line: nose tip → chin line. Notes whether the lips sit behind
+     * (typical) or ahead of the line. Crude on-device estimate.
+     */
+    private fun rickettsLipNote(
+        profile: Face,
+        noseTip: PointF,
+        chin: PointF,
+        centerX: Double,
+        h: Float
+    ): String? {
+        val lips = profile.contourPoints(FaceContour.UPPER_LIP_TOP) +
+            profile.contourPoints(FaceContour.LOWER_LIP_BOTTOM)
+        if (lips.size < 4) return null
+        val a = sign(noseTip.x - centerX).toFloat()
+        if (a == 0f) return null
+        val dx = chin.x - noseTip.x
+        val dy = chin.y - noseTip.y
+        val len = hypot(dx, dy).coerceAtLeast(1f)
+        // Signed distance from the E-line; flip so positive = anterior.
+        val anteriorPositive = (dy / len) * a >= 0
+        val most = lips.maxOf { p ->
+            val s = ((p.x - noseTip.x) * dy - (p.y - noseTip.y) * dx) / len
+            if (anteriorPositive) s else -s
+        }
+        return if (most > h * 0.012f) "lips ahead of E-line" else "lips behind E-line"
     }
 
     // ---------- advice database (softmaxxing only) ----------
@@ -564,6 +888,18 @@ object FaceAnalyzer {
         "Eye spacing" to listOf(
             "Nothing changes spacing — but groomed, thicker brows make any spacing look intentional" to "easy",
             "Avoid middle parts if eyes read close-set; side parts add balance" to "easy"
+        ),
+        "Canthal tilt" to listOf(
+            "Sleep 7-9 hours — rested eyes read less downturned" to "easy",
+            "Thicker, straighter brows visually lift the eye area" to "easy"
+        ),
+        "Eye size (PFL)" to listOf(
+            "PFL is bone — skip products claiming to enlarge eyes; brow density frames the area best" to "easy",
+            "A healthy weight sharpens the eye area more than anything topical" to "medium"
+        ),
+        "Skin clarity" to listOf(
+            "Wash your face twice daily and change the pillowcase weekly" to "easy",
+            "Don't pick at skin — it scars; sunscreen daily protects texture long-term" to "easy"
         ),
         "Side profile" to listOf(
             "Chin tucks against a wall, 2 minutes daily — posture changes the profile more than anything" to "easy",
@@ -751,6 +1087,56 @@ object FaceAnalyzer {
         return Triple(mesh.take(170), faceBox, thirdsY)
     }
 
+    /** Forehead width from the face oval at brow level (for face-shape classification). */
+    private fun foreheadWidth(face: Face): Float {
+        val oval = face.contourPoints(FaceContour.FACE)
+        val browPts = face.contourPoints(FaceContour.LEFT_EYEBROW_TOP) +
+            face.contourPoints(FaceContour.RIGHT_EYEBROW_TOP)
+        if (oval.isEmpty() || browPts.isEmpty()) return 0f
+        val browY = browPts.map { it.y }.average().toFloat()
+        val h = (oval.maxOf { it.y } - oval.minOf { it.y }).coerceAtLeast(1f)
+        return widthOf(oval.filter { abs(it.y - browY) < h * 0.05f })
+    }
+
+    /**
+     * Skin undertone from cheek pixels: warm/cool/neutral by red/blue channel
+     * ratio. Crude — lighting shifts it; labeled as an estimate in the UI.
+     */
+    private fun skinUndertone(face: Face, bitmap: Bitmap): String {
+        val pts = listOfNotNull(
+            face.landmark(FaceLandmark.LEFT_CHEEK),
+            face.landmark(FaceLandmark.RIGHT_CHEEK)
+        )
+        if (pts.isEmpty()) return ""
+        val half = (face.boundingBox.height() / 16).coerceIn(6, 48)
+        var rSum = 0L
+        var bSum = 0L
+        var n = 0L
+        for (p in pts) {
+            var dy = -half
+            while (dy <= half) {
+                var dx = -half
+                while (dx <= half) {
+                    val x = (p.x + dx).toInt().coerceIn(0, bitmap.width - 1)
+                    val y = (p.y + dy).toInt().coerceIn(0, bitmap.height - 1)
+                    val px = bitmap.getPixel(x, y)
+                    rSum += ((px shr 16) and 0xFF)
+                    bSum += (px and 0xFF)
+                    n++
+                    dx += 4
+                }
+                dy += 4
+            }
+        }
+        if (n == 0L || bSum == 0L) return ""
+        val ratio = rSum.toDouble() / bSum.toDouble()
+        return when {
+            ratio > 1.08 -> "Warm"
+            ratio < 0.96 -> "Cool"
+            else -> "Neutral"
+        }
+    }
+
     // ---------- report assembly ----------
 
     private fun buildReport(face: Face, faces: List<Face>, bitmap: Bitmap): PslReport {
@@ -758,41 +1144,57 @@ object FaceAnalyzer {
         val lc = face.landmark(FaceLandmark.LEFT_CHEEK)
         val rc = face.landmark(FaceLandmark.RIGHT_CHEEK)
         val cheekW = if (lc != null && rc != null) dist(lc, rc) else 0f
+        val faceH = if (oval.isNotEmpty()) oval.maxOf { it.y } - oval.minOf { it.y } else 0f
         val jawW = if (oval.isNotEmpty() && cheekW > 0) {
             val topY = oval.minOf { it.y }
             val chinY = oval.maxOf { it.y }
-            val faceH = (chinY - topY).coerceAtLeast(1f)
-            val jawY = chinY - faceH * 0.28f
-            val jawPts = oval.filter { it.y >= jawY - faceH * 0.06f && it.y <= jawY + faceH * 0.06f }
+            val fh = (chinY - topY).coerceAtLeast(1f)
+            val jawY = chinY - fh * 0.28f
+            val jawPts = oval.filter { it.y >= jawY - fh * 0.06f && it.y <= jawY + fh * 0.06f }
             if (jawPts.size >= 2) widthOf(jawPts) else cheekW * 0.8f
         } else 0f
 
-        // --- 15 measured features ---
-        val thirds = facialThirds(face)
-        val fifths = facialFifths(face)
-        val midface = midfaceRatio(face)
-        val esr = eyeSpacing(face, cheekW)
-        val fwhrV = fwhr(face, cheekW)
-        val sym = symmetry(face)
-        val eyesV = eyes(face)
-        val noseV = nose(face, cheekW)
-        val lipsV = lips(face)
-        val jawV = jawline(face, cheekW)
-        val chinV = chin(face, jawW)
-        val browsV = brows(face)
-        val cheekV = cheekbones(face, cheekW, jawW)
-        val jawAngleV = jawFrontalAngle(face)
+        // --- measureDetails: one "yours vs ideal" line per feature ---
+        val details = mutableMapOf<String, String>()
+        val feats = mutableListOf<FeatureScore>()
+        fun reg(measured: Pair<FeatureScore, String>): FeatureScore {
+            details[measured.first.name] = measured.second
+            feats.add(measured.first)
+            return measured.first
+        }
+
+        // --- 18 measured features ---
+        val thirds = reg(facialThirds(face))
+        val fifths = reg(facialFifths(face))
+        val midface = reg(midfaceRatio(face))
+        val esr = reg(eyeSpacing(face, cheekW))
+        val fwhrV = reg(fwhr(face, cheekW))
+        val sym = reg(symmetry(face))
+        val eyesV = reg(eyes(face))
+        val canthalV = reg(canthalTilt(face))
+        val eyePflV = reg(eyeSizePfl(face, cheekW))
+        val noseV = reg(nose(face, cheekW))
+        val lipsV = reg(lips(face))
+        val skinV = reg(skinClarity(face, bitmap))
+        val jawV = reg(jawline(face, cheekW))
+        val chinV = reg(chin(face, jawW))
+        val browsV = reg(brows(face))
+        val cheekV = reg(cheekbones(face, cheekW, jawW))
+        val jawAngleV = reg(jawFrontalAngle(face))
 
         // Side profile is a bonus read, never the base score.
-        val (sideV, sideOk) = sideProfile(faces, face)
+        val side = sideProfile(faces, face)
+        details[side.feature.name] = side.detail
+        feats.add(side.feature)
+        val sideOk = side.ok
 
-        val features = listOf(
-            thirds, fifths, midface, esr, fwhrV, sym,
-            eyesV, noseV, lipsV,
-            jawV, chinV, browsV,
-            cheekV, jawAngleV,
-            sideV
-        )
+        val features = feats.toList()
+
+        // --- v2.5 reads: face shape, skin undertone, canthal tilt degrees ---
+        val (faceShape, faceShapeNote) =
+            FaceShape.classifyFaceShape(cheekW, jawW, foreheadWidth(face), faceH)
+        val undertone = skinUndertone(face, bitmap)
+        val tiltDeg = canthalTiltDeg(face)?.toDouble() ?: 0.0
 
         val pillars = pillarScores(features)
         val overall = overallFromFeatures(features, sideOk)
@@ -927,7 +1329,13 @@ object FaceAnalyzer {
             thirdsY = thirdsY,
             confidence = confidence,
             uncertainty = uncertainty,
-            potentialPsl = potentialPsl
+            potentialPsl = potentialPsl,
+            // v2.5 fields — added to PslReport by the results chunk.
+            faceShape = faceShape,
+            faceShapeNote = faceShapeNote,
+            measureDetails = details,
+            skinUndertone = undertone,
+            canthalTiltDeg = tiltDeg
         )
     }
 
