@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
@@ -86,7 +87,8 @@ fun EqHeadline(
     )
 }
 
-/** Frosted-glass card: translucent warm white over greige, soft border. */
+/** Frosted-glass card: translucent warm white over greige, soft border.
+ * v3.0: solid clean-white card, hairline border, soft shadow (reference style). */
 @Composable
 fun EqGlassCard(
     modifier: Modifier = Modifier,
@@ -95,9 +97,10 @@ fun EqGlassCard(
 ) {
     Box(
         modifier = modifier
+            .shadow(8.dp, RoundedCornerShape(corner), spotColor = Color(0x1A3A2E1A))
             .clip(RoundedCornerShape(corner))
-            .background(Color.White.copy(alpha = 0.55f))
-            .border(1.dp, Color.White.copy(alpha = 0.65f), RoundedCornerShape(corner))
+            .background(Color.White)
+            .border(1.dp, LtLine, RoundedCornerShape(corner))
             .padding(18.dp),
         contentAlignment = Alignment.TopStart
     ) { content() }
@@ -295,9 +298,9 @@ fun EqDivider(modifier: Modifier = Modifier) {
     )
 }
 
-/** Screen background: vertical greige gradient wash. */
+/** Screen background: v3.0 clean warm-white wash (reference style). */
 fun eqBackgroundBrush() = Brush.verticalGradient(
-    listOf(EqGreige, Color(0xFFE2D9C8))
+    listOf(Color(0xFFFCFBF8), Color(0xFFF4EEE3))
 )
 
 /** Convenience: muted body text. */

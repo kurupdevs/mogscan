@@ -273,6 +273,12 @@ private fun MoggrApp() {
             }
         }
         Screen.MAIN -> {
+            // v3.0: developer profile overlay (tappable socials).
+            var showProfile by remember { mutableStateOf(false) }
+            if (showProfile) {
+                BackHandler { showProfile = false }
+                ProfileScreen(onBack = { showProfile = false })
+            } else {
             val s = analysisState
             MainTabs(
                 report = (s as? AnalysisUiState.Success)?.report
@@ -285,8 +291,10 @@ private fun MoggrApp() {
                     pendingPhotos = null
                     scanReturnTo = Screen.MAIN
                     screen = Screen.CAMERA
-                }
+                },
+                onOpenProfile = { showProfile = true }
             )
+            }
         }
     }
 }

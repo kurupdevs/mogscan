@@ -372,33 +372,13 @@ fun ResultScreen(
         }
         return
     }
-    // v2.6-landmark begin: verify-points screen sits between reveal and body.
-    var verifying by rememberSaveable(*scanKeys) { mutableStateOf(false) }
-    if (verifying && verifySnapshot != null && photo != null) {
-        VerifyPointsScreen(
-            photo = photo,
-            snapshot = verifySnapshot,
-            busy = recomputing,
-            onCancel = { verifying = false },
-            onApply = { corrected ->
-                onRecalculate(corrected)
-                verifying = false
-            }
-        )
-        return
-    }
-    // v2.6-landmark end
     if (!revealDone) {
         StagedReveal(
             report = report,
             photo = photo,
             guess = guess,
             onDone = { revealDone = true },
-            // v2.6-landmark: verify is a step in the staged reveal.
-            onVerify = {
-                revealDone = true
-                verifying = true
-            }
+            onVerify = { revealDone = true }
         )
         return
     }
@@ -425,11 +405,7 @@ fun ResultScreen(
             ReportBody(
                 report = report,
                 profile = profile,
-                photo = photo,
-                // v2.6-landmark: "Verify points" button on the result screen.
-                onVerifyPoints = if (verifySnapshot != null && photo != null) {
-                    { verifying = true }
-                } else null
+                photo = photo
             )
             Spacer(Modifier.height(20.dp))
             Row(
@@ -682,15 +658,6 @@ private fun StagedReveal(
                 )
             }
             Spacer(Modifier.height(28.dp))
-            // v2.6-landmark: verify step — offered once the score is revealed.
-            if (stage >= 4) {
-                EqPillButton(
-                    text = "Verify the AI's points",
-                    onClick = onVerify,
-                    modifier = Modifier.alpha(gapAlpha)
-                )
-                Spacer(Modifier.height(12.dp))
-            }
             Text("tap to skip", fontSize = 12.sp, color = EqMuted)
         }
     }
@@ -819,9 +786,7 @@ private fun DecorativeScanOverlay() {
 fun ReportBody(
     report: PslReport,
     profile: UserProfile?,
-    photo: Bitmap?,
-    // v2.6-landmark: null hides the button (e.g. pre-v2.6 saved reports).
-    onVerifyPoints: (() -> Unit)? = null
+    photo: Bitmap?
 ) {
     // v2.6-hinglish: report headers follow the app language.
     val hi = LanguageStore.isHinglish
@@ -884,21 +849,6 @@ fun ReportBody(
             }
             Spacer(Modifier.height(14.dp))
         }
-        // v2.6-landmark begin
-        if (onVerifyPoints != null) {
-            TextButton(
-                onClick = onVerifyPoints,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            ) {
-                Text(
-                    "Verify the AI's points",
-                    color = MogCoralDark,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp
-                )
-            }
-        }
-        // v2.6-landmark end
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
