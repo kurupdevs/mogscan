@@ -35,7 +35,9 @@ android {
                 storeFile = File(ksPath!!)
                 storePassword = ksPass
                 keyAlias = kAlias
-                keyPassword = keyPass
+                // The PKCS12 was generated with OpenSSL, which protects the
+                // private key with the store password (no separate key password).
+                keyPassword = ksPass
             }
         }
     }
