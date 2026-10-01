@@ -213,13 +213,85 @@ fun ResultScreen(
                     color = PslBlue
                 )
                 Text(
-                    "PSL  ·  ${report.overall100}/100",
+                    "≈ ${String.format(Locale.US, "%.1f", report.decile)}/10 decile · ~${ordinal(report.percentile)} percentile",
                     fontSize = 16.sp,
                     color = PslGrey,
                     fontWeight = FontWeight.Medium
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(pslLabel(report.overallPsl), fontSize = 15.sp, color = Color.White)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "${report.failoCount} failos · ${report.haloCount} halos",
+                    fontSize = 12.sp,
+                    color = PslGrey
+                )
+            }
+        }
+
+        if (report.photoNotes.isNotEmpty()) {
+            Spacer(Modifier.height(16.dp))
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2113)),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(14.dp)) {
+                    Text("Photo check", fontWeight = FontWeight.SemiBold, color = Color(0xFFFBBF24), fontSize = 15.sp)
+                    Spacer(Modifier.height(6.dp))
+                    report.photoNotes.forEach { n ->
+                        Text("⚠ $n", fontSize = 13.sp, color = Color.White)
+                        Spacer(Modifier.height(4.dp))
+                    }
+                }
+            }
+        }
+
+        if (report.pillars.isNotEmpty()) {
+            Spacer(Modifier.height(24.dp))
+            SectionTitle("The 4 Pillars")
+            Text(
+                "How experienced raters actually score a face — harmony first",
+                fontSize = 13.sp,
+                color = PslGrey
+            )
+            Spacer(Modifier.height(10.dp))
+            report.pillars.forEach { p ->
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = PslCard),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 5.dp)
+                ) {
+                    Column(Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(p.name, fontWeight = FontWeight.SemiBold, color = Color.White, fontSize = 16.sp)
+                            Text(
+                                String.format(Locale.US, "%.1f", p.score),
+                                fontWeight = FontWeight.Bold,
+                                color = scoreColor(p.score),
+                                fontSize = 18.sp
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = { (p.score / 8.0).toFloat() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(7.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            color = scoreColor(p.score),
+                            trackColor = Color(0xFF2A2A2A)
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(p.note, fontSize = 13.sp, color = PslGrey)
+                    }
+                }
             }
         }
 
@@ -370,8 +442,10 @@ fun ResultScreen(
         }
         Spacer(Modifier.height(12.dp))
         Text(
-            "Scores come from facial geometry measured on your phone — no photo ever " +
-                "leaves your device. Same lighting, same angle = comparable results. " +
+            "Community-benchmark estimate, not a medical measurement — PSL ratios are " +
+                "looksmaxxing-community conventions, not validated science. Scores come from " +
+                "facial geometry measured on your phone — no photo ever leaves your device. " +
+                "Same lighting, same angle = comparable results. " +
                 "Free forever: no paywall, no unlock fees.",
             fontSize = 12.sp,
             color = PslGrey,
@@ -388,9 +462,11 @@ private fun shareReport(context: android.content.Context, profile: UserProfile?,
     val text = buildString {
         append("My Moggr PSL report: ")
         append(String.format(Locale.US, "%.1f", report.overallPsl))
-        append(" PSL (")
-        append(report.overall100)
-        append("/100). Top features: ")
+        append(" PSL (≈")
+        append(String.format(Locale.US, "%.1f", report.decile))
+        append("/10, ")
+        append(pslLabel(report.overallPsl))
+        append("). Top features: ")
         append(top)
         append(". Full breakdown free on Moggr — no paywall.")
     }
@@ -433,14 +509,22 @@ private fun scoreColor(score: Double): Color = when {
     else -> Color(0xFFF87171)
 }
 
-private fun pslLabel(psl: Double): String = when {
-    psl >= 7.5 -> "Gigachad range — near-mythical"
-    psl >= 6.9 -> "Chad"
+fun pslLabel(psl: Double): String = when {
+    psl >= 7.75 -> "Gigachad — near-mythical"
+    psl >= 7.0 -> "Chad"
     psl >= 6.0 -> "Chadlite"
-    psl >= 5.1 -> "HTN — High Tier Normie"
-    psl >= 2.8 -> "MTN — Mid Tier Normie"
+    psl >= 5.0 -> "HTN — High Tier Normie"
+    psl >= 3.0 -> "MTN — Mid Tier Normie"
     psl >= 1.4 -> "LTN — Low Tier Normie"
     else -> "Sub-5 — maximum ascension potential"
+}
+
+private fun ordinal(n: Int): String = when {
+    n % 100 in 11..13 -> "${n}th"
+    n % 10 == 1 -> "${n}st"
+    n % 10 == 2 -> "${n}nd"
+    n % 10 == 3 -> "${n}rd"
+    else -> "${n}th"
 }
 
 // ---------- Error ----------

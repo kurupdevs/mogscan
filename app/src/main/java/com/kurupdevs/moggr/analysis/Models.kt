@@ -6,6 +6,12 @@ data class FeatureScore(
     val note: String
 )
 
+data class PillarScore(
+    val name: String,
+    val score: Double,
+    val note: String
+)
+
 data class Improvement(
     val area: String,
     val method: String,
@@ -19,7 +25,13 @@ data class PslReport(
     val strengths: List<String>,
     val improvements: List<Improvement>,
     val summary: String,
-    val anglesRead: Int
+    val anglesRead: Int,
+    val decile: Double = 0.0,
+    val percentile: Int = 0,
+    val pillars: List<PillarScore> = emptyList(),
+    val photoNotes: List<String> = emptyList(),
+    val failoCount: Int = 0,
+    val haloCount: Int = 0
 )
 
 sealed interface AnalysisUiState {

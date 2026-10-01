@@ -82,7 +82,12 @@ fun CoachScreen(
             CoachClient.reportContext(
                 it.overallPsl,
                 it.features.map { f -> f.name to f.score },
-                it.anglesRead
+                it.anglesRead,
+                decile = it.decile,
+                tier = pslLabel(it.overallPsl),
+                failos = it.failoCount,
+                halos = it.haloCount,
+                pillars = it.pillars.map { p -> p.name to p.score }
             )
         } ?: "No scan yet — user hasn't completed a face scan."
     }
@@ -91,12 +96,12 @@ fun CoachScreen(
     }
     val greeting = remember(report) {
         if (report != null) {
-            "Yo${if (userName.isNotBlank()) " $userName" else ""} — I'm your Moggr Coach. " +
+            "Yo${if (userName.isNotBlank()) " $userName" else ""} — I'm Moggr's Looksmaxing AI. " +
                 "I see your scan: ${String.format(Locale.US, "%.1f", report.overallPsl)} PSL. " +
                 "Ask me anything — what's dragging your score, what to fix first, hair, skin, " +
                 "photos. Or send a fresh photo and I'll break it down."
         } else {
-            "Yo — I'm your Moggr Coach. No scan on file yet, but ask me anything about " +
+            "Yo — I'm Moggr's Looksmaxing AI. No scan on file yet, but ask me anything about " +
                 "looksmaxxing: jawline, skin, hair, posture, photos. Or send a photo and " +
                 "I'll scan it on your phone and break it down."
         }
@@ -139,7 +144,12 @@ fun CoachScreen(
                     CoachClient.reportContext(
                         rep.overallPsl,
                         rep.features.map { f -> f.name to f.score },
-                        1
+                        1,
+                        decile = rep.decile,
+                        tier = pslLabel(rep.overallPsl),
+                        failos = rep.failoCount,
+                        halos = rep.haloCount,
+                        pillars = rep.pillars.map { p -> p.name to p.score }
                     )
                 val sys = baseSystem + "\n\nThe user just sent an additional photo, " +
                     "scanned on-device: $photoCtx Analyze THIS photo scan now — full " +
@@ -186,13 +196,13 @@ fun CoachScreen(
             }
             Column(Modifier.padding(start = 4.dp)) {
                 Text(
-                    "Moggr Coach",
+                    "Looksmaxing AI",
                     color = Color.White,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "softmaxxing guidance · blunt & honest",
+                    "Moggr Coach · softmaxxing guidance · blunt & honest",
                     color = PslGrey,
                     fontSize = 12.sp
                 )
