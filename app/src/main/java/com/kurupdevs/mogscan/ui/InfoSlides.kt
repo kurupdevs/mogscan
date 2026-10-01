@@ -204,7 +204,6 @@ private fun BarsVisual(title: String, bars: List<HBar>) {
                         .height(26.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(Color(0xFF1E1E1E))
-                    )
                 ) {
                     Box(
                         modifier = Modifier
