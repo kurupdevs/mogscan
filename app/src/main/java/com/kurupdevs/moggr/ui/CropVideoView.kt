@@ -26,8 +26,8 @@ class CropVideoView @JvmOverloads constructor(
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val w = MeasureSpec.getSize(widthMeasureSpec)
-        val h = MeasureSpec.getSize(heightMeasureSpec)
+        val w = android.view.View.MeasureSpec.getSize(widthMeasureSpec)
+        val h = android.view.View.MeasureSpec.getSize(heightMeasureSpec)
         if (videoW > 0 && videoH > 0 && w > 0 && h > 0) {
             // Scale so the video covers the whole view (may crop edges, never gaps).
             val scale = maxOf(w.toFloat() / videoW, h.toFloat() / videoH)
