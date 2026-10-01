@@ -320,7 +320,7 @@ fun CoachScreen(
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            "Coach runs on a free API — replies can be slow. Your photos never leave your phone; only your questions and measurement numbers may be sent to the AI service.",
+            " Your photos never leave your phone; only your questions and measurement numbers may be sent to the AI service.",
             fontSize = 11.sp,
             color = PslGrey,
             modifier = Modifier
