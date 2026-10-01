@@ -10,26 +10,26 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kurupdevs.moggr.R
+import kotlin.math.roundToInt
 
 /**
  * v3.0: Ayush's developer profile — matches his pink mockup:
@@ -39,6 +39,19 @@ import com.kurupdevs.moggr.R
 @Composable
 fun ProfileScreen(onBack: () -> Unit) {
     val uri = LocalUriHandler.current
+    val context = LocalContext.current
+    // Real engagement score: % of last 7 days with any routine/scan/voice activity.
+    val insightScore = remember {
+        val routine = lastWeekActivity(context)
+        val scans = lastWeekScans(context)
+        val voice = lastWeekVoice(context)
+        val active = (0..6).count { i ->
+            routine[i].state == DayState.DONE ||
+                scans[i].state == DayState.DONE ||
+                voice[i].state == DayState.DONE
+        }
+        ((active / 7f) * 100).roundToInt()
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -133,7 +146,7 @@ fun ProfileScreen(onBack: () -> Unit) {
             }
             Spacer(Modifier.height(20.dp))
 
-            // ---- 4 social boxes ----
+            // ---- 3 social boxes (mockup) ----
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -158,35 +171,58 @@ fun ProfileScreen(onBack: () -> Unit) {
                     onClick = { uri.openUri("https://tiktok.com/@ayushhfr") },
                     modifier = Modifier.weight(1f)
                 )
-                PkSocialBox(
-                    logo = R.drawable.logo_kurubeats,
-                    label = "KuruBeats",
-                    onClick = { uri.openUri("https://github.com/kurupdevs/KuruBeats") },
-                    modifier = Modifier.weight(1f)
-                )
             }
             Spacer(Modifier.height(20.dp))
 
-            // ---- Tech Stack ----
+            // ---- Profile Insights (mockup) — real score from last 7 days of activity ----
             PkCard {
-                Text(
-                    text = "Tech Stack",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PkInk,
-                    modifier = Modifier.padding(top = 14.dp, bottom = 12.dp)
-                )
-                PkLangChips(
-                    items = listOf(
-                        "Kotlin" to listOf(Color(0xFF7F52FF)),
-                        "Python" to listOf(Color(0xFF3776AB)),
-                        "JavaScript" to listOf(Color(0xFFE8C547)),
-                        "Java" to listOf(Color(0xFFB07219)),
-                        "HTML/CSS" to listOf(Color(0xFFE34C26), Color(0xFF7F52FF)),
-                        "GDScript" to listOf(Color(0xFF478CBF))
+                Column(Modifier.padding(vertical = 16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Profile Insights",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PkInk
+                        )
+                        Text(
+                            text = "$insightScore / 100",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = PkMuted
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(20.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(PkPill)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(insightScore / 100f)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(50))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(Color(0xFFF3C6B8), PkCoral)
+                                    )
+                                )
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = "Keep engaging to unlock +500 glow points",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = PkInk
                     )
-                )
-                Spacer(Modifier.height(14.dp))
+                }
             }
             Spacer(Modifier.height(22.dp))
 
@@ -263,63 +299,6 @@ fun ProfileScreen(onBack: () -> Unit) {
                     }
                 }
             }
-            Spacer(Modifier.height(22.dp))
-
-            // ---- Games ----
-            Column(Modifier.padding(horizontal = 20.dp)) {
-                Text(
-                    text = "Games",
-                    fontFamily = LtSerif,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PkInk
-                )
-                Text(
-                    text = "What I'm playing",
-                    fontSize = 15.sp,
-                    color = PkMuted
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            Column(
-                modifier = Modifier.padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                PkGameCard("Black Myth: Wukong", "Action RPG")
-                PkGameCard("Marvel Rivals", "Hero shooter")
-                PkGameCard("Tekken 8", "Fighting")
-                PkGameCard("Batman: Arkham Knight", "Action adventure")
-            }
-            Spacer(Modifier.height(22.dp))
-
-            // ---- Contact ----
-            Column(Modifier.padding(horizontal = 20.dp)) {
-                Text(
-                    text = "Contact",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PkInk
-                )
-            }
-            Spacer(Modifier.height(10.dp))
-            PkCard {
-                PkContactRow(
-                    icon = Icons.Filled.Place,
-                    text = "Indore, India"
-                )
-                PkDivider()
-                PkContactRow(
-                    icon = Icons.Filled.ChatBubbleOutline,
-                    text = "DMs open on Instagram @frkurup",
-                    onClick = { uri.openUri("https://instagram.com/frkurup") }
-                )
-                PkDivider()
-                PkContactRow(
-                    icon = Icons.Filled.People,
-                    text = "Open to collaborate"
-                )
-                Spacer(Modifier.height(8.dp))
-            }
             Spacer(Modifier.height(30.dp))
         }
     }
@@ -364,47 +343,6 @@ private fun PkSocialBox(logo: Int, label: String, onClick: () -> Unit, modifier:
             color = PkMuted,
             maxLines = 1
         )
-    }
-}
-
-@Composable
-private fun PkLangChips(items: List<Pair<String, List<Color>>>) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        var row = mutableListOf<Pair<String, List<Color>>>()
-        for (item in items) {
-            row.add(item)
-            if (row.size == 2 || item == items.last()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for ((name, dots) in row) {
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(PkPill)
-                                .padding(horizontal = 14.dp, vertical = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            for (dot in dots) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(11.dp)
-                                        .clip(CircleShape)
-                                        .background(dot)
-                                )
-                                Spacer(Modifier.width(3.dp))
-                            }
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = name,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = PkInk
-                            )
-                        }
-                    }
-                }
-                row = mutableListOf()
-            }
-        }
     }
 }
 
@@ -468,66 +406,4 @@ private fun PkProjectCard(icon: Int? = null, monogram: String? = null, title: St
             color = PkCoral
         )
     }
-}
-
-@Composable
-private fun PkGameCard(title: String, genre: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(18.dp), spotColor = Color(0x1A5C2E2E))
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color.White)
-            .padding(horizontal = 16.dp, vertical = 13.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(PkPill),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = title.first().toString(),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = PkCoralDeep
-            )
-        }
-        Spacer(Modifier.width(12.dp))
-        Column {
-            Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = PkInk)
-            Text(text = genre, fontSize = 12.sp, color = PkMuted)
-        }
-    }
-}
-
-@Composable
-private fun PkContactRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    text: String,
-    onClick: (() -> Unit)? = null
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(vertical = 13.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, contentDescription = null, tint = PkMuted, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(14.dp))
-        Text(text = text, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = PkInk)
-    }
-}
-
-@Composable
-private fun PkDivider() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(1.dp)
-            .background(PkLine)
-    )
 }

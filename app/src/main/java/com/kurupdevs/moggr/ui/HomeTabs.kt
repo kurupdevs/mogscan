@@ -533,7 +533,7 @@ private fun DeveloperCard(onOpen: () -> Unit) {
 }
 
 /** Scan days this week (Sun..Sat) from the on-device scan history. */
-private fun lastWeekScans(context: android.content.Context): List<LtDay> {
+fun lastWeekScans(context: android.content.Context): List<LtDay> {
     val today = java.time.LocalDate.now()
     val dow = today.dayOfWeek.value % 7
     val sunday = today.minusDays(dow.toLong())
@@ -559,7 +559,7 @@ private fun lastWeekScans(context: android.content.Context): List<LtDay> {
 }
 
 /** Voice drill days this week — only the real recorded drill day counts. */
-private fun lastWeekVoice(context: android.content.Context): List<LtDay> {
+fun lastWeekVoice(context: android.content.Context): List<LtDay> {
     val today = java.time.LocalDate.now()
     val dow = today.dayOfWeek.value % 7
     val sunday = today.minusDays(dow.toLong())
