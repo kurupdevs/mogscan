@@ -18,6 +18,17 @@ data class Improvement(
     val effort: String
 )
 
+/**
+ * One measured point of the face mesh, normalized to 0..1 in the source
+ * bitmap's own coordinate space (x = px / bitmapWidth).
+ * kind: 0 = face oval, 1 = eye, 2 = brow, 3 = nose, 4 = mouth, 5 = ear/cheek.
+ */
+data class LandmarkPt(
+    val x: Float,
+    val y: Float,
+    val kind: Int
+)
+
 data class PslReport(
     val overallPsl: Double,
     val overall100: Int,
@@ -31,7 +42,19 @@ data class PslReport(
     val pillars: List<PillarScore> = emptyList(),
     val photoNotes: List<String> = emptyList(),
     val failoCount: Int = 0,
-    val haloCount: Int = 0
+    val haloCount: Int = 0,
+    /** Real measured face mesh for the scan overlay (empty for pre-1.7 reports). */
+    val landmarkMesh: List<LandmarkPt> = emptyList(),
+    /** Face bounding box, normalized 0..1 (left, top, right, bottom). */
+    val faceBox: List<Float> = emptyList(),
+    /** Normalized brow/nose-base y positions for thirds guides (top, brow, noseBase, chin). */
+    val thirdsY: List<Float> = emptyList(),
+    /** 0..1 confidence in the read, derived from pose/lighting/distance/angles. */
+    val confidence: Double = 0.0,
+    /** ± points of score uncertainty shown next to the PSL. */
+    val uncertainty: Double = 0.5,
+    /** Softmaxx ceiling recomputed from measured gaps (0.0 = pre-1.7 report). */
+    val potentialPsl: Double = 0.0
 )
 
 sealed interface AnalysisUiState {
