@@ -119,13 +119,8 @@ val GUIDES: List<Guide> = listOf(
 @Composable
 fun GuidesSection() {
     Column(Modifier.fillMaxWidth()) {
-        Text(
-            "Softmaxx guides",
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
-            color = PslBlue,
-            modifier = Modifier.padding(bottom = 2.dp)
-        )
+        CapsLabel("SOFTMAXX GUIDES")
+        Spacer(Modifier.height(8.dp))
         Text(
             "Every method Moggr recommends, in plain words. Tap a guide to read it.",
             fontSize = 13.sp,
