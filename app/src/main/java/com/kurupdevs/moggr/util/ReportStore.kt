@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.kurupdevs.moggr.analysis.FeatureScore
 import com.kurupdevs.moggr.analysis.Improvement
+import com.kurupdevs.moggr.analysis.LandmarkPt
 import com.kurupdevs.moggr.analysis.PillarScore
 import com.kurupdevs.moggr.analysis.PslReport
 import org.json.JSONArray
@@ -83,6 +84,20 @@ object ReportStore {
         val notes = JSONArray()
         r.photoNotes.forEach { notes.put(it) }
         o.put("photoNotes", notes)
+        o.put("confidence", r.confidence)
+        o.put("uncertainty", r.uncertainty)
+        o.put("potentialPsl", r.potentialPsl)
+        val mesh = JSONArray()
+        r.landmarkMesh.forEach { p ->
+            mesh.put(JSONArray().put(p.x.toDouble()).put(p.y.toDouble()).put(p.kind))
+        }
+        o.put("landmarkMesh", mesh)
+        val box = JSONArray()
+        r.faceBox.forEach { box.put(it.toDouble()) }
+        o.put("faceBox", box)
+        val thirds = JSONArray()
+        r.thirdsY.forEach { thirds.put(it.toDouble()) }
+        o.put("thirdsY", thirds)
         return o
     }
 
@@ -111,6 +126,18 @@ object ReportStore {
         val notes = mutableListOf<String>()
         val na = o.optJSONArray("photoNotes") ?: JSONArray()
         for (i in 0 until na.length()) notes.add(na.optString(i))
+        val mesh = mutableListOf<LandmarkPt>()
+        val ma = o.optJSONArray("landmarkMesh") ?: JSONArray()
+        for (i in 0 until ma.length()) {
+            val p = ma.optJSONArray(i) ?: continue
+            if (p.length() >= 3) mesh.add(LandmarkPt(p.optDouble(0).toFloat(), p.optDouble(1).toFloat(), p.optInt(2)))
+        }
+        val box = mutableListOf<Float>()
+        val ba = o.optJSONArray("faceBox") ?: JSONArray()
+        for (i in 0 until ba.length()) box.add(ba.optDouble(i).toFloat())
+        val thirds = mutableListOf<Float>()
+        val ta = o.optJSONArray("thirdsY") ?: JSONArray()
+        for (i in 0 until ta.length()) thirds.add(ta.optDouble(i).toFloat())
         return PslReport(
             overallPsl = o.optDouble("overallPsl"),
             overall100 = o.optInt("overall100"),
@@ -124,7 +151,13 @@ object ReportStore {
             pillars = pillars,
             photoNotes = notes,
             failoCount = o.optInt("failoCount"),
-            haloCount = o.optInt("haloCount")
+            haloCount = o.optInt("haloCount"),
+            landmarkMesh = mesh,
+            faceBox = box,
+            thirdsY = thirds,
+            confidence = o.optDouble("confidence"),
+            uncertainty = o.optDouble("uncertainty", 0.5),
+            potentialPsl = o.optDouble("potentialPsl")
         )
     }
 }
