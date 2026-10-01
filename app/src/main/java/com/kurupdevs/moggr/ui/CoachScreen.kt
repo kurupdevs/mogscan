@@ -212,8 +212,9 @@ fun CoachScreen(
             Column {
                 Text(
                     "Moggr Coach",
+                    fontFamily = MogSerif,
                     color = PslText,
-                    fontSize = 18.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
@@ -227,7 +228,7 @@ fun CoachScreen(
             Modifier
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(Color(0xFFE4E9F2))
+                .background(Color(0xFFEDE7DB))
         )
 
         // Messages
@@ -284,7 +285,7 @@ fun CoachScreen(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFEAF0FA))
+                    .background(Color(0xFFF4EFE7))
             ) {
                 Text("◉", color = PslBlue, fontSize = 20.sp)
             }
@@ -298,7 +299,7 @@ fun CoachScreen(
                     focusedTextColor = PslText,
                     unfocusedTextColor = PslText,
                     focusedBorderColor = PslBlue,
-                    unfocusedBorderColor = Color(0xFFD0D5DD),
+                    unfocusedBorderColor = Color(0xFFD8D0C2),
                     cursorColor = PslBlue
                 ),
                 shape = RoundedCornerShape(14.dp),
@@ -312,7 +313,7 @@ fun CoachScreen(
                 onClick = { sendText(input) },
                 enabled = !waiting && input.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(50),
                 modifier = Modifier.height(52.dp)
             ) {
                 Text("Send", fontWeight = FontWeight.Bold)
