@@ -47,22 +47,24 @@ object FaceAnalyzer {
             .build()
         val detector = FaceDetection.getClient(options)
         try {
-            val faces = bitmaps.mapNotNull { bmp ->
+            val pairs = bitmaps.mapNotNull { bmp ->
                 try {
-                    detector.process(InputImage.fromBitmap(bmp, 0)).await()
+                    val face = detector.process(InputImage.fromBitmap(bmp, 0)).await()
                         .maxByOrNull { it.boundingBox.width() * it.boundingBox.height() }
+                    if (face != null) bmp to face else null
                 } catch (_: Exception) {
                     null
                 }
             }
-            if (faces.isEmpty()) {
+            if (pairs.isEmpty()) {
                 throw IllegalStateException(
                     "No face found in any photo. Retake with better lighting and a plain background."
                 )
             }
+            val faces = pairs.map { it.second }
             // Primary face = most frontal detection (usually the front-angle photo).
-            val primary = faces.minByOrNull { abs(it.headEulerAngleY) }!!
-            buildReport(primary, faces)
+            val primaryPair = pairs.minByOrNull { abs(it.second.headEulerAngleY) }!!
+            buildReport(primaryPair.second, faces, primaryPair.first)
         } finally {
             detector.close()
         }
@@ -126,11 +128,13 @@ object FaceAnalyzer {
             n++
         }
         if (n == 0) return unreliable("Symmetry")
-        val score = scoreFromDeviation(dev / n, 0.03f)
+        // Mild penalty: phone cameras exaggerate left-right differences, and raters
+        // barely dock for asymmetry unless it's visible at a glance.
+        val score = scoreFromDeviation(dev / n, 0.05f)
         val note = when {
             score >= 7 -> "Left and right sides line up very evenly."
-            score >= 5 -> "Mostly even, with small left-right differences."
-            else -> "Noticeable left-right differences — very common and very improvable."
+            score >= 5 -> "Mostly even — small left-right differences are normal."
+            else -> "Some left-right difference; usually reads softer in person than on camera."
         }
         return FeatureScore("Symmetry", score, note)
     }
@@ -567,9 +571,189 @@ object FaceAnalyzer {
         )
     )
 
+    /** Rebuilds the 4 pillar scores from any feature list (same weights as the live read). */
+    private fun pillarScores(features: List<FeatureScore>): List<PillarScore> {
+        fun byName(n: String) = features.firstOrNull { it.name == n } ?: unreliable(n)
+        val harmony = weighted(
+            listOf(
+                byName("Facial thirds") to 0.25, byName("Facial fifths") to 0.12,
+                byName("Midface ratio") to 0.17, byName("Eye spacing") to 0.17,
+                byName("FWHR") to 0.13, byName("Symmetry") to 0.16
+            )
+        )
+        val featuresP = weighted(
+            listOf(byName("Eyes") to 0.45, byName("Nose") to 0.30, byName("Lips") to 0.25)
+        )
+        val dimorphism = weighted(
+            listOf(byName("Jawline") to 0.40, byName("Chin") to 0.35, byName("Brows") to 0.25)
+        )
+        val angular = weighted(
+            listOf(byName("Cheekbones") to 0.55, byName("Jaw angle") to 0.45)
+        )
+        return listOf(
+            PillarScore("Harmony", harmony, "How well your proportions fit together — the #1 thing raters score."),
+            PillarScore("Features", featuresP, "Eyes, nose and lips on their own merits."),
+            PillarScore("Dimorphism", dimorphism, "Masculine structure — jaw, chin, brow."),
+            PillarScore("Angularity", angular, "Sharpness vs softness — leanness lives here.")
+        )
+    }
+
+    /**
+     * Full score pipeline from a feature list: pillar weighting, side-profile
+     * bonus blend, then failo/halo gating (community tier logic).
+     * Failo = major deviation (< 4). Halo = standout feature (>= 7).
+     */
+    private fun overallFromFeatures(features: List<FeatureScore>, sideOk: Boolean): Double {
+        val pillars = pillarScores(features)
+        val frontal = pillars[0].score * 0.40 + pillars[1].score * 0.25 +
+            pillars[2].score * 0.20 + pillars[3].score * 0.15
+        var overall = if (sideOk) {
+            val side = features.firstOrNull { it.name == "Side profile" }?.score ?: 4.0
+            frontal * 0.85 + side * 0.15
+        } else {
+            frontal
+        }
+        val failos = features.count { it.score < 4.0 }
+        val halos = features.count { it.score >= 7.0 }
+        return when {
+            failos >= 3 -> minOf(overall, 4.9)
+            failos == 2 -> minOf(overall, 5.4)
+            failos == 1 -> minOf(overall, 5.9)
+            halos == 0 -> minOf(overall, 5.9)
+            else -> overall
+        }.coerceIn(1.0, 8.0)
+    }
+
+    /** Mean luminance of the face region; flags dark or blown-out captures. */
+    private fun lightingNote(face: Face, bitmap: Bitmap): String? {
+        val box = face.boundingBox
+        val l = box.left.coerceIn(0, bitmap.width - 1)
+        val t = box.top.coerceIn(0, bitmap.height - 1)
+        val r = box.right.coerceIn(0, bitmap.width)
+        val b = box.bottom.coerceIn(0, bitmap.height)
+        if (r <= l || b <= t) return null
+        var sum = 0L
+        var n = 0
+        var y = t
+        while (y < b) {
+            var x = l
+            while (x < r) {
+                val px = bitmap.getPixel(x, y)
+                sum += (0.299 * ((px shr 16) and 0xFF) +
+                    0.587 * ((px shr 8) and 0xFF) +
+                    0.114 * (px and 0xFF)).toLong()
+                n++
+                x += 14
+            }
+            y += 14
+        }
+        if (n == 0) return null
+        val mean = sum.toDouble() / n
+        return when {
+            mean < 55 -> "Photo was too dark — face the light source, never shoot against it."
+            mean > 205 -> "Photo was overexposed — soften the light for a truer read."
+            else -> null
+        }
+    }
+
+    /**
+     * Confidence 0..1 plus ± uncertainty, derived from pose angles, lighting,
+     * framing distance and how many of the 3 angles read cleanly.
+     */
+    private fun confidenceOf(
+        face: Face,
+        angles: Int,
+        badLight: Boolean,
+        badDist: Boolean
+    ): Pair<Double, Double> {
+        var c = 0.95
+        c -= (abs(face.headEulerAngleY) / 12f).coerceIn(0f, 1f) * 0.18
+        c -= (abs(face.headEulerAngleX) / 12f).coerceIn(0f, 1f) * 0.15
+        c -= (abs(face.headEulerAngleZ) / 10f).coerceIn(0f, 1f) * 0.12
+        if (badLight) c -= 0.20
+        if (badDist) c -= 0.15
+        c -= (3 - angles).coerceIn(0, 3) * 0.08
+        c = c.coerceIn(0.40, 0.97)
+        val uncertainty = ((1 - c) * 1.4 + 0.12).coerceIn(0.1, 1.0)
+        return c to (kotlin.math.round(uncertainty * 10) / 10.0)
+    }
+
+    private fun confidenceLabel(c: Double): String = when {
+        c >= 0.85 -> "high confidence"
+        c >= 0.65 -> "medium confidence"
+        else -> "low confidence — retake in better light"
+    }
+
+    /**
+     * Collects the real measured face mesh for the scan overlay: face oval,
+     * eyes, brows, nose, mouth contours plus ear/cheek landmarks, all
+     * normalized to 0..1 in the source bitmap's space. Also returns the
+     * normalized face bounding box and thirds guide y-positions.
+     */
+    private fun collectMesh(
+        face: Face,
+        bitmap: Bitmap
+    ): Triple<List<LandmarkPt>, List<Float>, List<Float>> {
+        val w = bitmap.width.toFloat().coerceAtLeast(1f)
+        val h = bitmap.height.toFloat().coerceAtLeast(1f)
+        val mesh = mutableListOf<LandmarkPt>()
+        fun addPts(pts: List<PointF>, kind: Int) {
+            pts.filterIndexed { i, _ -> i % 2 == 0 }.take(36).forEach { p ->
+                mesh.add(
+                    LandmarkPt(
+                        (p.x / w).coerceIn(0f, 1f),
+                        (p.y / h).coerceIn(0f, 1f),
+                        kind
+                    )
+                )
+            }
+        }
+        addPts(face.contourPoints(FaceContour.FACE), 0)
+        addPts(
+            face.contourPoints(FaceContour.LEFT_EYE) + face.contourPoints(FaceContour.RIGHT_EYE),
+            1
+        )
+        addPts(
+            face.contourPoints(FaceContour.LEFT_EYEBROW_TOP) +
+                face.contourPoints(FaceContour.RIGHT_EYEBROW_TOP),
+            2
+        )
+        addPts(
+            face.contourPoints(FaceContour.NOSE_BRIDGE) + face.contourPoints(FaceContour.NOSE_BOTTOM),
+            3
+        )
+        addPts(
+            face.contourPoints(FaceContour.UPPER_LIP_TOP) +
+                face.contourPoints(FaceContour.LOWER_LIP_BOTTOM),
+            4
+        )
+        listOf(
+            face.landmark(FaceLandmark.LEFT_EAR), face.landmark(FaceLandmark.RIGHT_EAR),
+            face.landmark(FaceLandmark.LEFT_CHEEK), face.landmark(FaceLandmark.RIGHT_CHEEK)
+        ).forEach { p ->
+            if (p != null) mesh.add(
+                LandmarkPt((p.x / w).coerceIn(0f, 1f), (p.y / h).coerceIn(0f, 1f), 5)
+            )
+        }
+        val box = face.boundingBox
+        val faceBox = listOf(box.left / w, box.top / h, box.right / w, box.bottom / h)
+            .map { it.coerceIn(0f, 1f) }
+        val oval = face.contourPoints(FaceContour.FACE)
+        val thirdsY = if (oval.isNotEmpty()) {
+            val browPts = face.contourPoints(FaceContour.LEFT_EYEBROW_TOP) +
+                face.contourPoints(FaceContour.RIGHT_EYEBROW_TOP)
+            val browY = if (browPts.isNotEmpty()) browPts.map { it.y }.average().toFloat()
+            else oval.minOf { it.y }
+            val noseY = face.landmark(FaceLandmark.NOSE_BASE)?.y ?: browY
+            listOf(oval.minOf { it.y } / h, browY / h, noseY / h, oval.maxOf { it.y } / h)
+                .map { it.coerceIn(0f, 1f) }
+        } else emptyList()
+        return Triple(mesh.take(170), faceBox, thirdsY)
+    }
+
     // ---------- report assembly ----------
 
-    private fun buildReport(face: Face, faces: List<Face>): PslReport {
+    private fun buildReport(face: Face, faces: List<Face>, bitmap: Bitmap): PslReport {
         val oval = face.contourPoints(FaceContour.FACE)
         val lc = face.landmark(FaceLandmark.LEFT_CHEEK)
         val rc = face.landmark(FaceLandmark.RIGHT_CHEEK)
@@ -583,42 +767,24 @@ object FaceAnalyzer {
             if (jawPts.size >= 2) widthOf(jawPts) else cheekW * 0.8f
         } else 0f
 
-        // --- Harmony pillar (40%): proportions, the #1 thing raters score ---
+        // --- 15 measured features ---
         val thirds = facialThirds(face)
         val fifths = facialFifths(face)
         val midface = midfaceRatio(face)
         val esr = eyeSpacing(face, cheekW)
         val fwhrV = fwhr(face, cheekW)
         val sym = symmetry(face)
-        val harmony = weighted(
-            listOf(
-                thirds to 0.25, fifths to 0.12, midface to 0.17,
-                esr to 0.17, fwhrV to 0.13, sym to 0.16
-            )
-        )
-
-        // --- Features pillar (25%): eyes, nose, lips individually ---
         val eyesV = eyes(face)
         val noseV = nose(face, cheekW)
         val lipsV = lips(face)
-        val featuresP = weighted(listOf(eyesV to 0.45, noseV to 0.30, lipsV to 0.25))
-
-        // --- Dimorphism pillar (20%): masculine structure ---
         val jawV = jawline(face, cheekW)
         val chinV = chin(face, jawW)
         val browsV = brows(face)
-        val dimorphism = weighted(listOf(jawV to 0.40, chinV to 0.35, browsV to 0.25))
-
-        // --- Angularity pillar (15%): sharpness vs softness ---
         val cheekV = cheekbones(face, cheekW, jawW)
         val jawAngleV = jawFrontalAngle(face)
-        val angular = weighted(listOf(cheekV to 0.55, jawAngleV to 0.45))
-
-        val frontal = harmony * 0.40 + featuresP * 0.25 + dimorphism * 0.20 + angular * 0.15
 
         // Side profile is a bonus read, never the base score.
         val (sideV, sideOk) = sideProfile(faces, face)
-        var overall = if (sideOk) frontal * 0.85 + sideV.score * 0.15 else frontal
 
         val features = listOf(
             thirds, fifths, midface, esr, fwhrV, sym,
@@ -628,30 +794,27 @@ object FaceAnalyzer {
             sideV
         )
 
-        // --- Failo/halo gating (community tier logic) ---
-        // Failo = major deviation (< 4). Halo = standout feature (>= 7).
-        // LTN: multiple major deviations. MTN: ~one. HTN: none, few standouts.
-        // Chadlite+: zero major deviations PLUS standout features.
+        val pillars = pillarScores(features)
+        val overall = overallFromFeatures(features, sideOk)
+
+        // --- Softmaxx ceiling: a grounded potential, not a flat +1.5 ---
+        // Every non-bone feature below 6.0 is assumed to close 35% of its gap
+        // to 6.0 through consistent softmaxxing (grooming, leanness, styling —
+        // presentation, not bone). Same pillars, same gating, recomputed.
+        val improved = features.map { f ->
+            if (f.name != "Side profile" && f.score < 6.0)
+                f.copy(score = minOf(f.score + (6.0 - f.score) * 0.35, 6.6))
+            else f
+        }
+        val potentialPsl = overallFromFeatures(improved, sideOk).coerceAtMost(8.0)
+
+        // --- Failo/halo counts for the summary line ---
         val failos = features.count { it.score < 4.0 }
         val halos = features.count { it.score >= 7.0 }
-        overall = when {
-            failos >= 3 -> minOf(overall, 4.9)
-            failos == 2 -> minOf(overall, 5.4)
-            failos == 1 -> minOf(overall, 5.9)
-            halos == 0 -> minOf(overall, 5.9)
-            else -> overall
-        }.coerceIn(1.0, 8.0)
 
         val decile = (overall + 1.0).coerceIn(1.0, 10.0)
         val percentile = (normalCdf(overall - 4.0) * 100).toInt().coerceIn(1, 99)
         val overall100 = ((overall - 1.0) / 7.0 * 100).toInt().coerceIn(0, 100)
-
-        val pillars = listOf(
-            PillarScore("Harmony", harmony, "How well your proportions fit together — the #1 thing raters score."),
-            PillarScore("Features", featuresP, "Eyes, nose and lips on their own merits."),
-            PillarScore("Dimorphism", dimorphism, "Masculine structure — jaw, chin, brow."),
-            PillarScore("Angularity", angular, "Sharpness vs softness — leanness lives here.")
-        )
 
         // --- Photo-quality checks (raters' #1 rule: rate the undistorted photo) ---
         val photoNotes = mutableListOf<String>()
@@ -667,6 +830,23 @@ object FaceAnalyzer {
         if (faces.size < 3) {
             photoNotes += "Only ${faces.size} of 3 angles read clearly — retake the blurry one in good light."
         }
+        // Lighting read from actual face-region pixels.
+        val lightNote = lightingNote(face, bitmap)
+        if (lightNote != null) photoNotes += lightNote
+        // Distance read from face size relative to the frame.
+        val boxArea = face.boundingBox.width().toFloat() * face.boundingBox.height().toFloat()
+        val imgArea = bitmap.width.toFloat() * bitmap.height.toFloat()
+        val faceFrac = if (imgArea > 0) boxArea / imgArea else 0f
+        val badDist = faceFrac < 0.08f || faceFrac > 0.65f
+        if (faceFrac < 0.08f) {
+            photoNotes += "Face was too small in the frame — shoot from 6-8 ft, not across the room."
+        } else if (faceFrac > 0.65f) {
+            photoNotes += "Face was too close — back up so the full head fits with margin."
+        }
+        val (confidence, uncertainty) = confidenceOf(face, faces.size, lightNote != null, badDist)
+
+        // --- Real measured mesh for the scan overlay ---
+        val (mesh, faceBox, thirdsY) = collectMesh(face, bitmap)
 
         val ranked = features.sortedByDescending { it.score }
         val strengths = ranked.filter { it.score >= 6.0 }.take(3)
@@ -686,7 +866,7 @@ object FaceAnalyzer {
                 )
             }
             // Beard growth routine for low-dimorphism reads: safe mechanical + nutrition method.
-            if (dimorphism < 5.0) {
+            if (pillars[2].score < 5.0) {
                 add(
                     Improvement(
                         "Beard density",
@@ -723,7 +903,8 @@ object FaceAnalyzer {
         val summary = "Your ${best.name.lowercase()} is your strongest asset right now. " +
             "Biggest wins come from ${worst.name.lowercase()} — " +
             "${improvements.firstOrNull()?.method?.lowercase() ?: "consistent softmaxxing"}. " +
-            "Overall ${"%.1f".format(overall)} PSL (≈${"%.1f".format(decile)}/10): " +
+            "Overall ${"%.1f".format(overall)} PSL (±${"%.1f".format(uncertainty)}, ${confidenceLabel(confidence)}; " +
+            "≈${"%.1f".format(decile)}/10): " +
             "${pslLabel(overall).lowercase()}. $failos negative points dragging, $halos halos carrying. " +
             "Photo-dependent estimate — lighting and angle change the read."
 
@@ -740,7 +921,13 @@ object FaceAnalyzer {
             pillars = pillars,
             photoNotes = photoNotes,
             failoCount = failos,
-            haloCount = halos
+            haloCount = halos,
+            landmarkMesh = mesh,
+            faceBox = faceBox,
+            thirdsY = thirdsY,
+            confidence = confidence,
+            uncertainty = uncertainty,
+            potentialPsl = potentialPsl
         )
     }
 
