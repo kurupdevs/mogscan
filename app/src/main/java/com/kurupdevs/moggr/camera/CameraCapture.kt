@@ -32,12 +32,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -65,15 +60,20 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.kurupdevs.moggr.ui.BestPicPicker
-import com.kurupdevs.moggr.ui.CapsLabel
+// v2.7 reskin: shared equilibrium-style components + theme colors.
+import com.kurupdevs.moggr.ui.EqBody
+import com.kurupdevs.moggr.ui.EqCoralPillButton
+import com.kurupdevs.moggr.ui.EqGlassCard
+import com.kurupdevs.moggr.ui.EqHeadline
+import com.kurupdevs.moggr.ui.EqSectionLabel
+import com.kurupdevs.moggr.ui.eqBackgroundBrush
 import com.kurupdevs.moggr.ui.GhostOverlay
-// v2.6-photogate begin
-import com.kurupdevs.moggr.ui.MogSerif
-// v2.6-photogate end
-import com.kurupdevs.moggr.ui.PslBlack
-import com.kurupdevs.moggr.ui.PslBlue
-import com.kurupdevs.moggr.ui.PslGrey
-import com.kurupdevs.moggr.ui.PslText
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqLine
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.EqPillDark
+import com.kurupdevs.moggr.ui.theme.MogCoral
+import com.kurupdevs.moggr.ui.theme.MogCoralDark
 import com.kurupdevs.moggr.ui.loadGhostBitmap
 import com.kurupdevs.moggr.util.PhotoGrade
 import com.kurupdevs.moggr.util.PhotoQuality
@@ -344,7 +344,7 @@ fun CameraCapture(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(eqBackgroundBrush())
     ) {
         Column(
             modifier = Modifier
@@ -357,17 +357,12 @@ fun CameraCapture(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(
+                    EqHeadline(
                         text = "Moggr Face Scan",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
+                        size = 24,
+                        color = EqInk
                     )
-                    Text(
-                        text = "Your privacy is our priority",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    EqSectionLabel("your privacy is our priority")
                 }
                 if (ghostBitmap != null) {
                     TopPill(
@@ -380,27 +375,17 @@ fun CameraCapture(
                 TopPill(text = "Rank my pics", onClick = { showPicker = true })
             }
             Spacer(Modifier.height(4.dp))
-            Text(
+            EqHeadline(
                 text = if (allDone) "All angles captured" else angles[step].title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
+                size = 28,
+                color = EqInk
             )
             Spacer(Modifier.height(8.dp))
 
             if (!allDone) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = angles[step].guide,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(12.dp)
-                    )
+                // v2.7 reskin: glass guide card.
+                EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+                    EqBody(angles[step].guide)
                 }
                 Spacer(Modifier.height(12.dp))
             }
@@ -427,7 +412,7 @@ fun CameraCapture(
                         .fillMaxSize(0.72f)
                         .align(Alignment.Center)
                         .border(
-                            BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+                            BorderStroke(2.dp, MogCoral),
                             RoundedCornerShape(120.dp)
                         )
                 )
@@ -479,8 +464,8 @@ fun CameraCapture(
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
+                    color = MogCoralDark,
+                    fontSize = 13.sp
                 )
             }
 
@@ -497,12 +482,12 @@ fun CameraCapture(
                         modifier = Modifier
                             .size(72.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .background(Color.White.copy(alpha = 0.55f))
                             .border(
                                 BorderStroke(
                                     2.dp,
-                                    if (bmp != null) MaterialTheme.colorScheme.primary
-                                    else Color.Transparent
+                                    if (bmp != null) MogCoral
+                                    else EqLine
                                 ),
                                 RoundedCornerShape(12.dp)
                             )
@@ -519,8 +504,9 @@ fun CameraCapture(
                         } else {
                             Text(
                                 text = angle.name.take(1),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = EqMuted
                             )
                         }
                     }
@@ -528,8 +514,8 @@ fun CameraCapture(
             }
             Text(
                 text = "Tap a photo to retake it",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp,
+                color = EqMuted,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 4.dp),
@@ -539,47 +525,28 @@ fun CameraCapture(
             Spacer(Modifier.weight(1f))
 
             if (allDone) {
-                Button(
+                // v2.7 reskin: coral pill CTA.
+                EqCoralPillButton(
+                    text = Strings.s("cam_analyze", LanguageStore.isHinglish),
                     onClick = {
                         onAnalyze(shots[CaptureAngle.FRONT]!!, shots[CaptureAngle.LEFT]!!, shots[CaptureAngle.RIGHT]!!)
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text(Strings.s("cam_analyze", LanguageStore.isHinglish), style = MaterialTheme.typography.titleMedium)
-                }
+                    modifier = Modifier.fillMaxWidth()
+                )
             } else {
-                // Big round shutter button
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(76.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                            .clickable(enabled = !capturing && !grading && grade == null) { takePhoto() }
-                            .border(4.dp, Color.White.copy(alpha = 0.7f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (capturing || grading) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                    }
-                }
+                // v2.7 reskin: coral pill capture button (keeps the capturing state).
+                val shutterReady = !capturing && !grading && grade == null
+                EqCoralPillButton(
+                    text = if (capturing || grading) "Capturing…" else "Capture",
+                    onClick = { takePhoto() },
+                    enabled = shutterReady,
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = "Good lighting, plain background, no filters",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                    color = EqMuted,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center
                 )
@@ -600,20 +567,20 @@ fun CameraCapture(
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(PslText)
+                            .background(EqPillDark)
                             .padding(horizontal = 14.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             "Quality ${grade.score}/100 ✓",
-                            color = PslBlack,
+                            color = Color.White,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
                             "retake",
-                            color = PslBlack.copy(alpha = 0.65f),
+                            color = Color.White.copy(alpha = 0.65f),
                             fontSize = 13.sp,
                             modifier = Modifier.clickable { clearPending() }
                         )
@@ -639,7 +606,7 @@ fun CameraCapture(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(PslBlack)
+                    .background(eqBackgroundBrush())
             ) {
                 BestPicPicker(
                     onPick = { bmp ->
@@ -662,7 +629,7 @@ fun CameraCapture(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = PslBlue)
+                    CircularProgressIndicator(color = MogCoral)
                     Spacer(Modifier.height(10.dp))
                     Text(
                         "Checking your pic…",
@@ -721,7 +688,7 @@ private fun PhotoGateExplainer(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PslBlack)
+            .background(eqBackgroundBrush())
     ) {
         Column(
             modifier = Modifier
@@ -731,21 +698,18 @@ private fun PhotoGateExplainer(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.height(24.dp))
-            CapsLabel("photo check")
+            EqSectionLabel("photo check")
             Spacer(Modifier.height(12.dp))
-            Text(
+            EqHeadline(
                 text = "This pic won't score right",
-                fontFamily = MogSerif,
-                fontWeight = FontWeight.Bold,
-                color = PslText,
-                fontSize = 30.sp,
-                lineHeight = 34.sp,
-                textAlign = TextAlign.Center
+                size = 30,
+                color = EqInk,
+                align = TextAlign.Center
             )
             Spacer(Modifier.height(8.dp))
             Text(
                 text = "Bad photo = bad score. Fix the stuff below and your score will actually mean something.",
-                color = PslGrey,
+                color = EqMuted,
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center
             )
@@ -758,27 +722,27 @@ private fun PhotoGateExplainer(
                 CircularProgressIndicator(
                     progress = { grade.score / 100f },
                     modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFFD64545),
-                    trackColor = PslText.copy(alpha = 0.08f),
+                    color = MogCoralDark,
+                    trackColor = EqLine,
                     strokeWidth = 9.dp
                 )
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "${grade.score}",
                         fontWeight = FontWeight.Bold,
-                        color = PslText,
+                        color = EqInk,
                         fontSize = 28.sp
                     )
                     Text(
                         text = "/100",
-                        color = PslGrey,
+                        color = EqMuted,
                         fontSize = 12.sp
                     )
                 }
             }
             Spacer(Modifier.height(20.dp))
-            // one fix line per failed check
-            Column(modifier = Modifier.fillMaxWidth()) {
+            // one fix line per failed check, inside a glass card
+            EqGlassCard(modifier = Modifier.fillMaxWidth()) {
                 rows.forEach { (title, fix) ->
                     Row(
                         modifier = Modifier
@@ -791,20 +755,20 @@ private fun PhotoGateExplainer(
                                 .padding(top = 6.dp)
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(PslBlue)
+                                .background(MogCoral)
                         )
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
                                 text = title,
                                 fontWeight = FontWeight.SemiBold,
-                                color = PslText,
+                                color = EqInk,
                                 fontSize = 16.sp
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
                                 text = fix,
-                                color = PslGrey,
+                                color = EqMuted,
                                 fontSize = 14.sp
                             )
                         }
@@ -813,26 +777,16 @@ private fun PhotoGateExplainer(
             }
             Spacer(Modifier.weight(1f))
             Spacer(Modifier.height(16.dp))
-            Button(
+            EqCoralPillButton(
+                text = retakeLabel,
                 onClick = onRetake,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp),
-                shape = RoundedCornerShape(30.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PslBlue)
-            ) {
-                Text(
-                    text = retakeLabel,
-                    color = PslBlack,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+                modifier = Modifier.fillMaxWidth()
+            )
             if (allowBypass) {
                 Spacer(Modifier.height(12.dp))
                 Text(
                     text = "Use anyway is unlocked — heads up, the score might be way off.",
-                    color = PslGrey,
+                    color = EqMuted,
                     fontSize = 13.sp,
                     textAlign = TextAlign.Center
                 )
@@ -842,7 +796,7 @@ private fun PhotoGateExplainer(
                 ) {
                     Text(
                         text = "Use anyway",
-                        color = PslBlue,
+                        color = MogCoralDark,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -854,7 +808,7 @@ private fun PhotoGateExplainer(
             ) {
                 Text(
                     text = "Cancel",
-                    color = PslText,
+                    color = EqInk,
                     fontSize = 16.sp
                 )
             }
@@ -864,7 +818,7 @@ private fun PhotoGateExplainer(
 }
 // v2.6-photogate end
 
-/** Small pill button for the camera top bar. */
+/** Small pill button for the camera top bar — glass chip, dark when active. */
 @Composable
 private fun TopPill(
     text: String,
@@ -874,21 +828,22 @@ private fun TopPill(
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(if (active) PslText else PslText.copy(alpha = 0.07f))
+            .background(if (active) EqPillDark else Color.White.copy(alpha = 0.55f))
+            .border(1.dp, Color.White.copy(alpha = 0.65f), RoundedCornerShape(50))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            color = if (active) PslBlack else PslText,
+            color = if (active) Color.White else EqInk,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold
         )
     }
 }
 
-/** Score ring: coral for pass, red for fail. */
+/** Score ring: coral for pass, deep coral for fail. */
 @Composable
 private fun ScoreRing(score: Int, pass: Boolean) {
     Box(
@@ -898,14 +853,14 @@ private fun ScoreRing(score: Int, pass: Boolean) {
         CircularProgressIndicator(
             progress = { score / 100f },
             modifier = Modifier.fillMaxSize(),
-            color = if (pass) PslBlue else Color(0xFFD64545),
-            trackColor = PslText.copy(alpha = 0.1f),
+            color = if (pass) MogCoral else MogCoralDark,
+            trackColor = EqLine,
             strokeWidth = 8.dp
         )
         Text(
             text = "$score",
             fontWeight = FontWeight.Bold,
-            color = PslText,
+            color = EqInk,
             fontSize = 24.sp
         )
     }

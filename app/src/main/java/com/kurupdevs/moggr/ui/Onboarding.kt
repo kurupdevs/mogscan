@@ -23,8 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -46,7 +44,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -55,35 +52,33 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.kurupdevs.moggr.util.UserProfile
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqLine
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.EqPillDark
+import com.kurupdevs.moggr.ui.theme.MogCoral
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import java.util.Calendar
 
-val PslBlue = Color(0xFFE07856)
-val PslBlack = Color(0xFFFAF7F1)
-val PslCard = Color(0xC9FFFFFF) // frosted glass white
-val PslGrey = Color(0xFF78716C)
-val PslText = Color(0xFF1C1917)
-val PslDeep = Color(0xFF1C1917)
-val MogSerif = FontFamily.Serif
+// v2.7 equilibrium skin: legacy shared vals, names kept for every other file
+// that references them. Values now point at the new greige palette.
+val PslBlue = MogCoral
+val PslBlack = Color(0xFFFAF7F1) // keep: used as both light text + light bg elsewhere
+val PslCard = Color(0xFFF6F2EA) // EqCard: warm frosted card
+val PslGrey = EqMuted
+val PslText = EqInk
+val PslDeep = EqPillDark
+val MogSerif = EqSerif
 
-/** Warm greige gradient backdrop, reference-UI style. */
-val MoggrBg = Brush.verticalGradient(
-    listOf(Color(0xFFF8F3E9), Color(0xFFEEE4D1), Color(0xFFE4D8C1))
-)
+/** Warm greige gradient backdrop, v2.7 equilibrium style. */
+val MoggrBg = eqBackgroundBrush()
 
-/** Small letter-spaced uppercase label, e.g. "TODAY'S THOUGHT". */
+/** Small letter-spaced uppercase label — now the shared equilibrium label. */
 @Composable
 fun CapsLabel(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text.uppercase(),
-        fontSize = 11.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = PslGrey,
-        letterSpacing = 2.sp,
-        modifier = modifier
-    )
+    EqSectionLabel(text, modifier)
 }
 
 /** Rounded pill chip; selected state is filled ink like the reference UI. */
@@ -100,7 +95,7 @@ fun MogChip(
             .background(if (selected) PslText else Color.Transparent)
             .border(
                 1.dp,
-                if (selected) PslText else Color(0xFFE2DCD2),
+                if (selected) PslText else EqLine,
                 RoundedCornerShape(50)
             )
             .clickable(onClick = onClick)
@@ -111,7 +106,7 @@ fun MogChip(
             text,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
-            color = if (selected) PslBlack else PslText
+            color = if (selected) Color.White else PslText
         )
     }
 }
@@ -147,21 +142,17 @@ fun IntroVideoScreen(onGetStarted: () -> Unit) {
                     )
                 )
         )
-        Button(
+        EqCoralPillButton(
+            text = "Get started",
             onClick = onGetStarted,
-            colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .padding(24.dp)
-                .height(56.dp),
-            shape = RoundedCornerShape(50)
-        ) {
-            Text("Get started", fontSize = 17.sp, fontWeight = FontWeight.Bold)
-        }
+        )
         Text(
             "Moggr",
-            fontFamily = MogSerif,
+            fontFamily = EqSerif,
             fontStyle = FontStyle.Italic,
             fontSize = 30.sp,
             color = Color.White,
@@ -228,8 +219,8 @@ fun QuestionFlow(
                     .weight(1f)
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp)),
-                color = PslBlue,
-                trackColor = Color(0xFFEDE7DB)
+                color = MogCoral,
+                trackColor = EqLine
             )
             Spacer(Modifier.size(40.dp))
         }
@@ -476,7 +467,7 @@ private fun WheelColumn(
                 .fillMaxWidth()
                 .height(itemHeight)
                 .clip(RoundedCornerShape(10.dp))
-                .background(PslBlue.copy(alpha = 0.08f))
+                .background(MogCoral.copy(alpha = 0.10f))
         )
     }
 }
@@ -485,40 +476,28 @@ private fun WheelColumn(
 @Composable
 private fun SkipForNowButton(onSkip: () -> Unit) {
     Spacer(Modifier.height(12.dp))
-    Box(
+    EqPillButton(
+        text = "Skip for now",
+        onClick = onSkip,
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp)
-            .clip(RoundedCornerShape(50))
-            .border(1.dp, Color(0xFFE2DCD2), RoundedCornerShape(50))
-            .clickable(onClick = onSkip),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            "Skip for now",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = PslText
-        )
-    }
+    )
 }
 
 @Composable
 private fun QuestionTitle(title: String, subtitle: String) {
-    Text(
-        title,
-        fontFamily = MogSerif,
-        fontSize = 30.sp,
-        fontWeight = FontWeight.Bold,
-        color = PslText,
-        textAlign = TextAlign.Center,
-        lineHeight = 36.sp,
+    EqHeadline(
+        text = title,
+        size = 30,
+        align = TextAlign.Center,
         modifier = Modifier.fillMaxWidth()
     )
     Spacer(Modifier.height(10.dp))
     Text(
-        subtitle,
+        text = subtitle,
         fontSize = 14.sp,
+        lineHeight = 20.sp,
         color = PslGrey,
         textAlign = TextAlign.Center,
         modifier = Modifier
@@ -538,10 +517,10 @@ private fun OptionList(options: List<String>, selected: String, onSelect: (Strin
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(50))
-                    .background(if (isSel) PslText else Color.White)
+                    .background(if (isSel) PslText else Color.White.copy(alpha = 0.85f))
                     .border(
                         width = 1.dp,
-                        color = if (isSel) PslText else Color(0xFFEDE7DB),
+                        color = if (isSel) PslText else EqLine,
                         shape = RoundedCornerShape(50)
                     )
                     .clickable { onSelect(opt) }
@@ -553,7 +532,7 @@ private fun OptionList(options: List<String>, selected: String, onSelect: (Strin
                     opt,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (isSel) PslBlack else PslText,
+                    color = if (isSel) Color.White else PslText,
                     textAlign = TextAlign.Center
                 )
             }
@@ -563,22 +542,12 @@ private fun OptionList(options: List<String>, selected: String, onSelect: (Strin
 
 @Composable
 private fun PslNextButton(text: String, enabled: Boolean, onClick: () -> Unit) {
-    Button(
+    EqCoralPillButton(
+        text = text,
         onClick = onClick,
         enabled = enabled,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = PslBlue,
-            disabledContainerColor = Color(0xFFEDE7DB),
-            contentColor = Color.White,
-            disabledContentColor = Color(0xFF98A2B3)
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp),
-        shape = RoundedCornerShape(50)
-    ) {
-        Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-    }
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 /** Accepts cm (100-250) or feet (3.0-8.9, e.g. 5.8) and returns cm. */
@@ -595,9 +564,9 @@ private fun parseHeightCm(input: String): Int? {
 private fun textFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedTextColor = PslText,
     unfocusedTextColor = PslText,
-    focusedBorderColor = PslBlue,
-    unfocusedBorderColor = Color(0xFFD8D0C2),
-    cursorColor = PslBlue,
-    focusedContainerColor = PslCard,
-    unfocusedContainerColor = PslCard
+    focusedBorderColor = MogCoral,
+    unfocusedBorderColor = EqLine,
+    cursorColor = MogCoral,
+    focusedContainerColor = Color.White.copy(alpha = 0.75f),
+    unfocusedContainerColor = Color.White.copy(alpha = 0.55f)
 )

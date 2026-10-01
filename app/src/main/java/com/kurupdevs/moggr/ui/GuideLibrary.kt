@@ -17,8 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
@@ -37,6 +35,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kurupdevs.moggr.analysis.PslReport
+import com.kurupdevs.moggr.ui.theme.EqCard
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.MogCoral
 // v2.6-hinglish begin
 import com.kurupdevs.moggr.util.LanguageStore
 // v2.6-hinglish end
@@ -45,17 +47,12 @@ import com.kurupdevs.moggr.util.LanguageStore
 
 @Composable
 private fun SectionCard(title: String, subtitle: String, content: @Composable () -> Unit) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PslText)
+    EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+        Column {
+            Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = EqInk)
             if (subtitle.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
-                Text(subtitle, fontSize = 13.sp, color = PslGrey)
+                Text(subtitle, fontSize = 13.sp, color = EqMuted)
             }
             Spacer(Modifier.height(10.dp))
             content()
@@ -66,8 +63,8 @@ private fun SectionCard(title: String, subtitle: String, content: @Composable ()
 @Composable
 private fun Bullet(text: String) {
     Row(Modifier.padding(vertical = 3.dp)) {
-        Text("•  ", fontSize = 14.sp, color = PslBlue, fontWeight = FontWeight.Bold)
-        Text(text, fontSize = 14.sp, color = PslText, modifier = Modifier.weight(1f))
+        Text("•  ", fontSize = 14.sp, color = MogCoral, fontWeight = FontWeight.Bold)
+        Text(text, fontSize = 14.sp, color = EqInk, modifier = Modifier.weight(1f))
     }
 }
 
@@ -78,10 +75,10 @@ private fun QuizOption(text: String, selected: Boolean, onClick: () -> Unit) {
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) PslBlue.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.6f))
+            .background(if (selected) MogCoral.copy(alpha = 0.14f) else EqCard.copy(alpha = 0.6f))
             .border(
                 width = if (selected) 2.dp else 1.dp,
-                color = if (selected) PslBlue else PslGrey.copy(alpha = 0.35f),
+                color = if (selected) MogCoral else EqMuted.copy(alpha = 0.35f),
                 shape = RoundedCornerShape(12.dp)
             )
             .clickable { onClick() }
@@ -91,13 +88,13 @@ private fun QuizOption(text: String, selected: Boolean, onClick: () -> Unit) {
         Text(
             text,
             fontSize = 14.sp,
-            color = PslText,
+            color = EqInk,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             modifier = Modifier.weight(1f)
         )
         if (selected) {
             Spacer(Modifier.size(6.dp))
-            Text("✓", fontSize = 14.sp, color = PslBlue, fontWeight = FontWeight.Bold)
+            Text("✓", fontSize = 14.sp, color = MogCoral, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -114,12 +111,12 @@ private fun ChecklistRow(text: String, checked: Boolean, onToggle: () -> Unit) {
         Checkbox(
             checked = checked,
             onCheckedChange = { onToggle() },
-            colors = CheckboxDefaults.colors(checkedColor = PslBlue)
+            colors = CheckboxDefaults.colors(checkedColor = MogCoral)
         )
         Text(
             text,
             fontSize = 14.sp,
-            color = if (checked) PslGrey else PslText,
+            color = if (checked) EqMuted else EqInk,
             modifier = Modifier.padding(start = 6.dp)
         )
     }
@@ -129,34 +126,31 @@ private fun ChecklistRow(text: String, checked: Boolean, onToggle: () -> Unit) {
 private fun ExpandableDayCard(day: String, title: String, items: List<String>) {
     var expanded by remember { mutableStateOf(false) }
     val checked = remember { mutableStateListOf<Boolean>().apply { repeat(items.size) { add(false) } } }
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    EqGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 5.dp)
             .clickable { expanded = !expanded }
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(day, fontSize = 12.sp, color = PslBlue, fontWeight = FontWeight.Bold)
-                    Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = PslText)
+                    Text(day, fontSize = 12.sp, color = MogCoral, fontWeight = FontWeight.Bold)
+                    Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = EqInk)
                 }
                 Text(
                     "${checked.count { it }} / ${items.size}",
                     fontSize = 12.sp,
-                    color = PslGrey,
+                    color = EqMuted,
                     modifier = Modifier.padding(end = 8.dp)
                 )
                 Icon(
                     imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                     contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = PslBlue
+                    tint = MogCoral
                 )
             }
             if (expanded) {
@@ -220,7 +214,7 @@ fun SkinQuizCard() {
     val done = answers.all { it != null }
 
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel(Strings.s("caps_skin", hi))
+        EqSectionLabel(Strings.s("caps_skin", hi))
         Spacer(Modifier.height(8.dp))
         if (!done) {
             SectionCard(
@@ -228,7 +222,7 @@ fun SkinQuizCard() {
                 subtitle = Strings.s("skinq_sub", hi)
             ) {
                 questions.forEachIndexed { qi, q ->
-                    Text(q.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = PslText)
+                    Text(q.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = EqInk)
                     Spacer(Modifier.height(4.dp))
                     q.options.forEach { (label, value) ->
                         QuizOption(label, answers[qi] == value) { answers[qi] = value }
@@ -298,7 +292,7 @@ private fun SkinRoutineResult(
         Text(
             Strings.s("retake_quiz", hi),
             fontSize = 13.sp,
-            color = PslBlue,
+            color = MogCoral,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.clickable { onRetake() }
         )
@@ -322,14 +316,14 @@ private fun RoutineStep(number: String, name: String, guidance: String) {
                 .padding(end = 10.dp, top = 2.dp)
                 .size(26.dp)
                 .clip(CircleShape)
-                .background(PslBlue),
+                .background(MogCoral),
             contentAlignment = Alignment.Center
         ) {
             Text(number, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
         }
         Column(Modifier.weight(1f)) {
-            Text(name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = PslText)
-            Text(guidance, fontSize = 13.sp, color = PslGrey)
+            Text(name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = EqInk)
+            Text(guidance, fontSize = 13.sp, color = EqMuted)
         }
     }
 }
@@ -379,12 +373,12 @@ fun DebloatSection() {
     // v2.6-hinglish: 7-day plan + sodium guide translated by index key.
     val hi = LanguageStore.isHinglish
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel(Strings.s("caps_debloat", hi))
+        EqSectionLabel(Strings.s("caps_debloat", hi))
         Spacer(Modifier.height(8.dp))
         Text(
             Strings.s("debloat_sub", hi),
             fontSize = 13.sp,
-            color = PslGrey,
+            color = EqMuted,
             modifier = Modifier.padding(bottom = 8.dp)
         )
         DEBLOAT_DAYS.forEachIndexed { di, (day, titleToItems) ->
@@ -402,10 +396,10 @@ fun DebloatSection() {
             title = Strings.s("sod_title", hi),
             subtitle = Strings.s("sod_sub", hi)
         ) {
-            Text(Strings.s("sod_high", hi), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PslBlue)
+            Text(Strings.s("sod_high", hi), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MogCoral)
             for (i in 0 until 5) Bullet(Strings.s("sod_h$i", hi))
             Spacer(Modifier.height(8.dp))
-            Text(Strings.s("sod_low", hi), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PslBlue)
+            Text(Strings.s("sod_low", hi), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MogCoral)
             for (i in 0 until 5) Bullet(Strings.s("sod_l$i", hi))
         }
     }
@@ -434,20 +428,20 @@ fun HairSection(report: PslReport?) {
     val matched = HAIR_BY_SHAPE.firstOrNull { it.first.equals(shape, ignoreCase = true) }
 
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel(Strings.s("caps_hair", hi))
+        EqSectionLabel(Strings.s("caps_hair", hi))
         Spacer(Modifier.height(8.dp))
         if (matched != null) {
             SectionCard(
                 title = Strings.fmt("hair_your_cut", hi, "s" to matched.first),
                 subtitle = Strings.s("hair_matched_sub", hi)
             ) {
-                Text(adviceFor(matched.first, matched.second), fontSize = 14.sp, color = PslText)
+                Text(adviceFor(matched.first, matched.second), fontSize = 14.sp, color = EqInk)
             }
             Spacer(Modifier.height(10.dp))
             Text(
                 Strings.s("hair_other", hi),
                 fontSize = 13.sp,
-                color = PslGrey,
+                color = EqMuted,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = 6.dp)
             )
@@ -455,22 +449,19 @@ fun HairSection(report: PslReport?) {
             Text(
                 Strings.s("hair_no_scan", hi),
                 fontSize = 13.sp,
-                color = PslGrey,
+                color = EqMuted,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
         }
         HAIR_BY_SHAPE.filter { it != matched }.forEach { (name, advice) ->
             var expanded by remember { mutableStateOf(false) }
-            Card(
-                colors = CardDefaults.cardColors(containerColor = PslCard),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            EqGlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
                     .clickable { expanded = !expanded }
             ) {
-                Column(Modifier.padding(14.dp)) {
+                Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -479,18 +470,18 @@ fun HairSection(report: PslReport?) {
                             name,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = PslText,
+                            color = EqInk,
                             modifier = Modifier.weight(1f)
                         )
                         Icon(
                             imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                             contentDescription = if (expanded) "Collapse" else "Expand",
-                            tint = PslBlue
+                            tint = MogCoral
                         )
                     }
                     if (expanded) {
                         Spacer(Modifier.height(6.dp))
-                        Text(adviceFor(name, advice), fontSize = 14.sp, color = PslText)
+                        Text(adviceFor(name, advice), fontSize = 14.sp, color = EqInk)
                     }
                 }
             }
@@ -503,7 +494,7 @@ fun HairSection(report: PslReport?) {
             Text(
                 Strings.s("barber_script", hi),
                 fontSize = 14.sp,
-                color = PslText,
+                color = EqInk,
                 fontWeight = FontWeight.Medium
             )
             Spacer(Modifier.height(6.dp))
@@ -562,12 +553,12 @@ fun PostureSection() {
     // v2.6-hinglish: posture weeks translated by index key.
     val hi = LanguageStore.isHinglish
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel(Strings.s("caps_posture", hi))
+        EqSectionLabel(Strings.s("caps_posture", hi))
         Spacer(Modifier.height(8.dp))
         Text(
             Strings.s("posture_sub", hi),
             fontSize = 13.sp,
-            color = PslGrey,
+            color = EqMuted,
             modifier = Modifier.padding(bottom = 8.dp)
         )
         POSTURE_WEEKS.forEachIndexed { wi, (week, items) ->
@@ -579,16 +570,13 @@ fun PostureSection() {
                 val iKey = "posture_w${wi}i$ii"
                 Strings.s(iKey, hi).let { if (it == iKey) item else it }
             }
-            Card(
-                colors = CardDefaults.cardColors(containerColor = PslCard),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            EqGlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 5.dp)
                     .clickable { expanded = !expanded }
             ) {
-                Column(Modifier.padding(16.dp)) {
+                Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -596,13 +584,13 @@ fun PostureSection() {
                         Checkbox(
                             checked = done,
                             onCheckedChange = { done = it },
-                            colors = CheckboxDefaults.colors(checkedColor = PslBlue)
+                            colors = CheckboxDefaults.colors(checkedColor = MogCoral)
                         )
                         Text(
                             weekTitle,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (done) PslGrey else PslText,
+                            color = if (done) EqMuted else EqInk,
                             modifier = Modifier
                                 .weight(1f)
                                 .padding(start = 6.dp)
@@ -610,7 +598,7 @@ fun PostureSection() {
                         Icon(
                             imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                             contentDescription = if (expanded) "Collapse" else "Expand",
-                            tint = PslBlue
+                            tint = MogCoral
                         )
                     }
                     if (expanded) {
@@ -623,7 +611,7 @@ fun PostureSection() {
         Text(
             Strings.s("posture_foot", hi),
             fontSize = 12.sp,
-            color = PslGrey,
+            color = EqMuted,
             modifier = Modifier.padding(top = 6.dp)
         )
     }
@@ -675,7 +663,7 @@ fun SeasonQuizCard(report: PslReport?) {
     val done = answers.all { it != null }
 
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel(Strings.s("caps_season", hi))
+        EqSectionLabel(Strings.s("caps_season", hi))
         Spacer(Modifier.height(8.dp))
         if (!done) {
             SectionCard(
@@ -683,7 +671,7 @@ fun SeasonQuizCard(report: PslReport?) {
                 subtitle = Strings.s("season_sub", hi)
             ) {
                 questions.forEachIndexed { qi, q ->
-                    Text(q.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = PslText)
+                    Text(q.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = EqInk)
                     Spacer(Modifier.height(4.dp))
                     QuizOption(q.warmOption, answers[qi] == true) { answers[qi] = true }
                     QuizOption(q.coolOption, answers[qi] == false) { answers[qi] = false }
@@ -699,7 +687,7 @@ fun SeasonQuizCard(report: PslReport?) {
             Text(
                 Strings.s("retake_quiz", hi),
                 fontSize = 13.sp,
-                color = PslBlue,
+                color = MogCoral,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
                     .clickable { repeat(answers.size) { answers[it] = null } }

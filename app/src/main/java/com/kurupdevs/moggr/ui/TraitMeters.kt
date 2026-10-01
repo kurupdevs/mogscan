@@ -19,14 +19,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
-import androidx.compose.ui.graphics.Color
 import com.kurupdevs.moggr.analysis.PslReport
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqLine
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.MogCoral
 
 /** Animated 0–100 trait meters shown in the report body. */
 @Composable
 fun TraitMeters(report: PslReport) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        CapsLabel("TRAIT METERS")
+        EqSectionLabel("Trait meters")
         Spacer(Modifier.height(10.dp))
 
         MeterRow("Overall", (report.overallPsl / 8.0 * 100).toFloat())
@@ -63,31 +66,32 @@ private fun MeterRow(label: String, pct: Float, caption: String? = null) {
         ) {
             Text(
                 label,
-                color = PslText,
+                color = EqInk,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 14.sp
             )
             Spacer(Modifier.weight(1f))
             Text(
                 "${(anim * 100).toInt()}",
-                color = PslText,
+                color = EqInk,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 14.sp
             )
         }
         Spacer(Modifier.height(6.dp))
+        // v2.7 reskin: greige track, coral fill.
         LinearProgressIndicator(
             progress = { anim },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(8.dp)
                 .clip(RoundedCornerShape(4.dp)),
-            color = PslBlue,
-            trackColor = Color(0xFFEDE7DB)
+            color = MogCoral,
+            trackColor = EqLine
         )
         if (caption != null) {
             Spacer(Modifier.height(4.dp))
-            Text(caption, fontSize = 11.sp, color = PslGrey)
+            Text(caption, fontSize = 11.sp, color = EqMuted)
         }
         Spacer(Modifier.height(12.dp))
     }

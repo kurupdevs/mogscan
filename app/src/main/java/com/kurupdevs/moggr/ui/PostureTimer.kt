@@ -11,14 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +29,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kurupdevs.moggr.ui.theme.EqGreigeDeep
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.MogCoral
 import com.kurupdevs.moggr.util.PlanStore
 import kotlinx.coroutines.delay
 
@@ -75,21 +73,15 @@ fun PostureTrackCard(
 
     val progress = (HOLD_SECS - holdLeft) / HOLD_SECS.toFloat()
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    EqGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
     ) {
-        Column(Modifier.padding(18.dp)) {
-            CapsLabel("POSTURE TRACK")
+        Column {
+            EqSectionLabel("POSTURE TRACK")
             Spacer(Modifier.height(6.dp))
-            Text(
-                "Chin tucks fix forward head posture — the silent jawline killer.",
-                fontSize = 14.sp, color = PslGrey
-            )
+            EqBody("Chin tucks fix forward head posture — the silent jawline killer.")
             Spacer(Modifier.height(16.dp))
 
             Box(
@@ -100,38 +92,38 @@ fun PostureTrackCard(
                     Canvas(modifier = Modifier.size(170.dp)) {
                         val stroke = Stroke(width = 14.dp.toPx(), cap = StrokeCap.Round)
                         drawArc(
-                            color = Color(0xFFEDE7DB),
+                            color = EqGreigeDeep,
                             startAngle = -90f, sweepAngle = 360f,
                             useCenter = false, style = stroke
                         )
                         drawArc(
-                            color = PslBlue,
+                            color = MogCoral,
                             startAngle = -90f, sweepAngle = 360f * progress,
                             useCenter = false, style = stroke
                         )
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         if (finished) {
-                            Text("done", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = PslText)
-                            Text("10/10", fontSize = 14.sp, color = PslGrey)
+                            Text("done", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = EqInk)
+                            Text("10/10", fontSize = 14.sp, color = EqMuted)
                         } else {
                             Text(
                                 "${holdLeft}s",
-                                fontSize = 38.sp, fontWeight = FontWeight.ExtraBold, color = PslText
+                                fontSize = 38.sp, fontWeight = FontWeight.ExtraBold, color = EqInk
                             )
                             Text(
                                 "rep $rep / $TOTAL_REPS",
-                                fontSize = 14.sp, color = PslGrey, fontWeight = FontWeight.SemiBold
+                                fontSize = 14.sp, color = EqMuted, fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Text(
+            EqBody(
                 if (finished) "Stacked. Your neck will thank you."
                 else "Tuck your chin straight back, hold, release. Gentle — stop if anything hurts.",
-                fontSize = 13.sp, color = PslGrey,
+                size = 13,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(12.dp))
@@ -140,23 +132,22 @@ fun PostureTrackCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 if (finished) {
-                    OutlinedButton(
+                    EqPillButton(
+                        text = "Run it back",
                         onClick = { rep = 1; holdLeft = HOLD_SECS; finished = false; running = true },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(50)
-                    ) { Text("Run it back", color = PslBlue) }
+                        modifier = Modifier.weight(1f)
+                    )
                 } else {
-                    Button(
+                    EqDarkPillButton(
+                        text = if (running) "Pause" else if (rep > 1 || holdLeft < HOLD_SECS) "Resume" else "Start",
                         onClick = { running = !running },
-                        colors = ButtonDefaults.buttonColors(containerColor = PslDeep),
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(50)
-                    ) { Text(if (running) "Pause" else if (rep > 1 || holdLeft < HOLD_SECS) "Resume" else "Start", fontWeight = FontWeight.Bold) }
-                    OutlinedButton(
+                        modifier = Modifier.weight(1f)
+                    )
+                    EqPillButton(
+                        text = "Reset",
                         onClick = { running = false; rep = 1; holdLeft = HOLD_SECS },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(50)
-                    ) { Text("Reset", color = PslBlue) }
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
@@ -175,13 +166,14 @@ fun PostureTrackCard(
                         onCheckedChange = { onToggle(id) },
                         colors = CheckboxDefaults.colors(
                             checkedColor = Color(0xFF12B76A),
-                            uncheckedColor = PslGrey
+                            uncheckedColor = EqMuted
                         )
                     )
                     Spacer(Modifier.width(8.dp))
                     Column {
-                        Text(task.title, color = PslText, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                        Text(task.detail, color = PslGrey, fontSize = 13.sp)
+                        // NOTE: task titles/details come from PlanStore (util) and stay English.
+                        Text(task.title, color = EqInk, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        Text(task.detail, color = EqMuted, fontSize = 13.sp)
                     }
                 }
             }

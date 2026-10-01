@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +27,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqLine
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.MogCoral
 
 private data class HBar(val label: String, val pct: Int)
 
@@ -44,97 +46,85 @@ fun InfoSlidesScreen(onDone: () -> Unit) {
     Column(
         Modifier
             .fillMaxSize()
-            .background(MoggrBg)
+            .background(eqBackgroundBrush())
             .padding(20.dp)
     ) {
         // Top visual card
-        Box(
+        EqGlassCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .background(Color.White, RoundedCornerShape(16.dp))
-                .border(1.dp, Color(0xFFEDE7DB), RoundedCornerShape(16.dp))
-                .padding(20.dp),
-            contentAlignment = Alignment.Center
         ) {
-            when (index) {
-                0 -> HaloVisual()
-                1 -> BarsVisual(
-                    title = "LOOKS INFLUENCE EVERYTHING",
-                    bars = listOf(
-                        HBar("Dating", 80),
-                        HBar("Popularity", 65),
-                        HBar("Career", 35),
-                        HBar("Income", 30)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                when (index) {
+                    0 -> HaloVisual()
+                    1 -> BarsVisual(
+                        title = "LOOKS INFLUENCE EVERYTHING",
+                        bars = listOf(
+                            HBar("Dating", 80),
+                            HBar("Popularity", 65),
+                            HBar("Career", 35),
+                            HBar("Income", 30)
+                        )
                     )
-                )
-                2 -> EmblemVisual(top = "TOP 20%", bottom = "gets most of the attention")
-                3 -> BarsVisual(
-                    title = "HOW COUPLES MEET TODAY",
-                    bars = listOf(
-                        HBar("Dating apps", 61),
-                        HBar("Via friends", 14),
-                        HBar("At work", 9),
-                        HBar("At a bar", 5)
+                    2 -> EmblemVisual(top = "TOP 20%", bottom = "gets most of the attention")
+                    3 -> BarsVisual(
+                        title = "HOW COUPLES MEET TODAY",
+                        bars = listOf(
+                            HBar("Dating apps", 61),
+                            HBar("Via friends", 14),
+                            HBar("At work", 9),
+                            HBar("At a bar", 5)
+                        )
                     )
-                )
-                4 -> LikesVisual()
-                else -> EmblemVisual(top = "LOOKS =", bottom = "the highest leverage")
+                    4 -> LikesVisual()
+                    else -> EmblemVisual(top = "LOOKS =", bottom = "the highest leverage")
+                }
             }
         }
 
         Spacer(Modifier.height(20.dp))
 
         // Bottom card
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White, RoundedCornerShape(24.dp))
-                .border(1.dp, Color(0xFFEDE7DB), RoundedCornerShape(24.dp))
-                .padding(horizontal = 24.dp, vertical = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            val (cardTitle, cardText) = when (index) {
-                0 -> "Perception Is\nEverything" to
-                    "It's human nature — the halo effect means you're treated differently based on how you look."
-                1 -> "The Brutal\nTruth" to
-                    "Most people don't realize how much attractiveness quietly shapes their life."
-                2 -> "The Loneliness\nEpidemic" to
-                    "Social media forces everyone to compete with the top 20%. Not close? You're left behind."
-                3 -> "Modern\nDating World" to
-                    "Most couples meet on dating apps today — and looks are the first filter."
-                4 -> "The Dating\nMarket Reality" to
-                    "Without standing out, it's an uphill battle. A small top slice gets almost all the attention."
-                else -> "The Highest\nLeverage Solution" to
-                    "For attraction, it was never money or status first — looks spark primal desire. Let's measure yours."
-            }
-            Text(
-                cardTitle,
-                fontFamily = MogSerif,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = PslText,
-                textAlign = TextAlign.Center,
-                lineHeight = 38.sp
-            )
-            Spacer(Modifier.height(14.dp))
-            Text(
-                cardText,
-                fontSize = 15.sp,
-                color = PslGrey,
-                textAlign = TextAlign.Center,
-                lineHeight = 22.sp
-            )
-            Spacer(Modifier.height(24.dp))
-            Button(
-                onClick = { if (index < total - 1) index++ else onDone() },
-                colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(14.dp)
+        EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Next", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                val (cardTitle, cardText) = when (index) {
+                    0 -> "Perception Is\nEverything" to
+                        "It's human nature — the halo effect means you're treated differently based on how you look."
+                    1 -> "The Brutal\nTruth" to
+                        "Most people don't realize how much attractiveness quietly shapes their life."
+                    2 -> "The Loneliness\nEpidemic" to
+                        "Social media forces everyone to compete with the top 20%. Not close? You're left behind."
+                    3 -> "Modern\nDating World" to
+                        "Most couples meet on dating apps today — and looks are the first filter."
+                    4 -> "The Dating\nMarket Reality" to
+                        "Without standing out, it's an uphill battle. A small top slice gets almost all the attention."
+                    else -> "The Highest\nLeverage Solution" to
+                        "For attraction, it was never money or status first — looks spark primal desire. Let's measure yours."
+                }
+                EqHeadline(cardTitle, size = 30, align = TextAlign.Center)
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    cardText,
+                    fontSize = 15.sp,
+                    color = EqMuted,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 22.sp
+                )
+                Spacer(Modifier.height(24.dp))
+                EqCoralPillButton(
+                    text = "Next",
+                    onClick = { if (index < total - 1) index++ else onDone() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                )
             }
         }
     }
@@ -147,14 +137,14 @@ private fun HaloVisual() {
             "THE HALO EFFECT",
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = PslText,
+            color = EqInk,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(8.dp))
         Text(
             "People assume attractive people are smarter, kinder and more successful.",
             fontSize = 13.sp,
-            color = PslGrey,
+            color = EqMuted,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(20.dp))
@@ -169,15 +159,15 @@ private fun HaloVisual() {
 private fun HaloCard(mark: String, markColor: Color, label: String, sub: String) {
     Column(
         modifier = Modifier
-            .border(1.dp, Color(0xFFEDE7DB), RoundedCornerShape(12.dp))
+            .border(1.dp, EqLine, RoundedCornerShape(12.dp))
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(mark, fontSize = 34.sp, fontWeight = FontWeight.Bold, color = markColor)
         Spacer(Modifier.height(6.dp))
-        Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = PslText)
+        Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = EqInk)
         Spacer(Modifier.height(4.dp))
-        Text(sub, fontSize = 12.sp, color = PslGrey, textAlign = TextAlign.Center)
+        Text(sub, fontSize = 12.sp, color = EqMuted, textAlign = TextAlign.Center)
     }
 }
 
@@ -188,7 +178,7 @@ private fun BarsVisual(title: String, bars: List<HBar>) {
             title,
             fontSize = 18.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = PslText,
+            color = EqInk,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
@@ -198,7 +188,7 @@ private fun BarsVisual(title: String, bars: List<HBar>) {
                 Text(
                     bar.label,
                     fontSize = 13.sp,
-                    color = PslText,
+                    color = EqInk,
                     modifier = Modifier.width(88.dp)
                 )
                 Box(
@@ -206,18 +196,18 @@ private fun BarsVisual(title: String, bars: List<HBar>) {
                         .weight(1f)
                         .height(26.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFFEDE7DB))
+                        .background(EqLine.copy(alpha = 0.6f))
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(bar.pct / 100f)
                             .height(26.dp)
                             .clip(RoundedCornerShape(6.dp))
-                            .background(PslBlue)
+                            .background(MogCoral)
                     )
                 }
                 Spacer(Modifier.width(8.dp))
-                Text("${bar.pct}%", fontSize = 13.sp, color = PslText, modifier = Modifier.width(44.dp))
+                Text("${bar.pct}%", fontSize = 13.sp, color = EqInk, modifier = Modifier.width(44.dp))
             }
         }
     }
@@ -230,14 +220,14 @@ private fun EmblemVisual(top: String, bottom: String) {
             top,
             fontSize = 44.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = PslText,
+            color = EqInk,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(10.dp))
         Text(
             bottom,
             fontSize = 16.sp,
-            color = PslGrey,
+            color = EqMuted,
             textAlign = TextAlign.Center
         )
     }
@@ -253,7 +243,7 @@ private fun LikesVisual() {
             "AVG LIKES / WEEK",
             fontSize = 16.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = PslText
+            color = EqInk
         )
         Spacer(Modifier.height(16.dp))
         Row(
@@ -264,7 +254,7 @@ private fun LikesVisual() {
             values.forEachIndexed { i, v ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
                     if (v > 0) {
-                        Text("$v", fontSize = 10.sp, color = PslText)
+                        Text("$v", fontSize = 10.sp, color = EqInk)
                     } else {
                         Spacer(Modifier.height(14.dp))
                     }
@@ -273,14 +263,14 @@ private fun LikesVisual() {
                             .width(22.dp)
                             .height((8 + (v / max) * 120).dp)
                             .clip(RoundedCornerShape(4.dp))
-                            .background(if (i >= 8) PslBlue else Color(0xFFD8D0C2))
+                            .background(if (i >= 8) MogCoral else EqLine.copy(alpha = 0.7f))
                     )
                     Spacer(Modifier.height(4.dp))
-                    Text("${(i + 1) * 10}%", fontSize = 8.sp, color = PslGrey)
+                    Text("${(i + 1) * 10}%", fontSize = 8.sp, color = EqMuted)
                 }
             }
         }
         Spacer(Modifier.height(8.dp))
-        Text("ATTRACTIVENESS SCORE", fontSize = 12.sp, color = PslGrey)
+        Text("ATTRACTIVENESS SCORE", fontSize = 12.sp, color = EqMuted)
     }
 }

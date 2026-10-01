@@ -9,13 +9,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.MogCoral
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -135,10 +134,10 @@ private fun SeasonPaletteDots(season: SeasonInfo) {
                         .size(44.dp)
                         .clip(CircleShape)
                         .background(color)
-                        .border(1.dp, PslGrey.copy(alpha = 0.4f), CircleShape)
+                        .border(1.dp, EqMuted.copy(alpha = 0.4f), CircleShape)
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(label, fontSize = 11.sp, color = PslGrey)
+                Text(label, fontSize = 11.sp, color = EqMuted)
             }
         }
     }
@@ -164,28 +163,23 @@ fun SeasonResultContent(season: SeasonInfo) {
     }
     val seasonName = Strings.s(nameKey, hi).let { if (it == nameKey) season.name else it }
     val seasonTag = Strings.s(tagKey, hi).let { if (it == tagKey) season.tagline else it }
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(16.dp)) {
+    EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+        Column {
             Text(
                 Strings.fmt("season_you_are", hi, "s" to seasonName),
-                fontSize = 18.sp, fontWeight = FontWeight.Bold, color = PslText
+                fontSize = 18.sp, fontWeight = FontWeight.Bold, color = EqInk
             )
             Spacer(Modifier.height(4.dp))
-            Text(seasonTag, fontSize = 13.sp, color = PslGrey)
+            Text(seasonTag, fontSize = 13.sp, color = EqMuted)
             Spacer(Modifier.height(12.dp))
-            Text(Strings.s("caps_desi_palette", hi), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PslBlue)
+            Text(Strings.s("caps_desi_palette", hi), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MogCoral)
             Spacer(Modifier.height(8.dp))
             SeasonPaletteDots(season)
             Spacer(Modifier.height(8.dp))
             Text(
                 Strings.s("season_tip", hi),
                 fontSize = 12.sp,
-                color = PslGrey
+                color = EqMuted
             )
         }
     }
@@ -199,25 +193,20 @@ fun SwatchTestCard() {
     // swatches onto the user's photo. A composited swatch shifts perceived skin
     // tone and would mislead the read — honesty beats the gimmick. A real cloth
     // in daylight is the honest test, so we teach that instead.
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(Strings.s("swatch_title", hi), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = PslText)
+    EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+        Column {
+            Text(Strings.s("swatch_title", hi), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = EqInk)
             Spacer(Modifier.height(6.dp))
             Text(
                 Strings.s("swatch_b0", hi),
                 fontSize = 14.sp,
-                color = PslText
+                color = EqInk
             )
             Spacer(Modifier.height(6.dp))
             Text(
                 Strings.s("swatch_b1", hi),
                 fontSize = 14.sp,
-                color = PslText
+                color = EqInk
             )
         }
     }
@@ -233,22 +222,16 @@ fun SeasonCard(report: PslReport?) {
     val hi = LanguageStore.isHinglish
     val season = seasonFromUndertone(report?.skinUndertone.orEmpty())
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel(Strings.s("caps_color_season", hi))
+        EqSectionLabel(Strings.s("caps_color_season", hi))
         Spacer(Modifier.height(8.dp))
         if (season != null) {
             SeasonResultContent(season)
         } else {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = PslCard),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            EqGlassCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     Strings.s("season_locked", hi),
                     fontSize = 14.sp,
-                    color = PslText,
-                    modifier = Modifier.padding(16.dp)
+                    color = EqInk
                 )
             }
         }

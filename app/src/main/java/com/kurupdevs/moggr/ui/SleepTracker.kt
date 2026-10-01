@@ -13,15 +13,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -32,6 +27,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kurupdevs.moggr.ui.theme.EqGreigeDeep
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqInkSoft
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.MogCoral
 import com.kurupdevs.moggr.util.SleepStore
 import java.time.Instant
 import java.time.LocalDate
@@ -74,55 +74,48 @@ fun SleepTrackerCard() {
     val suggestedBed = remember(nextWake) { SleepStore.suggestedBedtimes(nextWake).first }
     val curfew = remember(suggestedBed) { SleepStore.curfewLine(context, suggestedBed) }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    EqGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
     ) {
-        Column(Modifier.padding(18.dp)) {
-            CapsLabel("SLEEP")
+        Column {
+            EqSectionLabel("SLEEP")
             Spacer(Modifier.height(6.dp))
-            Text(
-                "Wake up on a cycle, not mid-dream.",
-                fontSize = 14.sp, color = PslGrey
-            )
+            EqBody("Wake up on a cycle, not mid-dream.")
             Spacer(Modifier.height(14.dp))
 
-            Text("I wake up at", fontSize = 13.sp, color = PslGrey, fontWeight = FontWeight.SemiBold)
+            Text("I wake up at", fontSize = 13.sp, color = EqMuted, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(6.dp))
             TimeStepper(hour = wakeH, minute = wakeM, onChange = { h, m ->
                 wakeH = h; wakeM = m
                 SleepStore.setTargetWake(context, h, m)
             })
             Spacer(Modifier.height(10.dp))
+            // NOTE: cycle line comes from SleepStore (util) and stays English.
             Text(
                 SleepStore.cycleLine(nextWake),
-                fontSize = 14.sp, color = PslText, fontWeight = FontWeight.SemiBold
+                fontSize = 14.sp, color = EqInk, fontWeight = FontWeight.SemiBold
             )
-            Text(
-                "5 or 6 full 90-min cycles — pick the earlier one when you can.",
-                fontSize = 12.sp, color = PslGrey
-            )
+            EqBody("5 or 6 full 90-min cycles — pick the earlier one when you can.", size = 12)
 
             Spacer(Modifier.height(16.dp))
-            Text("Log last night", fontSize = 13.sp, color = PslGrey, fontWeight = FontWeight.SemiBold)
+            Text("Log last night", fontSize = 13.sp, color = EqMuted, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Bed", fontSize = 12.sp, color = PslGrey)
+                    Text("Bed", fontSize = 12.sp, color = EqMuted)
                     TimeStepper(hour = bedH, minute = bedM, onChange = { h, m -> bedH = h; bedM = m }, compact = true)
                 }
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Wake", fontSize = 12.sp, color = PslGrey)
+                    Text("Wake", fontSize = 12.sp, color = EqMuted)
                     TimeStepper(hour = wakeH, minute = wakeM, onChange = { h, m -> wakeH = h; wakeM = m }, compact = true)
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Button(
+            EqDarkPillButton(
+                text = "Log night",
                 onClick = {
                     var b = bedMs
                     var w = wakeMs
@@ -130,19 +123,15 @@ fun SleepTrackerCard() {
                     SleepStore.logNight(context, b, w)
                     refresh++
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = PslDeep),
-                shape = RoundedCornerShape(50),
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Log night", fontWeight = FontWeight.Bold)
-            }
+            )
             lastNight?.let {
                 Spacer(Modifier.height(8.dp))
                 val hrs = SleepStore.hoursOf(it)
                 Text(
                     "Last night: ${SleepStore.fmtTime(it.bedMs)} → ${SleepStore.fmtTime(it.wakeMs)} " +
                         "(${String.format(Locale.US, "%.1f", hrs)}h)",
-                    fontSize = 13.sp, color = PslGrey
+                    fontSize = 13.sp, color = EqMuted
                 )
             }
 
@@ -152,10 +141,10 @@ fun SleepTrackerCard() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Last coffee", fontSize = 14.sp, color = PslText, fontWeight = FontWeight.SemiBold)
+                Text("Last coffee", fontSize = 14.sp, color = EqInk, fontWeight = FontWeight.SemiBold)
                 Text(
                     "log it",
-                    fontSize = 13.sp, color = PslBlue, fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp, color = MogCoral, fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable {
                         SleepStore.logCaffeine(context, System.currentTimeMillis())
                         refresh++
@@ -164,21 +153,16 @@ fun SleepTrackerCard() {
             }
             curfew?.let {
                 Spacer(Modifier.height(4.dp))
-                Text(it, fontSize = 13.sp, color = PslGrey)
-                Text(
-                    "Caffeine hangs around ~8h — late cups steal deep sleep.",
-                    fontSize = 12.sp, color = PslGrey
-                )
+                // NOTE: curfew line comes from SleepStore (util) and stays English.
+                Text(it, fontSize = 13.sp, color = EqInkSoft)
+                EqBody("Caffeine hangs around ~8h — late cups steal deep sleep.", size = 12)
             }
 
             Spacer(Modifier.height(16.dp))
-            Text("7-day trend", fontSize = 13.sp, color = PslGrey, fontWeight = FontWeight.SemiBold)
+            Text("7-day trend", fontSize = 13.sp, color = EqMuted, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             if (history.isEmpty()) {
-                Text(
-                    "Log a night to start your trend.",
-                    fontSize = 13.sp, color = PslGrey
-                )
+                EqBody("Log a night to start your trend.", size = 13)
             } else {
                 history.forEach { night ->
                     SleepBarRow(night)
@@ -188,7 +172,7 @@ fun SleepTrackerCard() {
                 Text(
                     if (debt <= 0.05f) "No sleep debt — clean week."
                     else "Sleep debt: ${String.format(Locale.US, "%.1f", debt)}h vs 8h target",
-                    fontSize = 13.sp, color = PslText, fontWeight = FontWeight.SemiBold
+                    fontSize = 13.sp, color = EqInk, fontWeight = FontWeight.SemiBold
                 )
             }
         }
@@ -201,7 +185,7 @@ private fun SleepBarRow(night: com.kurupdevs.moggr.util.SleepNight) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             SleepStore.dayLabel(night.wakeMs),
-            fontSize = 12.sp, color = PslGrey,
+            fontSize = 12.sp, color = EqMuted,
             modifier = Modifier.width(36.dp)
         )
         Box(
@@ -209,17 +193,17 @@ private fun SleepBarRow(night: com.kurupdevs.moggr.util.SleepNight) {
                 .weight(1f)
                 .height(10.dp)
                 .clip(RoundedCornerShape(5.dp))
-                .background(Color(0xFFEDE7DB))
+                .background(EqGreigeDeep)
         ) {
             Canvas(modifier = Modifier.matchParentSize()) {
                 val fillW = size.width * (hrs / 10f).coerceIn(0f, 1f)
                 drawRect(
-                    color = if (hrs >= 8f) Color(0xFF12B76A) else PslBlue,
+                    color = if (hrs >= 8f) Color(0xFF12B76A) else MogCoral,
                     size = androidx.compose.ui.geometry.Size(fillW, size.height)
                 )
                 val tickX = size.width * 0.8f // 8h of a 10h scale
                 drawRect(
-                    color = Color(0xFF1C1917),
+                    color = EqInk,
                     topLeft = androidx.compose.ui.geometry.Offset(tickX - 1f, 0f),
                     size = androidx.compose.ui.geometry.Size(2f, size.height)
                 )
@@ -228,7 +212,7 @@ private fun SleepBarRow(night: com.kurupdevs.moggr.util.SleepNight) {
         Spacer(Modifier.width(8.dp))
         Text(
             String.format(Locale.US, "%.1fh", hrs),
-            fontSize = 12.sp, color = PslText, fontWeight = FontWeight.SemiBold,
+            fontSize = 12.sp, color = EqInk, fontWeight = FontWeight.SemiBold,
             modifier = Modifier.width(44.dp)
         )
     }
@@ -247,7 +231,7 @@ private fun TimeStepper(
             String.format(Locale.US, "%02d:%02d", hour, minute),
             fontSize = if (compact) 15.sp else 17.sp,
             fontWeight = FontWeight.Bold,
-            color = PslText,
+            color = EqInk,
             modifier = Modifier.padding(horizontal = 10.dp)
         )
         StepperButton("+") { onChange((hour + 1) % 24, minute) }
@@ -262,12 +246,12 @@ private fun StepperButton(label: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFFEDE7DB))
+            .background(EqGreigeDeep)
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PslText)
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = EqInk)
     }
 }
 
@@ -278,31 +262,26 @@ fun SleepMiniCard() {
     val context = LocalContext.current
     val wakeMs = remember { SleepStore.nextWakeMs(context) }
     val (five, six) = remember(wakeMs) { SleepStore.suggestedBedtimes(wakeMs) }
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    EqGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(Modifier.weight(1f)) {
-                CapsLabel("TONIGHT")
+                EqSectionLabel("TONIGHT")
                 Spacer(Modifier.height(6.dp))
                 Text(
                     "Bed by ${SleepStore.fmtTime(five)} or ${SleepStore.fmtTime(six)}",
-                    fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PslText
+                    fontSize = 16.sp, fontWeight = FontWeight.Bold, color = EqInk
                 )
-                Text(
+                EqBody(
                     "for a clean ${SleepStore.fmtTime(wakeMs)} wake-up",
-                    fontSize = 13.sp, color = PslGrey
+                    size = 13
                 )
             }
         }

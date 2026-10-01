@@ -10,19 +10,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.MogCoralDark
 
 private data class Helpline(val name: String, val number: String, val note: String)
 
@@ -47,41 +47,35 @@ private val HELPLINES: List<Helpline> = listOf(
 @Composable
 fun CrisisCard() {
     val context = LocalContext.current
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFBEFE8)),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    // v2.7: calm glass card. Helpline numbers below are exact — do not edit.
+    EqGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
     ) {
-        Column(Modifier.padding(18.dp)) {
-            CapsLabel("IF YOUR HEAD FEELS HEAVY")
+        Column {
+            EqSectionLabel("IF YOUR HEAD FEELS HEAVY")
             Spacer(Modifier.height(8.dp))
             Text(
                 "A score is just a photo,",
-                fontFamily = MogSerif,
+                fontFamily = EqSerif,
                 fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = PslText,
+                color = EqInk,
                 lineHeight = 28.sp
             )
             Text(
                 "not your worth.",
-                fontFamily = MogSerif,
-                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                fontFamily = EqSerif,
+                fontStyle = FontStyle.Italic,
                 fontSize = 22.sp,
-                color = PslText,
+                color = EqInk,
                 lineHeight = 28.sp
             )
             Spacer(Modifier.height(8.dp))
-            Text(
+            EqBody(
                 "If a scan ever messes with your head, talk to someone — a friend, " +
                     "family, or one of these free helplines. We're not professionals; " +
-                    "these people are.",
-                fontSize = 14.sp,
-                color = PslGrey,
-                lineHeight = 20.sp
+                    "these people are."
             )
             Spacer(Modifier.height(12.dp))
             HELPLINES.forEach { line ->
@@ -104,16 +98,16 @@ fun CrisisCard() {
                             line.name,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = PslText
+                            color = EqInk
                         )
-                        Text(line.note, fontSize = 12.sp, color = PslGrey)
+                        Text(line.note, fontSize = 12.sp, color = EqMuted)
                     }
                     Spacer(Modifier.width(8.dp))
                     Text(
                         line.number,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = PslBlue
+                        color = MogCoralDark
                     )
                 }
             }
@@ -131,7 +125,7 @@ fun CrisisLinkButton(expanded: Boolean, onToggle: () -> Unit) {
         text = if (expanded) "hide" else "feeling low? talk to someone ↓",
         fontSize = 13.sp,
         fontWeight = FontWeight.SemiBold,
-        color = PslBlue,
+        color = MogCoralDark,
         textAlign = TextAlign.Center,
         modifier = Modifier
             .fillMaxWidth()

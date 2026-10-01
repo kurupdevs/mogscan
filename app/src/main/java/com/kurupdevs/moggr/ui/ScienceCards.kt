@@ -1,6 +1,7 @@
 package com.kurupdevs.moggr.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,8 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,10 +18,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqLavender
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.EqPeach
+import com.kurupdevs.moggr.ui.theme.EqRose
+import com.kurupdevs.moggr.ui.theme.EqSage
+import com.kurupdevs.moggr.ui.theme.MogCoralDark
 
 private data class MythCard(
     val myth: String,
@@ -62,54 +70,50 @@ private val MYTHS: List<MythCard> = listOf(
     )
 )
 
+// v2.7: myth-buster cards as rotating pastel tiles.
+private val MYTH_TILE_COLORS = listOf(EqLavender, EqSage, EqPeach, EqRose)
+
 @Composable
-private fun MythBusterCard(card: MythCard) {
+private fun MythBusterCard(card: MythCard, tileColor: Color) {
     var expanded by remember { mutableStateOf(false) }
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(tileColor)
+            .clickable { expanded = !expanded }
+            .padding(16.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(16.dp)
-        ) {
+        Text(
+            "MYTH: ${card.myth}",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = MogCoralDark,
+            letterSpacing = 0.5.sp
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            card.honest,
+            fontFamily = EqSerif,
+            fontSize = 17.sp,
+            color = EqInk,
+            lineHeight = 22.sp
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "MYTH: ${card.myth}",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = PslBlue,
-                letterSpacing = 0.5.sp
+                if (expanded) "why — hide" else "why it matters",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontStyle = FontStyle.Italic,
+                color = EqMuted
             )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                card.honest,
-                fontFamily = MogSerif,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = PslText,
-                lineHeight = 22.sp
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    if (expanded) "why — hide" else "why it matters",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    fontStyle = FontStyle.Italic,
-                    color = PslGrey
-                )
-            }
-            AnimatedVisibility(visible = expanded) {
-                Column {
-                    Spacer(Modifier.height(6.dp))
-                    Text(card.why, fontSize = 14.sp, color = PslGrey, lineHeight = 20.sp)
-                }
+        }
+        AnimatedVisibility(visible = expanded) {
+            Column {
+                Spacer(Modifier.height(6.dp))
+                EqBody(card.why)
             }
         }
     }
@@ -119,6 +123,8 @@ private fun MythBusterCard(card: MythCard) {
 @Composable
 fun ScienceCards() {
     Column(modifier = Modifier.fillMaxWidth()) {
-        MYTHS.forEach { MythBusterCard(it) }
+        MYTHS.forEachIndexed { idx, myth ->
+            MythBusterCard(myth, MYTH_TILE_COLORS[idx % MYTH_TILE_COLORS.size])
+        }
     }
 }

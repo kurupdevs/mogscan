@@ -1,5 +1,7 @@
 package com.kurupdevs.moggr.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,15 +10,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -24,6 +22,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.kurupdevs.moggr.analysis.FeatureScore
 import com.kurupdevs.moggr.analysis.PslReport
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.EqPeach
+import com.kurupdevs.moggr.ui.theme.EqRose
+import com.kurupdevs.moggr.ui.theme.EqSage
 import java.util.Locale
 
 /** Plain-words explainer for every feature the measure chunk can score. */
@@ -80,51 +83,40 @@ fun WhyThisScoreDialog(
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = PslCard),
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(Modifier.padding(22.dp)) {
-                Text(
-                    feature.name.uppercase(),
-                    color = PslBlue,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    letterSpacing = 0.8.sp
-                )
+        // v2.7 reskin: frosted-glass dialog, serif score, pastel priority strip.
+        EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.fillMaxWidth()) {
+                EqSectionLabel(feature.name)
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        String.format(Locale.US, "%.1f", feature.score),
-                        fontFamily = MogSerif,
-                        fontSize = 40.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PslText
+                    EqHeadline(
+                        text = String.format(Locale.US, "%.1f", feature.score),
+                        size = 40,
+                        color = EqInk
                     )
                     Spacer(Modifier.width(10.dp))
-                    Text("/ 8", fontSize = 16.sp, color = PslGrey)
+                    EqBody("/ 8", size = 16)
                 }
                 Spacer(Modifier.height(10.dp))
 
                 val detail = report.measureDetails[feature.name]
                 if (!detail.isNullOrBlank()) {
-                    Text("Yours vs ideal", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = PslText)
+                    Text("Yours vs ideal", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = EqInk)
                     Spacer(Modifier.height(4.dp))
-                    Text(detail, fontSize = 14.sp, color = PslGrey)
+                    EqBody(detail)
                     Spacer(Modifier.height(10.dp))
                 }
 
-                Text("What this means", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = PslText)
+                Text("What this means", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = EqInk)
                 Spacer(Modifier.height(4.dp))
-                Text(explainerFor(feature.name), fontSize = 14.sp, color = PslGrey)
+                EqBody(explainerFor(feature.name))
                 // v2.6-science begin
                 Spacer(Modifier.height(6.dp))
                 Text(
                     "Source: ${citationFor(feature.name)}",
                     fontSize = 11.sp,
                     fontStyle = FontStyle.Italic,
-                    color = PslGrey
+                    color = EqMuted
                 )
                 // v2.6-science end
                 Spacer(Modifier.height(12.dp))
@@ -134,34 +126,32 @@ fun WhyThisScoreDialog(
                     feature.score < 6.0 -> "Medium" to "decent, but there's real room to push it higher"
                     else -> "Maintain" to "this is carrying you — keep it"
                 }
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = when {
-                            feature.score < 4.0 -> Color(0xFFFEF3F2)
-                            feature.score < 6.0 -> Color(0xFFFEF6E7)
-                            else -> Color(0xFFECFDF3)
-                        }
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                // v2.7 reskin: pastel priority strip instead of raw status tints.
+                val tint = when {
+                    feature.score < 4.0 -> EqRose
+                    feature.score < 6.0 -> EqPeach
+                    else -> EqSage
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(tint)
+                        .padding(12.dp)
                 ) {
                     Text(
                         "Fix priority: $priority — $hint.",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = PslText,
-                        modifier = Modifier.padding(12.dp)
+                        color = EqInk
                     )
                 }
                 Spacer(Modifier.height(14.dp))
-                Button(
+                EqCoralPillButton(
+                    text = "Got it",
                     onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
-                    shape = RoundedCornerShape(50),
-                    modifier = Modifier.fillMaxWidth().height(50.dp)
-                ) {
-                    Text("Got it", color = Color.White, fontWeight = FontWeight.Bold)
-                }
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }

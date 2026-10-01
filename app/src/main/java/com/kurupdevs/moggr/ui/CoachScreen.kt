@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,10 +27,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -55,6 +52,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kurupdevs.moggr.ui.theme.EqLine
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.MogCoral
 import com.kurupdevs.moggr.analysis.FaceAnalyzer
 import com.kurupdevs.moggr.analysis.PslReport
 import com.kurupdevs.moggr.coach.CoachClient
@@ -290,13 +291,16 @@ fun CoachScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MoggrBg)
+            .background(eqBackgroundBrush())
     ) {
-        // Full photo header — this is the Coach now
+        // Full photo header — this is the Coach now (rounded container, v2.7)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(210.dp)
+                .padding(horizontal = 14.dp)
+                .padding(top = 8.dp)
+                .height(200.dp)
+                .clip(RoundedCornerShape(24.dp))
         ) {
             Image(
                 painter = painterResource(id = R.drawable.moggr_coach),
@@ -325,7 +329,7 @@ fun CoachScreen(
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.88f))
             ) {
-                Text(Strings.s("coach_back", hi), color = PslText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(Strings.s("coach_back", hi), color = EqInk, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             }
             VibeSegmentedControl(
                 vibe = vibe,
@@ -342,12 +346,10 @@ fun CoachScreen(
                     .align(Alignment.BottomStart)
                     .padding(16.dp)
             ) {
-                Text(
+                EqHeadline(
                     Strings.s("coach_title", hi),
-                    fontFamily = MogSerif,
                     color = Color.White,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold
+                    size = 26
                 )
                 Text(
                     // v2.6-science: softer header for teen mode; v2.6-hinglish: translated subtitle
@@ -395,9 +397,11 @@ fun CoachScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Start
                     ) {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = PslCard),
-                            shape = RoundedCornerShape(16.dp)
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color.White.copy(alpha = 0.7f))
+                                .border(1.dp, Color.White.copy(alpha = 0.8f), RoundedCornerShape(18.dp))
                         ) {
                             Row(
                                 Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -405,11 +409,11 @@ fun CoachScreen(
                             ) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(16.dp),
-                                    color = PslBlue,
+                                    color = MogCoral,
                                     strokeWidth = 2.dp
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                Text(Strings.s("coach_typing", hi), color = PslGrey, fontSize = 14.sp)
+                                Text(Strings.s("coach_typing", hi), color = EqMuted, fontSize = 14.sp)
                             }
                         }
                     }
@@ -449,22 +453,22 @@ fun CoachScreen(
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.85f))
             ) {
-                Text("◉", color = PslBlue, fontSize = 20.sp)
+                Text("◉", color = MogCoral, fontSize = 20.sp)
             }
             Spacer(Modifier.width(8.dp))
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text(Strings.s("coach_placeholder", hi), color = PslGrey) },
+                placeholder = { Text(Strings.s("coach_placeholder", hi), color = EqMuted) },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = PslText,
-                    unfocusedTextColor = PslText,
-                    focusedContainerColor = Color.White.copy(alpha = 0.85f),
-                    unfocusedContainerColor = Color.White.copy(alpha = 0.85f),
-                    focusedBorderColor = PslBlue,
-                    unfocusedBorderColor = Color.Transparent,
-                    cursorColor = PslBlue
+                    focusedTextColor = EqInk,
+                    unfocusedTextColor = EqInk,
+                    focusedContainerColor = Color.White.copy(alpha = 0.8f),
+                    unfocusedContainerColor = Color.White.copy(alpha = 0.7f),
+                    focusedBorderColor = MogCoral,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                    cursorColor = MogCoral
                 ),
                 shape = RoundedCornerShape(50),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -473,21 +477,18 @@ fun CoachScreen(
                 maxLines = 4
             )
             Spacer(Modifier.width(8.dp))
-            Button(
+            EqCoralPillButton(
+                text = Strings.s("coach_send", hi),
                 onClick = { sendText(input) },
                 enabled = !waiting && input.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
-                shape = RoundedCornerShape(50),
                 modifier = Modifier.height(52.dp)
-            ) {
-                Text(Strings.s("coach_send", hi), fontWeight = FontWeight.Bold)
-            }
+            )
         }
         Spacer(Modifier.height(4.dp))
         Text(
             Strings.s("coach_offline_note", hi),
             fontSize = 11.sp,
-            color = PslGrey,
+            color = EqMuted,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 10.dp),
@@ -514,12 +515,19 @@ private fun ChatBubble(msg: ChatMsg) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (msg.isUser) Arrangement.End else Arrangement.Start
     ) {
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = if (msg.isUser) PslBlue else PslCard
-            ),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth(0.85f)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.85f)
+                .clip(RoundedCornerShape(18.dp))
+                .background(
+                    if (msg.isUser) MogCoral
+                    else Color.White.copy(alpha = 0.7f)
+                )
+                .border(
+                    1.dp,
+                    if (msg.isUser) MogCoral else Color.White.copy(alpha = 0.8f),
+                    RoundedCornerShape(18.dp)
+                )
         ) {
             Column(Modifier.padding(12.dp)) {
                 if (msg.isPhotoScan) {
@@ -527,13 +535,13 @@ private fun ChatBubble(msg: ChatMsg) {
                         "PHOTO SCAN",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (msg.isUser) Color.White.copy(alpha = 0.8f) else PslBlue
+                        color = if (msg.isUser) Color.White.copy(alpha = 0.8f) else MogCoral
                     )
                     Spacer(Modifier.height(4.dp))
                 }
                 Text(
                     msg.text,
-                    color = if (msg.isUser) Color.White else PslText,
+                    color = if (msg.isUser) Color.White else EqInk,
                     fontSize = 14.sp
                 )
             }

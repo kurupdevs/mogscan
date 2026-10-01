@@ -13,13 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -37,6 +31,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kurupdevs.moggr.ui.theme.EqGreigeDeep
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqLine
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.MogCoral
 import java.time.LocalDate
 
 data class DebloatLog(val puffiness: Int, val water: Int, val lowSodium: Boolean)
@@ -85,28 +84,22 @@ fun DebloatCheckinCard() {
     var water by remember(saved) { mutableIntStateOf(saved?.water ?: 0) }
     var lowSodium by remember(saved) { mutableStateOf(saved?.lowSodium ?: false) }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    EqGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
     ) {
-        Column(Modifier.padding(18.dp)) {
-            CapsLabel("DEBLOAT CHECK-IN")
+        Column {
+            EqSectionLabel("DEBLOAT CHECK-IN")
             Spacer(Modifier.height(6.dp))
-            Text(
-                "Morning face check — 30 seconds, keeps you honest.",
-                fontSize = 14.sp, color = PslGrey
-            )
+            EqBody("Morning face check — 30 seconds, keeps you honest.")
             Spacer(Modifier.height(14.dp))
 
-            Text("Puffiness this morning", fontSize = 14.sp, color = PslText, fontWeight = FontWeight.SemiBold)
+            Text("Puffiness this morning", fontSize = 14.sp, color = EqInk, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             PuffinessDots(selected = puffiness, onSelect = { puffiness = it })
             Spacer(Modifier.height(4.dp))
-            Text("1 = sharp, 5 = marshmallow", fontSize = 12.sp, color = PslGrey)
+            EqBody("1 = sharp, 5 = marshmallow", size = 12)
 
             Spacer(Modifier.height(14.dp))
             Row(
@@ -114,12 +107,12 @@ fun DebloatCheckinCard() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Water so far", fontSize = 14.sp, color = PslText, fontWeight = FontWeight.SemiBold)
+                Text("Water so far", fontSize = 14.sp, color = EqInk, fontWeight = FontWeight.SemiBold)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CounterBtn("−") { water = (water - 1).coerceAtLeast(0) }
                     Text(
                         "$water",
-                        fontSize = 18.sp, fontWeight = FontWeight.Bold, color = PslText,
+                        fontSize = 18.sp, fontWeight = FontWeight.Bold, color = EqInk,
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
                     CounterBtn("+") { water++ }
@@ -133,8 +126,8 @@ fun DebloatCheckinCard() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("Low sodium yesterday", fontSize = 14.sp, color = PslText, fontWeight = FontWeight.SemiBold)
-                    Text("Salty dinners show up on your face", fontSize = 12.sp, color = PslGrey)
+                    Text("Low sodium yesterday", fontSize = 14.sp, color = EqInk, fontWeight = FontWeight.SemiBold)
+                    EqBody("Salty dinners show up on your face", size = 12)
                 }
                 Switch(
                     checked = lowSodium,
@@ -144,17 +137,14 @@ fun DebloatCheckinCard() {
             }
 
             Spacer(Modifier.height(14.dp))
-            Button(
+            EqDarkPillButton(
+                text = if (saved == null) "Log check-in" else "Update check-in",
                 onClick = {
                     DebloatStore.log(context, puffiness, water, lowSodium)
                     saved = DebloatStore.today(context)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = PslDeep),
-                shape = RoundedCornerShape(50),
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (saved == null) "Log check-in" else "Update check-in", fontWeight = FontWeight.Bold)
-            }
+            )
             if (saved != null) {
                 Spacer(Modifier.height(6.dp))
                 Text(
@@ -176,10 +166,10 @@ fun PuffinessDots(selected: Int, onSelect: (Int) -> Unit) {
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(if (active) PslBlue else Color(0xFFEDE7DB))
+                    .background(if (active) MogCoral else EqGreigeDeep)
                     .border(
                         1.dp,
-                        if (active) PslBlue else Color(0xFFD6CFC2),
+                        if (active) MogCoral else EqLine,
                         CircleShape
                     )
                     .clickable { onSelect(n) },
@@ -187,7 +177,7 @@ fun PuffinessDots(selected: Int, onSelect: (Int) -> Unit) {
             ) {
                 Text(
                     "$n",
-                    color = if (active) Color.White else PslGrey,
+                    color = if (active) Color.White else EqMuted,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
@@ -202,11 +192,11 @@ private fun CounterBtn(label: String, onClick: () -> Unit) {
         modifier = Modifier
             .size(36.dp)
             .clip(CircleShape)
-            .background(Color(0xFFEDE7DB))
+            .background(EqGreigeDeep)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(label, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = PslText)
+        Text(label, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = EqInk)
     }
 }
 
@@ -216,26 +206,23 @@ private fun CounterBtn(label: String, onClick: () -> Unit) {
 fun DebloatMorningMini() {
     val context = LocalContext.current
     var saved by remember { mutableStateOf(DebloatStore.today(context)) }
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    EqGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
     ) {
-        Column(Modifier.padding(16.dp)) {
-            CapsLabel("MORNING CHECK-IN")
+        Column {
+            EqSectionLabel("MORNING CHECK-IN")
             Spacer(Modifier.height(8.dp))
             if (saved != null) {
                 Text(
                     "Puffiness ${saved!!.puffiness}/5 — logged. Stay the course.",
-                    fontSize = 14.sp, color = PslText, fontWeight = FontWeight.SemiBold
+                    fontSize = 14.sp, color = EqInk, fontWeight = FontWeight.SemiBold
                 )
             } else {
                 Text(
                     "How puffy this morning? Tap to log.",
-                    fontSize = 14.sp, color = PslText, fontWeight = FontWeight.SemiBold
+                    fontSize = 14.sp, color = EqInk, fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.height(8.dp))
                 PuffinessDots(selected = 0, onSelect = { n ->

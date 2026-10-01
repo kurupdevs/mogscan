@@ -30,13 +30,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -86,6 +81,18 @@ import com.kurupdevs.moggr.util.TeenStrings
 // v2.6-hinglish begin
 import com.kurupdevs.moggr.util.LanguageStore
 // v2.6-hinglish end
+// v2.7 reskin: shared equilibrium-style components + theme colors.
+import com.kurupdevs.moggr.ui.theme.EqGreigeDeep
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqLine
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.EqPeachDeep
+import com.kurupdevs.moggr.ui.theme.EqPillDark
+import com.kurupdevs.moggr.ui.theme.EqRose
+import com.kurupdevs.moggr.ui.theme.EqSage
+import com.kurupdevs.moggr.ui.theme.EqSageDeep
+import com.kurupdevs.moggr.ui.theme.MogCoral
+import com.kurupdevs.moggr.ui.theme.MogCoralDark
 import com.kurupdevs.moggr.util.UserProfile
 import kotlinx.coroutines.delay
 import java.io.File
@@ -120,23 +127,23 @@ fun AnalyzingScreen(photo: Bitmap? = null) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MoggrBg)
+            .background(eqBackgroundBrush())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(32.dp))
-        Text(
-            Strings.s("cam_analyzing", LanguageStore.isHinglish),
-            fontFamily = MogSerif,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = PslText
+        // v2.7 reskin: serif headline, coral step line.
+        EqHeadline(
+            text = Strings.s("cam_analyzing", LanguageStore.isHinglish),
+            size = 28,
+            color = EqInk,
+            align = TextAlign.Center
         )
         Spacer(Modifier.height(6.dp))
         Text(
             ANALYZE_STEPS[step],
             fontSize = 14.sp,
-            color = PslBlue,
+            color = MogCoralDark,
             fontWeight = FontWeight.SemiBold
         )
         Spacer(Modifier.height(24.dp))
@@ -149,16 +156,16 @@ fun AnalyzingScreen(photo: Bitmap? = null) {
                 CircularProgressIndicator(
                     progress = { (step + 1) / ANALYZE_STEPS.size.toFloat() },
                     modifier = Modifier.size(190.dp),
-                    color = PslBlue,
-                    trackColor = Color(0xFFEDE7DB),
+                    color = MogCoral,
+                    trackColor = EqLine,
                     strokeWidth = 8.dp
                 )
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("PSL", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = PslText)
+                    Text("PSL", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = EqInk)
                     Text(
                         "${step + 1}/4",
                         fontSize = 14.sp,
-                        color = PslBlue,
+                        color = MogCoralDark,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -166,27 +173,23 @@ fun AnalyzingScreen(photo: Bitmap? = null) {
         }
 
         Spacer(Modifier.height(32.dp))
-        Card(
-            colors = CardDefaults.cardColors(containerColor = PslCard),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 ANALYZE_STEPS.forEachIndexed { i, label ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         when {
-                            i < step -> Text("✓ ", color = PslBlue, fontWeight = FontWeight.Bold)
+                            i < step -> Text("✓ ", color = MogCoral, fontWeight = FontWeight.Bold)
                             i == step -> CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
-                                color = PslBlue,
+                                color = MogCoral,
                                 strokeWidth = 2.5.dp
                             )
-                            else -> Text("○ ", color = Color(0xFFD8D0C2))
+                            else -> Text("○ ", color = EqLine)
                         }
                         Spacer(Modifier.padding(4.dp))
                         Text(
                             label,
-                            color = if (i <= step) PslText else PslGrey,
+                            color = if (i <= step) EqInk else EqMuted,
                             fontSize = 15.sp
                         )
                     }
@@ -203,7 +206,7 @@ fun AnalyzingScreen(photo: Bitmap? = null) {
  */
 @Composable
 private fun ScanPhaseCard(photo: Bitmap, step: Int) {
-    val coral = Color(0xFFE07856)
+    val coral = MogCoral
     val bw = photo.width.toFloat().coerceAtLeast(1f)
     val bh = photo.height.toFloat().coerceAtLeast(1f)
 
@@ -357,7 +360,7 @@ fun ResultScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MoggrBg),
+                .background(eqBackgroundBrush()),
             contentAlignment = Alignment.Center
         ) {
             GuessDialog(
@@ -409,7 +412,7 @@ fun ResultScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MoggrBg)
+            .background(eqBackgroundBrush())
             .alpha(bodyAlpha)
     ) {
         Column(
@@ -432,37 +435,26 @@ fun ResultScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedButton(
+                // v2.7 reskin: glass pill CTAs.
+                EqPillButton(
+                    text = Strings.s("scan_again", LanguageStore.isHinglish),
                     onClick = onRescan,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(54.dp),
-                    shape = RoundedCornerShape(50)
-                ) {
-                    Text(Strings.s("scan_again", LanguageStore.isHinglish), color = PslBlue)
-                }
-                OutlinedButton(
+                    modifier = Modifier.weight(1f)
+                )
+                EqPillButton(
+                    text = Strings.s("share_btn", LanguageStore.isHinglish),
                     onClick = { shareReport(context, profile, report) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(54.dp),
-                    shape = RoundedCornerShape(50)
-                ) {
-                    Text(Strings.s("share_btn", LanguageStore.isHinglish), color = PslBlue)
-                }
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
-        Button(
+        EqCoralPillButton(
+            text = Strings.s("result_next", LanguageStore.isHinglish),
             onClick = onNext,
-            colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 16.dp)
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Text(Strings.s("result_next", LanguageStore.isHinglish), fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
-        }
+        )
     }
 }
 
@@ -475,39 +467,32 @@ private fun GuessDialog(
     onConfirm: () -> Unit
 ) {
     Dialog(onDismissRequest = {}) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = PslCard),
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        // v2.7 reskin: glass dialog, serif headline, coral slider, dark pill CTA.
+        EqGlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(
-                Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                CapsLabel("BEFORE WE SHOW YOU")
+                EqSectionLabel("before we show you")
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    "What PSL do you think you are?",
-                    fontFamily = MogSerif,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PslText,
-                    textAlign = TextAlign.Center
+                EqHeadline(
+                    text = "What PSL do you think you are?",
+                    size = 24,
+                    color = EqInk,
+                    align = TextAlign.Center
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "Be honest — no wrong answers. The scan decides.",
                     fontSize = 13.sp,
-                    color = PslGrey,
+                    color = EqMuted,
                     textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(12.dp))
-                Text(
-                    String.format(Locale.US, "%.1f", guess),
-                    fontFamily = MogSerif,
-                    fontSize = 56.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PslBlue
+                EqHeadline(
+                    text = String.format(Locale.US, "%.1f", guess),
+                    size = 56,
+                    color = MogCoralDark,
+                    align = TextAlign.Center
                 )
                 Slider(
                     value = guess,
@@ -517,27 +502,22 @@ private fun GuessDialog(
                     valueRange = 1f..8f,
                     steps = 13,
                     colors = SliderDefaults.colors(
-                        thumbColor = PslBlue,
-                        activeTrackColor = PslBlue,
-                        inactiveTrackColor = Color(0xFFEDE7DB)
+                        thumbColor = MogCoral,
+                        activeTrackColor = MogCoral,
+                        inactiveTrackColor = EqLine
                     )
                 )
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    Text("1.0", fontSize = 12.sp, color = PslGrey)
+                    Text("1.0", fontSize = 12.sp, color = EqMuted)
                     Spacer(Modifier.weight(1f))
-                    Text("8.0", fontSize = 12.sp, color = PslGrey)
+                    Text("8.0", fontSize = 12.sp, color = EqMuted)
                 }
                 Spacer(Modifier.height(16.dp))
-                Button(
+                EqCoralPillButton(
+                    text = "LOCK IT IN",
                     onClick = onConfirm,
-                    colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
-                    shape = RoundedCornerShape(50),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp)
-                ) {
-                    Text("LOCK IT IN", color = Color.White, fontWeight = FontWeight.Bold)
-                }
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }
@@ -594,12 +574,12 @@ private fun StagedReveal(
 
     val dots = remember(report) { revealDots(report) }
     val potential = (report.overallPsl + 1.3).coerceAtMost(8.0)
-    val coral = Color(0xFFE07856)
+    val coral = MogCoral
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MoggrBg)
+            .background(eqBackgroundBrush())
             .clickable { onDone() },
         contentAlignment = Alignment.Center
     ) {
@@ -652,25 +632,24 @@ private fun StagedReveal(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(PslCard)
+                            .background(EqGreigeDeep)
                     )
                 }
             }
             Spacer(Modifier.height(24.dp))
-            CapsLabel("MEASURED PSL")
+            EqSectionLabel("measured psl")
             Spacer(Modifier.height(4.dp))
-            Text(
-                String.format(Locale.US, "%.1f", count),
-                fontFamily = MogSerif,
-                fontSize = 64.sp,
-                fontWeight = FontWeight.Bold,
-                color = PslText
+            EqHeadline(
+                text = String.format(Locale.US, "%.1f", count),
+                size = 64,
+                color = EqInk,
+                align = TextAlign.Center
             )
             Text(
                 pslLabel(report.overallPsl),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = PslBlue,
+                color = MogCoralDark,
                 modifier = Modifier
                     .alpha(tierAlpha)
                     .graphicsLayer {
@@ -687,7 +666,7 @@ private fun StagedReveal(
                     "You guessed ${String.format(Locale.US, "%.1f", guess)} · measured ${String.format(Locale.US, "%.1f", report.overallPsl)}",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = PslText,
+                    color = EqInk,
                     textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(4.dp))
@@ -697,28 +676,21 @@ private fun StagedReveal(
                         TeenStrings.movesLine(TeenMode.isTeen(LocalContext.current)),
                         // v2.6-science end
                     fontSize = 14.sp,
-                    color = PslGrey,
+                    color = EqMuted,
                     textAlign = TextAlign.Center
                 )
             }
             Spacer(Modifier.height(28.dp))
             // v2.6-landmark: verify step — offered once the score is revealed.
             if (stage >= 4) {
-                OutlinedButton(
+                EqPillButton(
+                    text = "Verify the AI's points",
                     onClick = onVerify,
-                    shape = RoundedCornerShape(50),
                     modifier = Modifier.alpha(gapAlpha)
-                ) {
-                    Text(
-                        "Verify the AI's points",
-                        color = PslBlue,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    )
-                }
+                )
                 Spacer(Modifier.height(12.dp))
             }
-            Text("tap to skip", fontSize = 12.sp, color = PslGrey)
+            Text("tap to skip", fontSize = 12.sp, color = EqMuted)
         }
     }
 }
@@ -755,7 +727,7 @@ private fun ScanOverlay(photo: Bitmap?, report: PslReport) {
         val dx = (cw - bw * scale) / 2f
         val dy = (ch - bh * scale) / 2f
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val c = Color(0xFFE07856) // coral accent
+            val c = MogCoral // coral accent
             val sw = 3.dp.toPx()
             val l = 26.dp.toPx()
             // corner brackets
@@ -808,7 +780,7 @@ private fun DecorativeScanOverlay() {
     Canvas(modifier = Modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-        val c = Color(0xFF38BDF8)
+        val c = MogCoral
         val sw = 3.dp.toPx()
         val l = 26.dp.toPx()
         // corner brackets
@@ -882,19 +854,20 @@ fun ReportBody(
             ) {
                 Text(
                     Strings.s("face_map", hi),
-                    color = PslText,
+                    color = EqInk,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp
                 )
                 Spacer(Modifier.width(8.dp))
+                // v2.7 reskin: coral track on greige; SwitchDefaults.colors (never switchColors).
                 Switch(
                     checked = faceMapOn,
                     onCheckedChange = { faceMapOn = it },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
-                        checkedTrackColor = PslBlue,
+                        checkedTrackColor = MogCoral,
                         uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color(0xFFE2DCD2)
+                        uncheckedTrackColor = EqLine
                     )
                 )
             }
@@ -903,7 +876,7 @@ fun ReportBody(
                 Text(
                     Strings.s("sub_face_map", hi),
                     fontSize = 12.sp,
-                    color = PslGrey,
+                    color = EqMuted,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -918,7 +891,7 @@ fun ReportBody(
             ) {
                 Text(
                     "Verify the AI's points",
-                    color = PslBlue,
+                    color = MogCoralDark,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp
                 )
@@ -929,23 +902,21 @@ fun ReportBody(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            CapsLabel(text = Strings.s("caps_face_report", hi))
+            EqSectionLabel(Strings.s("caps_face_report", hi))
         }
         Spacer(Modifier.height(8.dp))
-        Text(
+        EqHeadline(
             text = if (profile != null) Strings.fmt("score_of", hi, "n" to profile.name) else Strings.s("your_score", hi),
-            fontFamily = MogSerif,
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Bold,
-            color = PslText,
-            textAlign = TextAlign.Center,
+            size = 34,
+            color = EqInk,
+            align = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(4.dp))
         Text(
             text = "Read from ${report.anglesRead} of 3 angles · 100% on-device · free forever",
             fontSize = 12.sp,
-            color = PslGrey,
+            color = EqMuted,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
@@ -960,7 +931,7 @@ fun ReportBody(
                 text = "±${"%.1f".format(Locale.US, report.uncertainty)} · $confLabel",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = PslText,
+                color = EqInk,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -985,7 +956,7 @@ fun ReportBody(
                 title = "POTENTIAL",
                 score = potential,
                 sub = pslTierShort(potential) + " est.",
-                barColor = Color(0xFF12B76A),
+                barColor = EqSageDeep,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -994,43 +965,36 @@ fun ReportBody(
             text = "Top ${100 - report.percentile}% of faces (est.) · ${report.failoCount} negative points · ${report.haloCount} halos",
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-            color = PslText,
+            color = EqInk,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
         Text(
             text = "potential assumes weak areas close ~a third of the gap — est.",
             fontSize = 11.sp,
-            color = PslGrey,
+            color = EqMuted,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(10.dp))
-        OutlinedButton(
+        EqPillButton(
+            text = "Share face card",
             onClick = { shareFaceCard(context, report) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            shape = RoundedCornerShape(50)
-        ) {
-            Text("Share face card", color = PslBlue, fontWeight = FontWeight.SemiBold)
-        }
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Spacer(Modifier.height(18.dp))
         TraitMeters(report)
 
         if (report.photoNotes.isNotEmpty()) {
             Spacer(Modifier.height(14.dp))
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF6E7)),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.padding(14.dp)) {
-                    Text("Photo check", fontWeight = FontWeight.SemiBold, color = Color(0xFFB54708), fontSize = 15.sp)
+            // v2.7 reskin: glass photo-check card with a coral label.
+            EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    Text("Photo check", fontWeight = FontWeight.SemiBold, color = MogCoralDark, fontSize = 15.sp)
                     Spacer(Modifier.height(6.dp))
                     report.photoNotes.forEach { n ->
-                        Text("• $n", fontSize = 13.sp, color = PslText)
+                        Text("• $n", fontSize = 13.sp, color = EqInk)
                         Spacer(Modifier.height(4.dp))
                     }
                 }
@@ -1042,7 +1006,7 @@ fun ReportBody(
         Text(
             Strings.s("sub_feature_scores", hi),
             fontSize = 13.sp,
-            color = PslGrey
+            color = EqMuted
         )
         Spacer(Modifier.height(10.dp))
         report.features.chunked(2).forEach { row ->
@@ -1062,7 +1026,7 @@ fun ReportBody(
             Text(
                 "How experienced raters actually weigh a face — harmony first",
                 fontSize = 13.sp,
-                color = PslGrey
+                color = EqMuted
             )
             Spacer(Modifier.height(10.dp))
             report.pillars.chunked(2).forEach { row ->
@@ -1080,19 +1044,22 @@ fun ReportBody(
         if (report.strengths.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
             SectionTitle(Strings.s("sec_positives", hi))
-            Text(Strings.s("sub_positives", hi), fontSize = 13.sp, color = PslGrey)
+            Text(Strings.s("sub_positives", hi), fontSize = 13.sp, color = EqMuted)
             Spacer(Modifier.height(10.dp))
             report.strengths.forEach { s ->
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF3)),
-                    shape = RoundedCornerShape(12.dp),
+                // v2.7 reskin: sage pastel glass row for positives.
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(EqSage.copy(alpha = 0.55f))
+                        .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                        .padding(12.dp)
                 ) {
-                    Row(Modifier.padding(12.dp)) {
-                        Text("✓ ", color = Color(0xFF12B76A), fontWeight = FontWeight.Bold)
-                        Text(s, color = PslText, fontSize = 14.sp)
+                    Row {
+                        Text("✓ ", color = EqSageDeep, fontWeight = FontWeight.Bold)
+                        Text(s, color = EqInk, fontSize = 14.sp)
                     }
                 }
             }
@@ -1104,21 +1071,24 @@ fun ReportBody(
             Spacer(Modifier.height(10.dp))
             SectionTitle(Strings.s("sec_negatives", hi))
             if (negatives.isNotEmpty()) {
-                Text(Strings.s("sub_negatives", hi), fontSize = 13.sp, color = PslGrey)
+                Text(Strings.s("sub_negatives", hi), fontSize = 13.sp, color = EqMuted)
                 Spacer(Modifier.height(10.dp))
                 negatives.forEach { f ->
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3F2)),
-                        shape = RoundedCornerShape(12.dp),
+                    // v2.7 reskin: rose pastel glass row for failos.
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(EqRose.copy(alpha = 0.55f))
+                            .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                            .padding(12.dp)
                     ) {
-                        Row(Modifier.padding(12.dp)) {
-                            Text("✕ ", color = Color(0xFFF04438), fontWeight = FontWeight.Bold)
+                        Row {
+                            Text("✕ ", color = MogCoralDark, fontWeight = FontWeight.Bold)
                             Text(
                                 "${f.name} (${"%.1f".format(Locale.US, f.score)}) — ${f.note}",
-                                color = PslText,
+                                color = EqInk,
                                 fontSize = 14.sp
                             )
                         }
@@ -1126,16 +1096,19 @@ fun ReportBody(
                 }
             } else {
                 Spacer(Modifier.height(10.dp))
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF3)),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(EqSage.copy(alpha = 0.55f))
+                        .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                        .padding(12.dp)
                 ) {
-                    Row(Modifier.padding(12.dp)) {
-                        Text("✓ ", color = Color(0xFF12B76A), fontWeight = FontWeight.Bold)
+                    Row {
+                        Text("✓ ", color = EqSageDeep, fontWeight = FontWeight.Bold)
                         Text(
                             "No major failos — nothing is dragging your score down right now.",
-                            color = PslText,
+                            color = EqInk,
                             fontSize = 14.sp
                         )
                     }
@@ -1149,18 +1122,17 @@ fun ReportBody(
             Text(
                 Strings.s("sub_ascension", hi),
                 fontSize = 13.sp,
-                color = PslGrey
+                color = EqMuted
             )
             Spacer(Modifier.height(10.dp))
             report.improvements.forEachIndexed { i, im ->
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = PslCard),
-                    shape = RoundedCornerShape(14.dp),
+                // v2.7 reskin: glass improvement cards.
+                EqGlassCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 5.dp)
                 ) {
-                    Column(Modifier.padding(14.dp)) {
+                    Column {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1169,31 +1141,32 @@ fun ReportBody(
                             Text(
                                 "${i + 1}. ${im.area}",
                                 fontWeight = FontWeight.SemiBold,
-                                color = PslText,
+                                color = EqInk,
                                 fontSize = 15.sp
                             )
                             EffortChip(im.effort)
                         }
                         Spacer(Modifier.height(6.dp))
-                        Text(im.method, fontSize = 14.sp, color = PslGrey)
+                        Text(im.method, fontSize = 14.sp, color = EqMuted)
                     }
                 }
             }
             Spacer(Modifier.height(10.dp))
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF3)),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(EqSage.copy(alpha = 0.55f))
+                    .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+                    .padding(14.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     "Projected: ${pslTierShort(potential)} — if every step sticks",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF067647),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp)
+                    color = EqInk,
+                    textAlign = TextAlign.Center
                 )
             }
         }
@@ -1202,7 +1175,7 @@ fun ReportBody(
             Spacer(Modifier.height(18.dp))
             SectionTitle(Strings.s("sec_summary", hi))
             Spacer(Modifier.height(8.dp))
-            Text(report.summary, color = PslText, fontSize = 15.sp)
+            EqBody(report.summary)
         }
 
         Spacer(Modifier.height(16.dp))
@@ -1213,7 +1186,7 @@ fun ReportBody(
                 "Same lighting, same angle = comparable results. " +
                 "Free forever: no paywall, no unlock fees.",
             fontSize = 12.sp,
-            color = PslGrey,
+            color = EqMuted,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
@@ -1235,7 +1208,7 @@ private fun FaceMapGuides() {
     Canvas(modifier = Modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-        val guide = Color(0xFFE07856).copy(alpha = 0.65f)
+        val guide = MogCoral.copy(alpha = 0.65f)
         // horizontal thirds
         listOf(1f / 3f, 2f / 3f).forEach { fy ->
             drawLine(guide, Offset(0f, h * fy), Offset(w, h * fy), 1.5.dp.toPx())
@@ -1250,7 +1223,7 @@ private fun FaceMapGuides() {
         }
         // center symmetry axis, dashed
         drawLine(
-            Color(0xFFE07856),
+            MogCoral,
             Offset(w / 2f, 0f), Offset(w / 2f, h),
             2.dp.toPx(),
             pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f)
@@ -1269,6 +1242,7 @@ private fun FaceMapGuides() {
     }
 }
 
+// v2.7 reskin: glass hero cards; featured variant keeps a dark ink gradient.
 @Composable
 private fun HeroCard(
     title: String,
@@ -1278,28 +1252,28 @@ private fun HeroCard(
     modifier: Modifier = Modifier,
     featured: Boolean = false
 ) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = if (featured) Color.Transparent else PslCard
-        ),
-        shape = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    val bgBrush = if (featured) {
+        Brush.horizontalGradient(listOf(EqPillDark, EqInk))
+    } else {
+        Brush.verticalGradient(
+            listOf(Color.White.copy(alpha = 0.55f), Color.White.copy(alpha = 0.55f))
+        )
+    }
+    Box(
         modifier = modifier
-    ) {
-        Box(
-            modifier = Modifier.background(
-                brush = if (featured) {
-                    Brush.horizontalGradient(listOf(Color(0xFF2A2119), PslDeep))
-                } else {
-                    Brush.verticalGradient(listOf(PslCard, PslCard))
-                },
-                shape = RoundedCornerShape(18.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(bgBrush)
+            .then(
+                if (!featured) Modifier.border(
+                    1.dp, Color.White.copy(alpha = 0.65f), RoundedCornerShape(18.dp)
+                ) else Modifier
             )
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                val titleColor = if (featured) Color.White.copy(alpha = 0.85f) else PslBlue
-                val scoreColorTxt = if (featured) Color.White else PslText
-                val subColor = if (featured) Color.White.copy(alpha = 0.7f) else PslGrey
+            .padding(16.dp)
+    ) {
+        Column {
+            val titleColor = if (featured) Color.White.copy(alpha = 0.85f) else MogCoralDark
+                val scoreColorTxt = if (featured) Color.White else EqInk
+                val subColor = if (featured) Color.White.copy(alpha = 0.7f) else EqMuted
                 Text(
                     title,
                     color = titleColor,
@@ -1309,11 +1283,9 @@ private fun HeroCard(
                 )
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        String.format(Locale.US, "%.1f", score),
-                        fontFamily = MogSerif,
-                        fontSize = 38.sp,
-                        fontWeight = FontWeight.Bold,
+                    EqHeadline(
+                        text = String.format(Locale.US, "%.1f", score),
+                        size = 38,
                         color = scoreColorTxt
                     )
                     Spacer(Modifier.width(8.dp))
@@ -1326,41 +1298,29 @@ private fun HeroCard(
                         .fillMaxWidth()
                         .height(8.dp)
                         .clip(RoundedCornerShape(4.dp)),
-                    color = if (featured) PslBlue else barColor,
-                    trackColor = if (featured) Color.White.copy(alpha = 0.25f) else Color(0xFFEDE7DB)
+                    color = if (featured) MogCoral else barColor,
+                    trackColor = if (featured) Color.White.copy(alpha = 0.25f) else EqLine
                 )
             }
         }
-    }
 }
 
 @Composable
 private fun FeatureCard(f: FeatureScore, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
-    Card(
-        onClick = onClick,
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = modifier
-    ) {
-        Column(Modifier.padding(14.dp)) {
-            Text(
-                f.name.uppercase(),
-                color = PslBlue,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-                letterSpacing = 0.5.sp
-            )
+    // v2.7 reskin: glass card, coral label, serif score.
+    EqGlassCard(modifier = modifier.clickable(onClick = onClick)) {
+        Column {
+            EqSectionLabel(f.name)
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     String.format(Locale.US, "%.1f", f.score),
                     fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = PslText
+                    color = EqInk
                 )
                 Spacer(Modifier.width(6.dp))
-                Text("• ${featLabel(f.score)}", fontSize = 12.sp, color = PslGrey)
+                Text("• ${featLabel(f.score)}", fontSize = 12.sp, color = EqMuted)
             }
             Spacer(Modifier.height(8.dp))
             LinearProgressIndicator(
@@ -1370,7 +1330,7 @@ private fun FeatureCard(f: FeatureScore, modifier: Modifier = Modifier, onClick:
                     .height(7.dp)
                     .clip(RoundedCornerShape(4.dp)),
                 color = scoreColor(f.score),
-                trackColor = Color(0xFFEDE7DB)
+                trackColor = EqLine
             )
         }
     }
@@ -1378,26 +1338,16 @@ private fun FeatureCard(f: FeatureScore, modifier: Modifier = Modifier, onClick:
 
 @Composable
 private fun PillarCard(p: PillarScore, modifier: Modifier = Modifier) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = modifier
-    ) {
-        Column(Modifier.padding(14.dp)) {
-            Text(
-                p.name.uppercase(),
-                color = PslBlue,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-                letterSpacing = 0.5.sp
-            )
+    // v2.7 reskin: glass card, coral label.
+    EqGlassCard(modifier = modifier) {
+        Column {
+            EqSectionLabel(p.name)
             Spacer(Modifier.height(4.dp))
             Text(
                 String.format(Locale.US, "%.1f", p.score),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = PslText
+                color = EqInk
             )
             Spacer(Modifier.height(8.dp))
             LinearProgressIndicator(
@@ -1407,11 +1357,11 @@ private fun PillarCard(p: PillarScore, modifier: Modifier = Modifier) {
                     .height(7.dp)
                     .clip(RoundedCornerShape(4.dp)),
                 color = scoreColor(p.score),
-                trackColor = Color(0xFFEDE7DB)
+                trackColor = EqLine
             )
             if (p.note.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
-                Text(p.note, fontSize = 12.sp, color = PslGrey)
+                Text(p.note, fontSize = 12.sp, color = EqMuted)
             }
         }
     }
@@ -1459,29 +1409,32 @@ fun shareReport(context: android.content.Context, profile: UserProfile?, report:
 
 @Composable
 private fun SectionTitle(text: String) {
-    CapsLabel(text)
+    EqSectionLabel(text)
 }
 
 @Composable
 private fun EffortChip(effort: String) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslBlue.copy(alpha = 0.18f)),
-        shape = RoundedCornerShape(50)
+    // v2.7 reskin: coral glass chip.
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(MogCoral.copy(alpha = 0.15f))
+            .padding(horizontal = 10.dp, vertical = 4.dp)
     ) {
         Text(
             effort.replaceFirstChar { it.uppercase() },
             fontSize = 11.sp,
-            color = PslBlue,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            color = MogCoralDark,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }
 
+// v2.7 reskin: score tints from the equilibrium palette.
 private fun scoreColor(score: Double): Color = when {
-    score >= 7.0 -> Color(0xFF12B76A)
-    score >= 5.0 -> Color(0xFFF79009)
-    else -> Color(0xFFF04438)
+    score >= 7.0 -> EqSageDeep
+    score >= 5.0 -> EqPeachDeep
+    else -> MogCoralDark
 }
 
 fun pslLabel(psl: Double): String = when {
@@ -1512,23 +1465,20 @@ fun AnalysisErrorState(state: AnalysisUiState.Error, onDismiss: () -> Unit) {
             .background(Color(0xFF1C1917).copy(alpha = 0.45f)),
         contentAlignment = Alignment.Center
     ) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = PslCard),
-            shape = RoundedCornerShape(16.dp),
+        EqGlassCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(32.dp)
         ) {
-            Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Analysis failed", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = PslText)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                EqHeadline("Analysis failed", size = 18, color = EqInk, align = TextAlign.Center)
                 Spacer(Modifier.height(8.dp))
-                Text(state.message, textAlign = TextAlign.Center, fontSize = 14.sp, color = PslGrey)
+                Text(state.message, textAlign = TextAlign.Center, fontSize = 14.sp, color = EqMuted)
                 Spacer(Modifier.height(16.dp))
-                Button(
-                    onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("Back to camera") }
+                EqCoralPillButton(
+                    text = "Back to camera",
+                    onClick = onDismiss
+                )
             }
         }
     }

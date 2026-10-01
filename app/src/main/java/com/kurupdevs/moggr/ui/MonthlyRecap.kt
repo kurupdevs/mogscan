@@ -8,9 +8,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kurupdevs.moggr.analysis.PslReport
@@ -91,27 +87,21 @@ fun MonthlyRecapCard(report: PslReport?) {
         LocalDate.now().format(DateTimeFormatter.ofPattern("MMMM"))
     }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    EqGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
     ) {
-        Column(Modifier.padding(18.dp)) {
-            CapsLabel("$monthName RECAP".uppercase(Locale.US))
+        Column {
+            EqSectionLabel("$monthName RECAP".uppercase(Locale.US))
             Spacer(Modifier.height(10.dp))
             if (snaps.isEmpty()) {
-                Text(
-                    "No scans logged yet.",
-                    fontSize = 16.sp, fontWeight = FontWeight.Bold, color = PslText
-                )
+                EqHeadline("No scans logged yet.", size = 18)
                 Spacer(Modifier.height(4.dp))
-                Text(
+                EqBody(
                     "Your recap builds itself as you scan — same light, same angles, " +
                         "every few weeks, and the delta shows up here.",
-                    fontSize = 13.sp, color = PslGrey
+                    size = 13
                 )
             } else {
                 val first = snaps.first()
@@ -132,13 +122,13 @@ fun MonthlyRecapCard(report: PslReport?) {
                     StatCol("Tasks done", "$tasksDone", PslText)
                 }
                 Spacer(Modifier.height(10.dp))
-                Text(
+                EqBody(
                     if (snaps.size == 1)
                         "One scan so far (${String.format(Locale.US, "%.1f", latest.psl)} PSL) — scan again in a few weeks to see movement."
                     else
                         "${String.format(Locale.US, "%.1f", first.psl)} → ${String.format(Locale.US, "%.1f", latest.psl)} PSL across ${snaps.size} scans. " +
                             "Same setup each time keeps it comparable.",
-                    fontSize = 13.sp, color = PslGrey
+                    size = 13
                 )
             }
         }
@@ -150,7 +140,9 @@ private fun StatCol(label: String, value: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             value,
-            fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = color
+            fontFamily = EqSerif,
+            fontSize = 26.sp,
+            color = color
         )
         Text(label, fontSize = 12.sp, color = PslGrey)
     }

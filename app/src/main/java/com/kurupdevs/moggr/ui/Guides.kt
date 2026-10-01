@@ -23,8 +23,6 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -46,6 +44,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kurupdevs.moggr.R
 import com.kurupdevs.moggr.analysis.PslReport
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.MogCoral
 // v2.6-hinglish begin
 import com.kurupdevs.moggr.util.LanguageStore
 // v2.6-hinglish end
@@ -75,11 +76,11 @@ fun GlowUpCarousel() {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            CapsLabel(Strings.s("caps_glowup", hi))
+            EqSectionLabel(Strings.s("caps_glowup", hi))
             Text(
                 "${pagerState.currentPage + 1} / ${GLOWUP_CARDS.size}",
                 fontSize = 12.sp,
-                color = PslGrey
+                color = EqMuted
             )
         }
         Spacer(Modifier.height(8.dp))
@@ -91,10 +92,7 @@ fun GlowUpCarousel() {
             val title = Strings.s("glowup_$page", hi).let {
                 if (it == "glowup_$page") card.title else it
             }
-            Card(
-                colors = CardDefaults.cardColors(containerColor = PslCard),
-                shape = RoundedCornerShape(20.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+            EqGlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 2.dp)
@@ -107,14 +105,14 @@ fun GlowUpCarousel() {
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(0.72f)
-                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                            .clip(RoundedCornerShape(12.dp))
                     )
+                    Spacer(Modifier.height(10.dp))
                     Text(
                         title,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = PslText,
-                        modifier = Modifier.padding(14.dp)
+                        color = EqInk
                     )
                 }
             }
@@ -132,14 +130,14 @@ fun GlowUpCarousel() {
                         .padding(horizontal = 3.dp)
                         .size(if (active) 9.dp else 7.dp)
                         .clip(CircleShape)
-                        .background(if (active) PslBlue else PslGrey.copy(alpha = 0.35f))
+                        .background(if (active) MogCoral else EqMuted.copy(alpha = 0.35f))
                 )
             }
         }
         Text(
             Strings.s("swipe_next", hi),
             fontSize = 12.sp,
-            color = PslGrey,
+            color = EqMuted,
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
                 .padding(top = 6.dp)
@@ -163,18 +161,14 @@ fun WinterArcSection() {
     // v2.6-hinglish: translated labels.
     val hi = LanguageStore.isHinglish
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel(Strings.s("caps_winter", hi))
+        EqSectionLabel(Strings.s("caps_winter", hi))
         Spacer(Modifier.height(8.dp))
-        Card(
-            colors = CardDefaults.cardColors(containerColor = PslCard),
-            shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        EqGlassCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { open = true }
         ) {
             Row(
-                modifier = Modifier.padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Image(
@@ -194,18 +188,18 @@ fun WinterArcSection() {
                         Strings.s("winter_title", hi),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = PslText
+                        color = EqInk
                     )
                     Text(
                         Strings.s("winter_sub", hi),
                         fontSize = 12.sp,
-                        color = PslGrey
+                        color = EqMuted
                     )
                 }
                 Icon(
                     imageVector = Icons.Filled.ChevronRight,
                     contentDescription = "Open",
-                    tint = PslBlue
+                    tint = MogCoral
                 )
             }
         }
@@ -429,12 +423,11 @@ fun GuidesSection(report: PslReport? = null) {
         Spacer(Modifier.height(20.dp))
         SeasonQuizCard(report)
         Spacer(Modifier.height(20.dp))
-        CapsLabel(Strings.s("caps_softmaxx", hi))
+        EqSectionLabel(Strings.s("caps_softmaxx", hi))
         Spacer(Modifier.height(8.dp))
-        Text(
+        EqBody(
             Strings.s("softmaxx_sub", hi),
-            fontSize = 13.sp,
-            color = PslGrey,
+            size = 13,
             modifier = Modifier.padding(bottom = 8.dp)
         )
         GUIDES.forEach { guide -> GuideCard(guide) }
@@ -456,16 +449,13 @@ private fun GuideCard(guide: Guide) {
     var expanded by remember { mutableStateOf(false) }
     // v2.6-hinglish: translated title + body.
     val hi = LanguageStore.isHinglish
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    EqGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 5.dp)
             .clickable { expanded = !expanded }
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -475,14 +465,14 @@ private fun GuideCard(guide: Guide) {
                         Strings.guideTitle(guide.title, hi),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = PslText
+                        color = EqInk
                     )
-                    Text(guideCategoryHi(guide.category, hi), fontSize = 12.sp, color = PslGrey)
+                    Text(guideCategoryHi(guide.category, hi), fontSize = 12.sp, color = EqMuted)
                 }
                 Icon(
                     imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                     contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = PslBlue
+                    tint = MogCoral
                 )
             }
             if (expanded) {
@@ -490,7 +480,7 @@ private fun GuideCard(guide: Guide) {
                 Text(
                     Strings.guideBody(guide.body, guide.title, hi),
                     fontSize = 14.sp,
-                    color = PslText
+                    color = EqInk
                 )
             }
         }

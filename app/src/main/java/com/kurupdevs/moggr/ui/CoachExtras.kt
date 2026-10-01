@@ -18,10 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,6 +35,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqLavender
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.EqPeach
+import com.kurupdevs.moggr.ui.theme.EqPillDark
+import com.kurupdevs.moggr.ui.theme.EqSage
+import com.kurupdevs.moggr.ui.theme.MogCoral
+import com.kurupdevs.moggr.ui.theme.MogCoralDark
 // v2.6-hinglish begin
 import com.kurupdevs.moggr.util.LanguageStore
 // v2.6-hinglish end
@@ -67,29 +71,17 @@ fun MorningCheckinCard(
     var puff by remember { mutableStateOf<Int?>(null) }
     var focus by remember { mutableStateOf<String?>(null) }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(18.dp),
+    EqGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(
-                Strings.s("coach_checkin_title", hi),
-                fontFamily = MogSerif,
-                fontSize = 19.sp,
-                fontWeight = FontWeight.Bold,
-                color = PslText
-            )
-            Text(
-                Strings.s("coach_checkin_sub", hi),
-                fontSize = 12.sp,
-                color = PslGrey
-            )
+        Column {
+            EqHeadline(Strings.s("coach_checkin_title", hi), size = 20)
+            EqBody(Strings.s("coach_checkin_sub", hi), size = 12)
             Spacer(Modifier.height(12.dp))
 
-            Text(Strings.s("coach_checkin_sleep", hi), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PslGrey)
+            EqSectionLabel(Strings.s("coach_checkin_sleep", hi))
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SLEEP_OPTIONS.forEach { opt ->
@@ -98,7 +90,7 @@ fun MorningCheckinCard(
             }
             Spacer(Modifier.height(12.dp))
 
-            Text(Strings.s("coach_checkin_puff", hi), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PslGrey)
+            EqSectionLabel(Strings.s("coach_checkin_puff", hi))
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 (1..5).forEach { n ->
@@ -106,7 +98,7 @@ fun MorningCheckinCard(
                         modifier = Modifier
                             .size(30.dp)
                             .clip(CircleShape)
-                            .background(if (puff == n) PslBlue else PslBlue.copy(alpha = 0.15f))
+                            .background(if (puff == n) EqPillDark else MogCoral.copy(alpha = 0.15f))
                             .clickable { puff = n },
                         contentAlignment = Alignment.Center
                     ) {
@@ -114,15 +106,15 @@ fun MorningCheckinCard(
                             "$n",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (puff == n) Color.White else PslText
+                            color = if (puff == n) Color.White else EqInk
                         )
                     }
                 }
-                Text(Strings.s("coach_puff_scale", hi), fontSize = 11.sp, color = PslGrey)
+                Text(Strings.s("coach_puff_scale", hi), fontSize = 11.sp, color = EqMuted)
             }
             Spacer(Modifier.height(12.dp))
 
-            Text(Strings.s("coach_checkin_focus", hi), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PslGrey)
+            EqSectionLabel(Strings.s("coach_checkin_focus", hi))
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 focusOpts.forEach { (stored, label) ->
@@ -137,17 +129,14 @@ fun MorningCheckinCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onSkip) {
-                    Text(Strings.s("coach_checkin_skip", hi), color = PslGrey, fontSize = 14.sp)
+                    Text(Strings.s("coach_checkin_skip", hi), color = EqMuted, fontSize = 14.sp)
                 }
                 Spacer(Modifier.width(4.dp))
-                Button(
+                EqCoralPillButton(
+                    text = Strings.s("coach_checkin_log", hi),
                     onClick = { onDone(sleep!!, puff!!, focus!!) },
-                    enabled = sleep != null && puff != null && focus != null,
-                    colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
-                    shape = RoundedCornerShape(50)
-                ) {
-                    Text(Strings.s("coach_checkin_log", hi), fontWeight = FontWeight.Bold)
-                }
+                    enabled = sleep != null && puff != null && focus != null
+                )
             }
         }
     }
@@ -158,7 +147,7 @@ private fun CheckinPill(text: String, selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(if (selected) PslText else Color.White.copy(alpha = 0.7f))
+            .background(if (selected) EqPillDark else Color.White.copy(alpha = 0.7f))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 9.dp),
         contentAlignment = Alignment.Center
@@ -167,7 +156,7 @@ private fun CheckinPill(text: String, selected: Boolean, onClick: () -> Unit) {
             text,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
-            color = if (selected) PslBlack else PslText
+            color = if (selected) Color.White else EqInk
         )
     }
 }
@@ -203,7 +192,7 @@ fun VibeSegmentedControl(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(if (selected) PslText else Color.Transparent)
+                    .background(if (selected) EqPillDark else Color.Transparent)
                     .clickable { onVibe(key) }
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center
@@ -212,7 +201,7 @@ fun VibeSegmentedControl(
                     label,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (selected) Color.White else PslText
+                    color = if (selected) Color.White else EqInk
                 )
             }
         }
@@ -225,15 +214,15 @@ fun VibeSegmentedControl(
 
 @Composable
 fun CelebrationBanner(text: String, onDismiss: () -> Unit) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslBlue),
-        shape = RoundedCornerShape(18.dp),
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(EqPeach)
+            .padding(14.dp)
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
@@ -241,19 +230,18 @@ fun CelebrationBanner(text: String, onDismiss: () -> Unit) {
                     Strings.s("coach_milestone", LanguageStore.isHinglish),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 0.85f)
+                    color = EqMuted
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text,
-                    fontFamily = MogSerif,
+                    fontFamily = EqSerif,
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = EqInk
                 )
             }
             TextButton(onClick = onDismiss) {
-                Text("✕", color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp)
+                Text("✕", color = EqMuted, fontSize = 15.sp)
             }
         }
     }
@@ -375,7 +363,9 @@ fun GuidedFlowCards(onFlow: (GuidedFlow) -> Unit) {
     ) {
         // v2.6-hinglish: flow card titles follow the app language.
         val hiFlow = LanguageStore.isHinglish
-        GUIDED_FLOWS.forEach { flow ->
+        // v2.7: pastel recommendation tiles, rotating accents.
+        val tileColors = listOf(EqLavender, EqSage, EqPeach)
+        GUIDED_FLOWS.forEachIndexed { idx, flow ->
             val titleKey = when (flow.id) {
                 "diagnose" -> "coach_flow_title"
                 "plan" -> "coach_plan_title"
@@ -388,25 +378,26 @@ fun GuidedFlowCards(onFlow: (GuidedFlow) -> Unit) {
             }
             val flowTitle = Strings.s(titleKey, hiFlow).let { if (it == titleKey) flow.title else it }
             val flowSub = Strings.s(subKey, hiFlow).let { if (it == subKey) flow.subtitle else it }
-            Card(
-                colors = CardDefaults.cardColors(containerColor = PslCard),
-                shape = RoundedCornerShape(16.dp),
+            Box(
                 modifier = Modifier
                     .width(168.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(tileColors[idx % tileColors.size])
                     .clickable { onFlow(flow) }
+                    .padding(13.dp)
             ) {
-                Column(Modifier.padding(13.dp)) {
+                Column {
                     Text(
                         flowTitle,
-                        fontFamily = MogSerif,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PslText
+                        fontFamily = EqSerif,
+                        fontSize = 16.sp,
+                        color = EqInk,
+                        lineHeight = 20.sp
                     )
                     Spacer(Modifier.height(3.dp))
-                    Text(flowSub, fontSize = 11.sp, color = PslGrey)
+                    Text(flowSub, fontSize = 11.sp, color = EqMuted)
                     Spacer(Modifier.height(8.dp))
-                    Text(Strings.s("coach_start", hiFlow), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PslBlue)
+                    Text(Strings.s("coach_start", hiFlow), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MogCoralDark)
                 }
             }
         }
@@ -433,7 +424,7 @@ fun GuidedFlowDialog(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MoggrBg)
+                .background(eqBackgroundBrush())
         ) {
             // Top bar
             Row(
@@ -443,14 +434,14 @@ fun GuidedFlowDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text(Strings.s("flow_close", hiDialog), color = PslGrey, fontSize = 14.sp)
+                    Text(Strings.s("flow_close", hiDialog), color = EqMuted, fontSize = 14.sp)
                 }
                 Spacer(Modifier.weight(1f))
                 Text(
                     if (review) Strings.s("flow_review", hiDialog) else Strings.fmt("flow_step", hiDialog, "i" to "${stepIdx + 1}", "n" to "${steps.size}"),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = PslGrey
+                    color = EqMuted
                 )
             }
             Column(
@@ -460,34 +451,29 @@ fun GuidedFlowDialog(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp)
             ) {
-                Text(
-                    flow.title,
-                    fontFamily = MogSerif,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PslText
-                )
+                EqHeadline(flow.title, size = 26)
                 Spacer(Modifier.height(16.dp))
                 if (!review) {
                     val step = steps[stepIdx]
                     Text(
                         step.question,
-                        fontFamily = MogSerif,
+                        fontFamily = EqSerif,
                         fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PslText
+                        color = EqInk,
+                        lineHeight = 24.sp
                     )
                     Spacer(Modifier.height(12.dp))
                     step.options.forEach { opt ->
                         val selected = answers.getOrNull(stepIdx) == opt
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (selected) PslText else PslCard
-                            ),
-                            shape = RoundedCornerShape(14.dp),
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 5.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    if (selected) EqPillDark
+                                    else Color.White.copy(alpha = 0.7f)
+                                )
                                 .clickable {
                                     if (answers.size > stepIdx) answers[stepIdx] = opt
                                     else answers.add(opt)
@@ -498,7 +484,7 @@ fun GuidedFlowDialog(
                                 opt,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (selected) PslBlack else PslText,
+                                color = if (selected) Color.White else EqInk,
                                 modifier = Modifier.padding(15.dp)
                             )
                         }
@@ -509,13 +495,13 @@ fun GuidedFlowDialog(
                             step.question,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = PslGrey
+                            color = EqMuted
                         )
                         Text(
                             answers.getOrNull(i) ?: "—",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = PslText
+                            color = EqInk
                         )
                         Spacer(Modifier.height(10.dp))
                     }
@@ -531,23 +517,20 @@ fun GuidedFlowDialog(
             ) {
                 if (!review && stepIdx > 0) {
                     TextButton(onClick = { stepIdx-- }) {
-                        Text(Strings.s("flow_back", hiDialog), color = PslGrey, fontSize = 14.sp)
+                        Text(Strings.s("flow_back", hiDialog), color = EqMuted, fontSize = 14.sp)
                     }
                 } else if (review) {
                     TextButton(onClick = { review = false; stepIdx = steps.lastIndex }) {
-                        Text(Strings.s("flow_edit", hiDialog), color = PslGrey, fontSize = 14.sp)
+                        Text(Strings.s("flow_edit", hiDialog), color = EqMuted, fontSize = 14.sp)
                     }
                 } else {
                     Spacer(Modifier.width(1.dp))
                 }
                 if (review) {
-                    Button(
-                        onClick = { onSend(flow.message(answers.toList())) },
-                        colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
-                        shape = RoundedCornerShape(50)
-                    ) {
-                        Text("Send to Coach →", fontWeight = FontWeight.Bold)
-                    }
+                    EqCoralPillButton(
+                        text = "Send to Coach →",
+                        onClick = { onSend(flow.message(answers.toList())) }
+                    )
                 }
             }
         }

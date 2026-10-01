@@ -12,7 +12,7 @@ import java.util.Locale
 
 private const val CARD_W = 1080
 private const val CARD_H = 1920
-private const val CREAM: Int = 0xFFFAF7F1.toInt()
+private const val CREAM: Int = 0xFFE9E2D6.toInt() // v2.7 reskin: greige wash to match the app skin
 private const val INK: Int = 0xFF1C1917.toInt()
 private const val CORAL: Int = 0xFFE07856.toInt()
 private const val GREY: Int = 0xFF78716C.toInt()

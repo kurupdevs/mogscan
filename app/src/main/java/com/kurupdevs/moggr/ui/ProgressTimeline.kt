@@ -4,6 +4,7 @@ import android.graphics.BitmapFactory
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,8 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,6 +45,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.EqPeach
+import com.kurupdevs.moggr.ui.theme.EqRose
+import com.kurupdevs.moggr.ui.theme.EqSage
+import com.kurupdevs.moggr.ui.theme.MogCoral
 import com.kurupdevs.moggr.util.ScanHistoryStore
 import com.kurupdevs.moggr.util.ScanHistoryStore.ScanEntry
 import java.io.File
@@ -66,23 +70,18 @@ fun ProgressTimeline() {
     val history = remember { ScanHistoryStore.load(context) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        CapsLabel("PROGRESS TIMELINE")
+        EqSectionLabel("PROGRESS TIMELINE")
         Spacer(Modifier.height(10.dp))
 
         if (history.isEmpty()) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = PslCard),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            EqGlassCard(modifier = Modifier.fillMaxWidth(), corner = EqRoundSm) {
                 Text(
                     "No scan history yet — your next scans will build a timeline here.",
-                    color = PslGrey,
                     fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    color = PslGrey,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp)
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
             return
@@ -106,13 +105,9 @@ private fun PslLineGraph(history: List<ScanEntry>) {
     val dateFmt = remember { SimpleDateFormat("MM/dd", Locale.US) }
     val density = LocalDensity.current
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text("PSL over time", fontWeight = FontWeight.SemiBold, color = PslText, fontSize = 15.sp)
+    EqGlassCard(modifier = Modifier.fillMaxWidth(), corner = EqRoundSm) {
+        Column {
+            Text("PSL over time", fontFamily = EqSerif, fontSize = 17.sp, color = PslText)
             Spacer(Modifier.height(4.dp))
             Text(
                 "${ordered.size} scan${if (ordered.size == 1) "" else "s"} · latest ${String.format(Locale.US, "%.1f", ordered.last().psl)}",
@@ -141,14 +136,14 @@ private fun PslLineGraph(history: List<ScanEntry>) {
 
                     // gridlines at 2/4/6/8
                     val gridPaint = android.graphics.Paint().apply {
-                        color = android.graphics.Color.parseColor("#78716C")
-                        alpha = 70
+                        color = android.graphics.Color.parseColor("#8A8177")
+                        alpha = 120
                         textSize = with(density) { 10.sp.toPx() }
                         isAntiAlias = true
                     }
                     listOf(2.0, 4.0, 6.0, 8.0).forEach { g ->
                         drawLine(
-                            Color(0xFF78716C).copy(alpha = 0.25f),
+                            EqMuted.copy(alpha = 0.35f),
                             Offset(padL, y(g)), Offset(wPx - padR, y(g)),
                             1.dp.toPx()
                         )
@@ -158,7 +153,7 @@ private fun PslLineGraph(history: List<ScanEntry>) {
                     }
 
                     // line + dots
-                    val coral = Color(0xFFE07856)
+                    val coral = MogCoral
                     if (ordered.size == 1) {
                         drawCircle(coral, 5.dp.toPx(), Offset(x(0), y(ordered[0].psl)))
                     } else {
@@ -178,7 +173,7 @@ private fun PslLineGraph(history: List<ScanEntry>) {
 
                     // date labels: first + last
                     val labelPaint = android.graphics.Paint().apply {
-                        color = android.graphics.Color.parseColor("#78716C")
+                        color = android.graphics.Color.parseColor("#8A8177")
                         textSize = with(density) { 10.sp.toPx() }
                         isAntiAlias = true
                     }
@@ -221,7 +216,7 @@ private fun DeltaChips(history: List<ScanEntry>) {
     }.sortedByDescending { abs(it.second) }.take(6)
 
     Column {
-        Text("Since last scan", fontWeight = FontWeight.SemiBold, color = PslText, fontSize = 15.sp)
+        Text("Since last scan", fontFamily = EqSerif, fontSize = 17.sp, color = PslText)
         Spacer(Modifier.height(8.dp))
         if (deltas.isEmpty()) {
             Text("No movement since last scan — same scores across the board.", fontSize = 13.sp, color = PslGrey)
@@ -245,21 +240,22 @@ private fun DeltaChips(history: List<ScanEntry>) {
 @Composable
 private fun DeltaChip(name: String, delta: Double, modifier: Modifier = Modifier) {
     val up = delta > 0
-    val bg = if (up) Color(0xFFECFDF3) else Color(0xFFFEF3F2)
+    val bg = if (up) EqSage else EqRose
     val arrow = if (up) "▲" else "▼"
-    Card(
-        colors = CardDefaults.cardColors(containerColor = bg),
-        shape = RoundedCornerShape(12.dp),
+    Box(
         modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(bg)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
     ) {
         Column(
-            Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 "$arrow ${String.format(Locale.US, "%.1f", abs(delta))}",
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 14.sp,
+                fontFamily = EqSerif,
+                fontSize = 16.sp,
                 color = PslText
             )
             Text(name, fontSize = 11.sp, color = PslGrey, textAlign = TextAlign.Center)
@@ -278,22 +274,17 @@ private fun BeforeAfterSlider(history: List<ScanEntry>) {
     val before = withPhotos.lastOrNull()
 
     Column {
-        Text("Before / after", fontWeight = FontWeight.SemiBold, color = PslText, fontSize = 15.sp)
+        Text("Before / after", fontFamily = EqSerif, fontSize = 17.sp, color = PslText)
         Spacer(Modifier.height(8.dp))
         if (after == null || before == null || before.timestamp == after.timestamp) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = PslCard),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            EqGlassCard(modifier = Modifier.fillMaxWidth(), corner = EqRoundSm) {
                 Text(
                     "Scan photos from two different days will show up here for a side-by-side.",
                     color = PslGrey,
                     fontSize = 13.sp,
+                    lineHeight = 19.sp,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp)
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
             return
@@ -403,27 +394,28 @@ private fun BeforeAfterSlider(history: List<ScanEntry>) {
 private fun RescanNudge(latest: ScanEntry) {
     val days = (System.currentTimeMillis() - latest.timestamp) / 86_400_000L
     if (days <= 14) return
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFE07856).copy(alpha = 0.14f)),
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(EqRoundSm))
+            .background(EqPeach)
+            .border(1.dp, Color.White.copy(alpha = 0.65f), RoundedCornerShape(EqRoundSm))
+            .padding(18.dp)
     ) {
         Row(
-            Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
                     "It's been $days days",
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = EqSerif,
                     color = PslText,
-                    fontSize = 15.sp
+                    fontSize = 17.sp
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(
+                EqBody(
                     "Grab a fresh scan to keep the timeline honest — same lighting, same angle.",
-                    fontSize = 13.sp,
-                    color = PslGrey
+                    size = 13
                 )
             }
         }

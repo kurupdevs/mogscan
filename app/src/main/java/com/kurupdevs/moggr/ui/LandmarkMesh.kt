@@ -5,6 +5,7 @@ import android.graphics.PointF
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,8 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,6 +42,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kurupdevs.moggr.analysis.FaceAnalyzer
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.MogCoral
+import com.kurupdevs.moggr.ui.theme.MogCoralDark
 import kotlin.math.hypot
 
 /**
@@ -124,7 +127,7 @@ fun VerifyPointsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MoggrBg)
+            .background(eqBackgroundBrush())
             .padding(20.dp)
     ) {
         Row(
@@ -132,7 +135,7 @@ fun VerifyPointsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextButton(onClick = onCancel) {
-                Text("Cancel", color = PslGrey, fontSize = 15.sp)
+                Text("Cancel", color = EqMuted, fontSize = 15.sp)
             }
             Spacer(Modifier.weight(1f))
             if (dirty) {
@@ -144,26 +147,18 @@ fun VerifyPointsScreen(
                         activeKey = null
                     }
                 ) {
-                    Text("Undo changes", color = PslBlue, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text("Undo changes", color = MogCoralDark, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 }
             }
         }
         Spacer(Modifier.height(2.dp))
-        CapsLabel("VERIFY THE AI'S POINTS")
+        EqSectionLabel("Verify the AI's points")
         Spacer(Modifier.height(6.dp))
-        Text(
-            "Check the markers",
-            fontFamily = MogSerif,
-            fontSize = 26.sp,
-            fontWeight = FontWeight.Bold,
-            color = PslText
-        )
+        EqHeadline("Check the markers", size = 26, color = EqInk)
         Spacer(Modifier.height(4.dp))
-        Text(
+        EqBody(
             "The scan placed these markers itself — drag any that missed the mark, then recalculate.",
-            fontSize = 13.sp,
-            color = PslGrey,
-            lineHeight = 18.sp
+            size = 13
         )
         Spacer(Modifier.height(12.dp))
 
@@ -224,7 +219,8 @@ fun VerifyPointsScreen(
                 val cw = size.width
                 val ch = size.height
                 fun map(o: Offset) = Offset(o.x * cw, o.y * ch)
-                val coral = Color(0xFFE07856)
+                // v2.7 reskin: markers use the brand coral; drag logic untouched.
+                val coral = MogCoral
                 // faint contour polylines so the face structure reads at a glance
                 contourGroups.forEach { (type, list) ->
                     val mapped = list.mapIndexed { i, _ ->
@@ -268,29 +264,34 @@ fun VerifyPointsScreen(
         Text(
             "${pts.size} markers · drag with your finger — targets are fingertip-sized",
             fontSize = 12.sp,
-            color = PslGrey,
+            color = EqMuted,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(16.dp))
 
-        Button(
-            onClick = { onApply(correctedSnapshot(bw, bh, snapshot, pts)) },
-            enabled = dirty && !busy,
-            colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
+        // v2.7 reskin: coral pill CTA matching EqCoralPillButton's look, with the
+        // busy spinner kept; enable logic identical to the old Button.
+        val ctaEnabled = dirty && !busy
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp)
+                .clip(RoundedCornerShape(50))
+                .background(if (ctaEnabled) MogCoral else EqMuted.copy(alpha = 0.35f))
+                .clickable(enabled = ctaEnabled) { onApply(correctedSnapshot(bw, bh, snapshot, pts)) }
+                .padding(horizontal = 26.dp, vertical = 15.dp),
+            contentAlignment = Alignment.Center
         ) {
             if (busy) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    color = Color.White,
-                    strokeWidth = 2.5.dp
-                )
-                Spacer(Modifier.width(10.dp))
-                Text("Recalculating…", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = Color.White,
+                        strokeWidth = 2.5.dp
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text("Recalculating…", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             } else {
                 Text(
                     if (dirty) "Recalculate my score" else "Move a marker to recalculate",
@@ -304,7 +305,7 @@ fun VerifyPointsScreen(
         Text(
             "Recalculating re-runs the same on-device measurements on your corrected points — nothing leaves your phone.",
             fontSize = 12.sp,
-            color = PslGrey,
+            color = EqMuted,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )

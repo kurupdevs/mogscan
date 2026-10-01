@@ -3,6 +3,7 @@ package com.kurupdevs.moggr.ui
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,15 +25,10 @@ import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.School
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,6 +53,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kurupdevs.moggr.analysis.PslReport
+import com.kurupdevs.moggr.ui.theme.EqGreige
+import com.kurupdevs.moggr.ui.theme.EqLine
+import com.kurupdevs.moggr.ui.theme.EqMuted
+import com.kurupdevs.moggr.ui.theme.EqPeach
+import com.kurupdevs.moggr.ui.theme.EqPillDark
+import com.kurupdevs.moggr.ui.theme.EqSage
+import com.kurupdevs.moggr.ui.theme.MogCoral
 import com.kurupdevs.moggr.util.PlanStore
 import com.kurupdevs.moggr.util.ReportStore
 import com.kurupdevs.moggr.util.RoutineStore
@@ -97,7 +100,7 @@ fun MainTabs(
     Scaffold(
         containerColor = Color.Transparent,
         bottomBar = {
-            // v2.6-challenges: hide the pill nav while the challenges overlay is open
+            // v2.7: floating greige-glass nav bar, 24dp corners, icon+label items
             if (!showChallenges) {
             Box(
                 modifier = Modifier
@@ -107,9 +110,10 @@ fun MainTabs(
             ) {
                 Row(
                     modifier = Modifier
-                        .shadow(16.dp, RoundedCornerShape(50))
-                        .clip(RoundedCornerShape(50))
-                        .background(Color.White.copy(alpha = 0.88f))
+                        .shadow(16.dp, RoundedCornerShape(24.dp))
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(EqGreige.copy(alpha = 0.88f))
+                        .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(24.dp))
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -120,8 +124,8 @@ fun MainTabs(
                         val label = Strings.s("tab_${t.key}", hi)
                         Column(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(if (selected) PslDeep else Color.Transparent)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(if (selected) EqPillDark else Color.Transparent)
                                 .clickable { tab = idx }
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -129,7 +133,7 @@ fun MainTabs(
                             Icon(
                                 t.icon,
                                 contentDescription = label,
-                                tint = if (selected) Color.White else PslGrey,
+                                tint = if (selected) Color.White else EqMuted,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(Modifier.height(2.dp))
@@ -137,7 +141,7 @@ fun MainTabs(
                                 label,
                                 fontSize = 10.sp,
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (selected) Color.White else PslGrey
+                                color = if (selected) Color.White else EqMuted
                             )
                         }
                     }
@@ -178,63 +182,13 @@ fun MainTabs(
 
 @Composable
 private fun ChallengesPromoCard(onChallenges: () -> Unit) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslDeep),
-        shape = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onChallenges)
-    ) {
-        Row(
-            modifier = Modifier.padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                CapsLabelLightCard("CHALLENGES")
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "7-day debloat. 30-day glow-up.",
-                    fontFamily = MogSerif,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 19.sp,
-                    color = androidx.compose.ui.graphics.Color.White,
-                    lineHeight = 23.sp
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Daily photo check-ins, streaks, freezes + buddy mode.",
-                    fontSize = 13.sp,
-                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.72f)
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(CircleShape)
-                    .background(PslBlue),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "›",
-                    color = androidx.compose.ui.graphics.Color.White,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 26.sp
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CapsLabelLightCard(text: String) {
-    Text(
-        text,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.65f),
-        letterSpacing = 2.sp
+    EqPastelTile(
+        title = "7-day debloat. 30-day glow-up.",
+        subtitle = "Daily photo check-ins, streaks, freezes + buddy mode.",
+        chip = "CHALLENGES",
+        tileColor = EqPeach,
+        onClick = onChallenges,
+        modifier = Modifier.fillMaxWidth()
     )
 }
 
@@ -334,31 +288,27 @@ private fun HomeTab(
             ) {
                 CapsLabel(Strings.s("home_welcome_caps", hi))
                 Spacer(Modifier.height(14.dp))
-                Text(
-                    Strings.s("home_hero1", hi) + "\n" + Strings.s("home_hero2", hi),
-                    fontFamily = MogSerif,
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PslText,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 42.sp
+                EqHeadline(
+                    text = Strings.s("home_hero1", hi) + "\n" + Strings.s("home_hero2", hi),
+                    size = 36,
+                    align = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    Strings.s("home_hero_sub", hi),
+                    text = Strings.s("home_hero_sub", hi),
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
                     color = PslGrey,
                     textAlign = TextAlign.Center,
-                    fontSize = 14.sp
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(28.dp))
-                Button(
+                EqCoralPillButton(
+                    text = Strings.s("home_start_scan", hi),
                     onClick = onRescan,
-                    colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
-                    shape = RoundedCornerShape(50),
-                    modifier = Modifier.height(56.dp)
-                ) {
-                    Text(Strings.s("home_start_scan", hi), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
         return
@@ -419,7 +369,7 @@ private fun HomeTab(
                     if (!profile?.name.isNullOrBlank())
                         Strings.fmt("home_hello_name", hi, "n" to profile!!.name)
                     else Strings.s("home_hello", hi),
-                    fontFamily = MogSerif,
+                    fontFamily = EqSerif,
                     fontStyle = FontStyle.Italic,
                     fontSize = 18.sp,
                     color = PslText
@@ -430,17 +380,13 @@ private fun HomeTab(
         // v2.6-hinglish end
         Spacer(Modifier.height(20.dp))
         // v2.6-hinglish: translated hero lines.
-        Text(
-            Strings.s("home_know1", hi),
-            fontFamily = MogSerif,
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Bold,
-            color = PslText,
-            lineHeight = 38.sp
+        EqHeadline(
+            text = Strings.s("home_know1", hi),
+            size = 34
         )
         Text(
             Strings.s("home_know2", hi),
-            fontFamily = MogSerif,
+            fontFamily = EqSerif,
             fontStyle = FontStyle.Italic,
             fontSize = 34.sp,
             color = PslText,
@@ -464,25 +410,16 @@ private fun HomeTab(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            OutlinedButton(
+            EqPillButton(
+                text = Strings.s("scan_again", hi),
                 onClick = onRescan,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(54.dp),
-                shape = RoundedCornerShape(50)
-            ) {
-                Text(Strings.s("scan_again", hi), color = PslBlue)
-            }
-            Button(
+                modifier = Modifier.weight(1f)
+            )
+            EqCoralPillButton(
+                text = Strings.s("share_btn", hi),
                 onClick = { shareReport(context, profile, report) },
-                colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(54.dp),
-                shape = RoundedCornerShape(50)
-            ) {
-                Text(Strings.s("share_btn", hi), fontWeight = FontWeight.Bold)
-            }
+                modifier = Modifier.weight(1f)
+            )
         }
         Spacer(Modifier.height(20.dp))
     }
@@ -498,50 +435,39 @@ private fun HomeTab(
 private fun VoiceCheckCard(onOpen: () -> Unit) {
     val context = LocalContext.current
     val streak = remember { VoiceStore.load(context).streak }
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    EqGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
     ) {
-        Column(Modifier.padding(18.dp)) {
+        Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                CapsLabel("VOICE CHECK")
+                EqSectionLabel("VOICE CHECK")
                 Spacer(Modifier.weight(1f))
                 if (streak > 0) {
                     Text(
                         "$streak-day streak",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = PslBlue
+                        color = MogCoral
                     )
                 }
             }
             Spacer(Modifier.height(6.dp))
             Text(
                 "Your voice, steady and clear",
-                fontFamily = MogSerif,
+                fontFamily = EqSerif,
                 fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
                 color = PslText
             )
-            Text(
-                "10-second on-device check — pitch, pace, steadiness. The mic never leaves your phone.",
-                fontSize = 13.sp,
-                color = PslGrey,
-                lineHeight = 18.sp
-            )
+            Spacer(Modifier.height(4.dp))
+            EqBody("10-second on-device check — pitch, pace, steadiness. The mic never leaves your phone.")
             Spacer(Modifier.height(12.dp))
-            Button(
+            EqCoralPillButton(
+                text = "Check my voice",
                 onClick = onOpen,
-                colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
-                shape = RoundedCornerShape(50),
-                modifier = Modifier.height(48.dp)
-            ) {
-                Text("Check my voice", fontWeight = FontWeight.Bold)
-            }
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -560,41 +486,29 @@ private fun MethodScreen(report: PslReport?) {
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        CapsLabel(Strings.s("caps_how", hi))
+        EqSectionLabel(Strings.s("caps_how", hi))
         Spacer(Modifier.height(8.dp))
-        Text(
-            Strings.s("method_head1", hi),
-            fontFamily = MogSerif,
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
-            color = PslText,
-            lineHeight = 36.sp
+        EqHeadline(
+            text = Strings.s("method_head1", hi),
+            size = 32
         )
         Text(
             Strings.s("method_head2", hi),
-            fontFamily = MogSerif,
+            fontFamily = EqSerif,
             fontStyle = FontStyle.Italic,
             fontSize = 32.sp,
             color = PslText,
             lineHeight = 36.sp
         )
         Spacer(Modifier.height(8.dp))
-        Text(
-            Strings.s("method_sub", hi),
-            fontSize = 14.sp,
-            color = PslGrey
-        )
+        EqBody(Strings.s("method_sub", hi))
         Spacer(Modifier.height(18.dp))
 
         SeasonCard(report)
         Spacer(Modifier.height(12.dp))
 
         MethodSection(Strings.s("sec_how_scoring", hi)) {
-            Text(
-                Strings.fmt("scoring_body", hi, "n" to "$measuredCount"),
-                fontSize = 14.sp,
-                color = PslText
-            )
+            EqBody(Strings.fmt("scoring_body", hi, "n" to "$measuredCount"))
         }
 
         MethodSection(Strings.s("sec_pillars", hi)) {
@@ -673,17 +587,13 @@ private fun MethodScreen(report: PslReport?) {
         // v2.6: grooming re-tiered by budget — ₹0 free habits, ₹100 basics, ₹500 level-up.
         BudgetTierSection(hi)
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = PslCard),
-            shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        EqGlassCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 6.dp)
+                .padding(vertical = 6.dp),
+            corner = EqRoundSm
         ) {
-            Column(Modifier.padding(16.dp)) {
-                GuidesSection()
-            }
+            GuidesSection()
         }
 
         MethodSection(Strings.s("caps_accurate", hi)) {
@@ -696,11 +606,7 @@ private fun MethodScreen(report: PslReport?) {
         }
 
         MethodSection(Strings.s("caps_honest", hi)) {
-            Text(
-                Strings.s("honest_body", hi),
-                fontSize = 14.sp,
-                color = PslText
-            )
+            EqBody(Strings.s("honest_body", hi))
         }
 
         // v2.6-science begin: myth-buster cards + crisis card in Method tab
@@ -720,26 +626,22 @@ private fun MethodScreen(report: PslReport?) {
 @Composable
 private fun BudgetTierSection(hi: Boolean) {
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel(Strings.s("caps_budget", hi))
+        EqSectionLabel(Strings.s("caps_budget", hi))
         Spacer(Modifier.height(8.dp))
-        Text(
-            Strings.s("budget_head1", hi),
-            fontFamily = MogSerif,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = PslText,
-            lineHeight = 32.sp
+        EqHeadline(
+            text = Strings.s("budget_head1", hi),
+            size = 28
         )
         Text(
             Strings.s("budget_head2", hi),
-            fontFamily = MogSerif,
+            fontFamily = EqSerif,
             fontStyle = FontStyle.Italic,
             fontSize = 28.sp,
             color = PslText,
             lineHeight = 32.sp
         )
         Spacer(Modifier.height(8.dp))
-        Text(Strings.s("budget_sub", hi), fontSize = 14.sp, color = PslGrey)
+        EqBody(Strings.s("budget_sub", hi))
         Spacer(Modifier.height(12.dp))
 
         BudgetTierCard(
@@ -788,25 +690,22 @@ private fun BudgetTierCard(
     subtitle: String,
     items: List<Pair<String, String>>
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    EqGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column {
             Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = PslText)
             Spacer(Modifier.height(2.dp))
-            Text(subtitle, fontSize = 13.sp, color = PslGrey)
+            EqBody(subtitle, size = 13)
             Spacer(Modifier.height(10.dp))
             items.forEach { (name, desc) ->
                 Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.Top) {
-                    Text("• ", color = PslBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("• ", color = MogCoral, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Column(Modifier.weight(1f)) {
                         Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = PslText)
-                        Text(desc, fontSize = 13.sp, color = PslGrey)
+                        EqBody(desc, size = 13)
                     }
                 }
             }
@@ -817,16 +716,14 @@ private fun BudgetTierCard(
 
 @Composable
 private fun MethodSection(title: String, content: @Composable () -> Unit) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    EqGlassCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
+            .padding(vertical = 6.dp),
+        corner = EqRoundSm
     ) {
-        Column(Modifier.padding(16.dp)) {
-            CapsLabel(title)
+        Column {
+            EqSectionLabel(title)
             Spacer(Modifier.height(10.dp))
             content()
         }
@@ -884,51 +781,44 @@ private fun RoutineScreen(onChallenges: () -> Unit) {
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        CapsLabel(Strings.s("caps_90", hi))
+        EqSectionLabel(Strings.s("caps_90", hi))
         Spacer(Modifier.height(8.dp))
-        Text(
-            Strings.s("plan_head1", hi),
-            fontFamily = MogSerif,
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
-            color = PslText,
-            lineHeight = 36.sp
+        EqHeadline(
+            text = Strings.s("plan_head1", hi),
+            size = 32
         )
         Text(
             Strings.s("plan_head2", hi),
-            fontFamily = MogSerif,
+            fontFamily = EqSerif,
             fontStyle = FontStyle.Italic,
             fontSize = 32.sp,
             color = PslText,
             lineHeight = 36.sp
         )
         Spacer(Modifier.height(8.dp))
-        Text(
-            Strings.s("plan_sub", hi),
-            fontSize = 14.sp,
-            color = PslGrey
-        )
+        EqBody(Strings.s("plan_sub", hi))
         Spacer(Modifier.height(16.dp))
 
         // Phase header card
-        Card(
-            colors = CardDefaults.cardColors(containerColor = PslCard),
-            shape = RoundedCornerShape(18.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(Modifier.padding(18.dp)) {
-                Text(
-                    Strings.fmt(
-                        "day_phase", hi,
-                        "d" to "$planDay", "p" to "${phase.index + 1}", "t" to phaseTitle
-                    ),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PslText
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(phaseGoal, fontSize = 13.sp, color = PslGrey)
+        EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    EqDateBadge(day = "$planDay", month = "DAY")
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            Strings.fmt(
+                                "day_phase", hi,
+                                "d" to "$planDay", "p" to "${phase.index + 1}", "t" to phaseTitle
+                            ),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PslText
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        EqBody(phaseGoal, size = 13)
+                    }
+                }
                 Spacer(Modifier.height(12.dp))
                 LinearProgressIndicator(
                     progress = { planDay / 90f },
@@ -936,8 +826,8 @@ private fun RoutineScreen(onChallenges: () -> Unit) {
                         .fillMaxWidth()
                         .height(8.dp)
                         .clip(RoundedCornerShape(4.dp)),
-                    color = PslBlue,
-                    trackColor = Color(0xFFEDE7DB)
+                    color = MogCoral,
+                    trackColor = EqLine
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
@@ -1036,19 +926,18 @@ private fun SmartTaskRow(
     onBump: (Int) -> Unit,
     hi: Boolean
 ) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = if (checked) Color(0xFFECFDF3) else PslCard
-        ),
-        shape = RoundedCornerShape(14.dp),
+    // v2.7: glass task row; sage pastel when done
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 5.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (checked) EqSage else Color.White.copy(alpha = 0.55f))
+            .border(1.dp, Color.White.copy(alpha = 0.65f), RoundedCornerShape(14.dp))
+            .padding(12.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
@@ -1067,7 +956,7 @@ private fun SmartTaskRow(
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp
                 )
-                Text(taskDetail(task, hi), color = PslGrey, fontSize = 13.sp)
+                EqBody(taskDetail(task, hi), size = 13)
             }
             if (task.counterTarget > 0) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1098,7 +987,7 @@ private fun TaskCounterBtn(label: String, onClick: () -> Unit) {
         modifier = Modifier
             .size(30.dp)
             .clip(CircleShape)
-            .background(Color(0xFFEDE7DB))
+            .background(EqLine.copy(alpha = 0.55f))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -1137,16 +1026,13 @@ private fun ChewingCard(
     // v2.6-hinglish: gum timer translations.
     val hi = LanguageStore.isHinglish
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = PslCard),
-        shape = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    EqGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
     ) {
-        Column(Modifier.padding(18.dp)) {
-            CapsLabel(Strings.s("jaw_caps", hi))
+        Column {
+            EqSectionLabel(Strings.s("jaw_caps", hi))
             Spacer(Modifier.height(6.dp))
             Text(
                 Strings.s("jaw_title", hi),
@@ -1154,16 +1040,12 @@ private fun ChewingCard(
                 fontWeight = FontWeight.Bold,
                 color = PslText
             )
-            Text(
-                Strings.s("jaw_detail", hi),
-                fontSize = 13.sp,
-                color = PslGrey
-            )
+            EqBody(Strings.s("jaw_detail", hi), size = 13)
             Spacer(Modifier.height(12.dp))
             Text(
                 "$mm:$ss",
+                fontFamily = EqSerif,
                 fontSize = 46.sp,
-                fontWeight = FontWeight.ExtraBold,
                 color = PslDeep,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
@@ -1175,34 +1057,26 @@ private fun ChewingCard(
                     .fillMaxWidth()
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp)),
-                color = PslBlue,
-                trackColor = Color(0xFFEDE7DB)
+                color = MogCoral,
+                trackColor = EqLine
             )
             Spacer(Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Button(
+                EqDarkPillButton(
+                    text = if (running) Strings.s("jaw_pause", hi)
+                    else if (secondsLeft < 600) Strings.s("jaw_resume", hi)
+                    else Strings.s("jaw_start", hi),
                     onClick = { running = !running },
-                    colors = ButtonDefaults.buttonColors(containerColor = PslDeep),
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(50)
-                ) {
-                    Text(
-                        if (running) Strings.s("jaw_pause", hi)
-                        else if (secondsLeft < 600) Strings.s("jaw_resume", hi)
-                        else Strings.s("jaw_start", hi),
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                OutlinedButton(
+                    modifier = Modifier.weight(1f)
+                )
+                EqPillButton(
+                    text = Strings.s("jaw_reset", hi),
                     onClick = { running = false; secondsLeft = 600; marked = false },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(50)
-                ) {
-                    Text(Strings.s("jaw_reset", hi), color = PslBlue)
-                }
+                    modifier = Modifier.weight(1f)
+                )
             }
             Spacer(Modifier.height(8.dp))
             Text(
