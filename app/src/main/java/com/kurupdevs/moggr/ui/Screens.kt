@@ -7,6 +7,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -209,9 +210,75 @@ fun ResultScreen(
     }
 }
 
-/** Stylized face-mapping scan overlay — decorative geometry look over the result photo. */
+/** Face-mapping scan overlay drawn from the REAL measured ML Kit mesh.
+ *  Falls back to the decorative grid for pre-1.7 saved reports. */
 @Composable
-private fun ScanOverlay() {
+private fun ScanOverlay(photo: Bitmap?, report: PslReport) {
+    val mesh = report.landmarkMesh
+    if (mesh.isEmpty() || photo == null || photo.width == 0 || photo.height == 0) {
+        DecorativeScanOverlay()
+        return
+    }
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val bw = photo.width.toFloat()
+        val bh = photo.height.toFloat()
+        val cw = constraints.maxWidth.toFloat().coerceAtLeast(1f)
+        val ch = constraints.maxHeight.toFloat().coerceAtLeast(1f)
+        // ContentScale.Crop math: bitmap -> box mapping
+        val scale = maxOf(cw / bw, ch / bh)
+        val dx = (cw - bw * scale) / 2f
+        val dy = (ch - bh * scale) / 2f
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val c = Color(0xFFE07856) // coral accent
+            val sw = 3.dp.toPx()
+            val l = 26.dp.toPx()
+            // corner brackets
+            drawLine(c, Offset(0f, l), Offset(0f, 0f), sw)
+            drawLine(c, Offset(0f, 0f), Offset(l, 0f), sw)
+            drawLine(c, Offset(cw - l, 0f), Offset(cw, 0f), sw)
+            drawLine(c, Offset(cw, 0f), Offset(cw, l), sw)
+            drawLine(c, Offset(0f, ch - l), Offset(0f, ch), sw)
+            drawLine(c, Offset(0f, ch), Offset(l, ch), sw)
+            drawLine(c, Offset(cw - l, ch), Offset(cw, ch), sw)
+            drawLine(c, Offset(cw, ch), Offset(cw, ch - l), sw)
+            fun mapX(nx: Float) = nx * bw * scale + dx
+            fun mapY(ny: Float) = ny * bh * scale + dy
+            // measured face oval
+            val ovalPts = mesh.filter { it.kind == 0 }
+                .map { Offset(mapX(it.x), mapY(it.y)) }
+            if (ovalPts.size >= 2) {
+                for (i in ovalPts.indices) {
+                    drawLine(
+                        c.copy(alpha = 0.8f),
+                        ovalPts[i], ovalPts[(i + 1) % ovalPts.size],
+                        2.dp.toPx()
+                    )
+                }
+            }
+            // measured landmark dots (eyes bigger)
+            mesh.filter { it.kind != 0 }.forEach { p ->
+                val r = if (p.kind == 1) 3.2.dp.toPx() else 2.2.dp.toPx()
+                drawCircle(c.copy(alpha = 0.9f), r, Offset(mapX(p.x), mapY(p.y)))
+            }
+            // measured thirds guides across the face box
+            if (report.thirdsY.size == 4 && report.faceBox.size == 4) {
+                val left = mapX(report.faceBox[0])
+                val right = mapX(report.faceBox[2])
+                listOf(report.thirdsY[1], report.thirdsY[2]).forEach { ny ->
+                    drawLine(
+                        c.copy(alpha = 0.45f),
+                        Offset(left, mapY(ny)), Offset(right, mapY(ny)),
+                        1.5.dp.toPx()
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Old decorative grid, kept for pre-1.7 saved reports that have no mesh. */
+@Composable
+private fun DecorativeScanOverlay() {
     Canvas(modifier = Modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
@@ -269,7 +336,7 @@ fun ReportBody(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
-                ScanOverlay()
+                ScanOverlay(it, report)
             }
             Spacer(Modifier.height(16.dp))
         }
@@ -297,9 +364,26 @@ fun ReportBody(
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
+        if (report.confidence > 0) {
+            Spacer(Modifier.height(4.dp))
+            val confLabel = when {
+                report.confidence >= 0.85 -> "high confidence"
+                report.confidence >= 0.65 -> "medium confidence"
+                else -> "low confidence"
+            }
+            Text(
+                text = "±${"%.1f".format(Locale.US, report.uncertainty)} · $confLabel",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = PslText,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
         Spacer(Modifier.height(14.dp))
 
-        val potential = (report.overallPsl + 1.5).coerceAtMost(8.0)
+        val potential = if (report.potentialPsl > 0) report.potentialPsl
+        else (report.overallPsl + 1.5).coerceAtMost(8.0)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -330,7 +414,7 @@ fun ReportBody(
             modifier = Modifier.fillMaxWidth()
         )
         Text(
-            text = "potential is a rough ceiling with consistent softmaxxing",
+            text = "potential assumes weak areas close ~a third of the gap — est.",
             fontSize = 11.sp,
             color = PslGrey,
             textAlign = TextAlign.Center,
@@ -417,10 +501,11 @@ fun ReportBody(
         }
 
         run {
-            val negatives = report.features.sortedBy { it.score }.take(3)
+            // Only meaningful failos (< 5.0) — never pad the list with decent scores.
+            val negatives = report.features.sortedBy { it.score }.filter { it.score < 5.0 }.take(3)
+            Spacer(Modifier.height(10.dp))
+            SectionTitle("Negatives")
             if (negatives.isNotEmpty()) {
-                Spacer(Modifier.height(10.dp))
-                SectionTitle("Negatives")
                 Text("Biggest deductions — fix these first", fontSize = 13.sp, color = PslGrey)
                 Spacer(Modifier.height(10.dp))
                 negatives.forEach { f ->
@@ -439,6 +524,22 @@ fun ReportBody(
                                 fontSize = 14.sp
                             )
                         }
+                    }
+                }
+            } else {
+                Spacer(Modifier.height(10.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF3)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(Modifier.padding(12.dp)) {
+                        Text("✓ ", color = Color(0xFF12B76A), fontWeight = FontWeight.Bold)
+                        Text(
+                            "No major failos — nothing is dragging your score down right now.",
+                            color = PslText,
+                            fontSize = 14.sp
+                        )
                     }
                 }
             }
