@@ -2,8 +2,12 @@ package com.kurupdevs.moggr.coach
 
 import android.os.Handler
 import android.os.Looper
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
 import java.net.URLEncoder
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -84,6 +88,94 @@ object CoachClient {
                 null
             }
             main.post { cb(reply) }
+        }.start()
+    }
+
+    /**
+     * Streaming variant of [ask]: tokens arrive via [onToken] as the model writes
+     * them, so the reply feels instant. [onDone] fires once with the full text
+     * (or null on failure). Both callbacks run on the main thread.
+     */
+    fun askStream(
+        system: String,
+        history: List<Pair<Boolean, String>>,
+        newMessage: String,
+        onToken: (String) -> Unit,
+        onDone: (String?) -> Unit
+    ) {
+        Thread {
+            val wait = 6000L - (System.currentTimeMillis() - lastCallMs)
+            if (wait > 0) {
+                try {
+                    Thread.sleep(wait)
+                } catch (_: InterruptedException) {
+                    main.post { onDone(null) }
+                    return@Thread
+                }
+            }
+            lastCallMs = System.currentTimeMillis()
+
+            val msgs = JSONArray()
+            msgs.put(JSONObject().put("role", "system").put("content", system))
+            for ((isUser, text) in history.takeLast(10)) {
+                msgs.put(
+                    JSONObject()
+                        .put("role", if (isUser) "user" else "assistant")
+                        .put("content", text.trim().take(500))
+                )
+            }
+            msgs.put(
+                JSONObject().put("role", "user")
+                    .put("content", newMessage.trim().take(800))
+            )
+            val payload = JSONObject()
+                .put("model", "openai-fast")
+                .put("messages", msgs)
+                .put("stream", true)
+                .put("private", true)
+                .toString()
+
+            try {
+                val req = Request.Builder()
+                    .url("https://text.pollinations.ai/openai?referrer=moggr")
+                    .post(payload.toRequestBody("application/json".toMediaType()))
+                    .build()
+                http.newCall(req).execute().use { resp ->
+                    if (!resp.isSuccessful) {
+                        main.post { onDone(null) }
+                        return@use
+                    }
+                    val full = StringBuilder()
+                    var sawContent = false
+                    resp.body?.source()?.use { src ->
+                        while (!src.exhausted()) {
+                            val line = src.readUtf8Line() ?: break
+                            if (!line.startsWith("data:")) continue
+                            val data = line.removePrefix("data:").trim()
+                            if (data == "[DONE]") break
+                            if (data.isEmpty()) continue
+                            try {
+                                val delta = JSONObject(data)
+                                    .getJSONArray("choices")
+                                    .getJSONObject(0)
+                                    .getJSONObject("delta")
+                                    .optString("content", "")
+                                if (delta.isNotEmpty()) {
+                                    sawContent = true
+                                    full.append(delta)
+                                    main.post { onToken(delta) }
+                                }
+                            } catch (_: Exception) {
+                                // heartbeat / non-content chunk — ignore
+                            }
+                        }
+                    }
+                    val text = full.toString().trim()
+                    main.post { onDone(if (sawContent && text.isNotBlank()) text else null) }
+                }
+            } catch (_: Exception) {
+                main.post { onDone(null) }
+            }
         }.start()
     }
 
