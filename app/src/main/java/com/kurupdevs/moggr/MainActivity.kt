@@ -233,7 +233,7 @@ private fun CameraPermissionRationale(denied: Boolean, onRequest: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PslBlack)
+            .background(MoggrBg)
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
