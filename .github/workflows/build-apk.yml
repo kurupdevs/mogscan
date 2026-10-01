@@ -61,3 +61,4 @@ jobs:
 
             Install: download the APK on your phone, open it, allow "install unknown apps" if asked.
             Note: v1.1 is signed with a new release key — uninstall any older MogScan build first.
+---
