@@ -142,6 +142,7 @@ private fun GuideCard(guide: Guide) {
     Card(
         colors = CardDefaults.cardColors(containerColor = PslCard),
         shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 5.dp)
@@ -157,7 +158,7 @@ private fun GuideCard(guide: Guide) {
                         guide.title,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                        color = PslText
                     )
                     Text(guide.category, fontSize = 12.sp, color = PslGrey)
                 }
@@ -169,7 +170,7 @@ private fun GuideCard(guide: Guide) {
             }
             if (expanded) {
                 Spacer(Modifier.height(8.dp))
-                Text(guide.body, fontSize = 14.sp, color = Color.White)
+                Text(guide.body, fontSize = 14.sp, color = PslText)
             }
         }
     }
