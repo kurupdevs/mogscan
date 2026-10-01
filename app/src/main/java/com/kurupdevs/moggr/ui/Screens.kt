@@ -49,12 +49,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -446,10 +448,11 @@ private fun StagedReveal(
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         if (stage == 0) {
                             val y = sweep * size.height
+                            val top = (y - 44.dp.toPx()).coerceAtLeast(0f)
                             drawRect(
                                 coral.copy(alpha = 0.16f),
-                                Offset(0f, (y - 44.dp.toPx()).coerceAtLeast(0f)),
-                                Offset(size.width, y)
+                                topLeft = Offset(0f, top),
+                                size = Size(size.width, (y - top).coerceAtLeast(0f))
                             )
                             drawLine(coral, Offset(0f, y), Offset(size.width, y), 3.dp.toPx())
                         } else {
@@ -682,7 +685,7 @@ fun ReportBody(
                 Switch(
                     checked = faceMapOn,
                     onCheckedChange = { faceMapOn = it },
-                    colors = SwitchDefaults.switchColors(
+                    colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
                         checkedTrackColor = PslBlue,
                         uncheckedThumbColor = Color.White,

@@ -146,6 +146,7 @@ private fun MoggrApp() {
         // stays in ui/InfoSlides.kt untouched. The enum value is kept unused
         // so other references don't break.
 
+        Screen.INFO -> { screen = Screen.CAMERA }
         Screen.QUESTIONS -> {
             QuestionFlow(
                 onComplete = { p ->

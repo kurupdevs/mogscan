@@ -65,7 +65,7 @@ object PhotoRanker {
     private fun sizeScore(frac: Float): Double = when {
         frac < 0.12f -> (frac / 0.12f).coerceIn(0f, 1f).toDouble()
         frac <= 0.55f -> 1.0
-        else -> (1.0 - (frac - 0.55f) / 0.45f).coerceIn(0f, 1f).toDouble()
+        else -> (1f - (frac - 0.55f) / 0.45f).coerceIn(0f, 1f).toDouble()
     }
 
     /** Ideal mean luminance ~70-190; falls off toward too-dark / blown-out. */
