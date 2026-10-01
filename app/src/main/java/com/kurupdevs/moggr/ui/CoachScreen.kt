@@ -212,7 +212,7 @@ fun CoachScreen(
             Column {
                 Text(
                     "Moggr Coach",
-                    color = Color.White,
+                    color = PslText,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -227,7 +227,7 @@ fun CoachScreen(
             Modifier
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(Color(0xFF1E2A38))
+                .background(Color(0xFFE4E9F2))
         )
 
         // Messages
@@ -284,7 +284,7 @@ fun CoachScreen(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF1E2A38))
+                    .background(Color(0xFFEAF0FA))
             ) {
                 Text("◉", color = PslBlue, fontSize = 20.sp)
             }
@@ -295,10 +295,10 @@ fun CoachScreen(
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("Ask about jawline, skin, hair…", color = PslGrey) },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
+                    focusedTextColor = PslText,
+                    unfocusedTextColor = PslText,
                     focusedBorderColor = PslBlue,
-                    unfocusedBorderColor = Color(0xFF2A2A2A),
+                    unfocusedBorderColor = Color(0xFFD0D5DD),
                     cursorColor = PslBlue
                 ),
                 shape = RoundedCornerShape(14.dp),
@@ -320,7 +320,7 @@ fun CoachScreen(
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            " Your photos never leave your phone; only your questions and measurement numbers may be sent to the AI service.",
+            "Coach runs on a free API — replies can be slow. Your photos never leave your phone; only your questions and measurement numbers may be sent to the AI service.",
             fontSize = 11.sp,
             color = PslGrey,
             modifier = Modifier
@@ -356,7 +356,7 @@ private fun ChatBubble(msg: ChatMsg) {
                 }
                 Text(
                     msg.text,
-                    color = Color.White,
+                    color = if (msg.isUser) Color.White else PslText,
                     fontSize = 14.sp
                 )
             }
