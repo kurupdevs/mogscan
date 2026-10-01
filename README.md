@@ -8,8 +8,8 @@ Moggr measures your facial structure from three photos (front + both profiles) r
 
 1. **Watch the intro, answer 5 quick questions** (name, language, height, DOB, goal).
 2. **Capture 3 angles** — front, left profile, right profile — with guided on-screen positioning.
-3. **On-device analysis** — ML Kit face detection (bundled model, no network) measures 11 features from your landmarks and contours:
-   - Symmetry, Jawline, Cheekbones, Facial thirds, Eyes, **Eye spacing (ESR)**, **FWHR**, Nose, Lips, Chin, **Side profile**
+3. **On-device analysis** — ML Kit face detection (bundled model, no network) measures 15 features from your landmarks and contours:
+   - Symmetry, Facial thirds, Facial fifths, Midface ratio, **Eye spacing (ESR)**, **FWHR**, Eyes, Nose, Lips, Jawline, Chin, Brows, Cheekbones, **Jaw angle**, **Side profile**
 4. **Your PSL report** — overall score on the 1–8 scale with your community tier, strongest features, weakest features, and concrete softmaxxing improvements ranked by impact.
 5. **Moggr Coach** — a separate in-app coach tab. Ask anything ("what's dragging my score?", "best haircut for my face shape?") or send a fresh photo and it breaks it down: verdict → why → top 3 fixes → what not to worry about. Blunt older-brother energy, softmaxxing only.
 
@@ -19,19 +19,19 @@ The community rates faces 1–8. Moggr uses the real tiers:
 
 | Score | Tier |
 |---|---|
-| 7.5+ | Gigachad range |
-| 6.9–7.4 | Chad |
-| 6.0–6.8 | Chadlite |
-| 5.1–5.9 | HTN — High Tier Normie |
-| 2.8–5.0 | MTN — Mid Tier Normie |
-| 1.4–2.7 | LTN — Low Tier Normie |
+| 7.75+ | Gigachad — near-mythical |
+| 7.0–7.74 | Chad |
+| 6.0–6.99 | Chadlite |
+| 5.0–5.99 | HTN — High Tier Normie |
+| 3.0–4.99 | MTN — Mid Tier Normie |
+| 1.4–2.99 | LTN — Low Tier Normie |
 | < 1.4 | Sub-5 — maximum ascension potential |
 
 These are community conventions from looksmaxxing forums, not medical science. Moggr reports them straight because that's what you asked for — a real number, not a participation trophy.
 
 ## What makes it different
 
-- **Actually free.** The full report, all 11 features, the coach — no unlock screen, no subscription, no "premium rating."
+- **Actually free.** The full report, all 15 features, the coach — no unlock screen, no subscription, no "premium rating."
 - **Three angles, not one selfie.** Most rating apps score a single front photo. Moggr reads front + both profiles, and your side profile genuinely affects the score (chin projection / forward growth estimate).
 - **Real measurements, not vibes.** Every score comes from landmark geometry — distances and ratios computed from your face. Nothing is random, nothing is made up.
 - **Your face stays on your phone.** The core scan is 100% on-device. No account, no upload, no cloud.
@@ -79,10 +79,10 @@ A number from your camera doesn't decide your value, your dating life, or your f
 ## Verify the download
 
 ```
-SHA-256: <CHECKSUM>
+SHA-256: b494e6c5ae536817eadd92417246fdd495ef0b54500811b383afa385491d85df
 ```
 
-Compare with: `sha256sum Moggr-vX.X.apk` (Linux) or any checksum tool on your phone/PC.
+Compare with: `sha256sum Moggr-v1.1.apk` (Linux) or any checksum tool on your phone/PC.
 
 ## Built with
 
