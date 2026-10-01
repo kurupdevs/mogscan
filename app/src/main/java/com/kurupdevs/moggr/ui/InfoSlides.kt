@@ -44,7 +44,7 @@ fun InfoSlidesScreen(onDone: () -> Unit) {
     Column(
         Modifier
             .fillMaxSize()
-            .background(PslBlack)
+            .background(MoggrBg)
             .padding(20.dp)
     ) {
         // Top visual card
