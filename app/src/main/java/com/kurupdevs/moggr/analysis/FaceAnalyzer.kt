@@ -323,7 +323,7 @@ object FaceAnalyzer {
         val note = when {
             score >= 6.5 -> "Straight profile — chin sits well under the nose, good forward growth."
             score >= 4.5 -> "Profile is average; slight recession or projection."
-            else -> "Chin reads recessed behind the nose — posture and tongue position help most."
+            else -> "Chin reads recessed behind the nose — posture and photo angle help most."
         }
         return FeatureScore("Side profile", score, note)
     }
@@ -332,14 +332,13 @@ object FaceAnalyzer {
 
     private val ADVICE: Map<String, List<Pair<String, String>>> = mapOf(
         "Jawline" to listOf(
-            "Mewing: tongue flat on the roof of your mouth, lips closed, breathe through your nose — all day, every day" to "medium",
-            "Chew harder foods or mastic gum to build the masseter muscles" to "easy",
             "Drop body fat through diet and training — leanness defines the jaw more than anything" to "hard",
-            "Chin tucks daily to fix forward head posture that hides the jawline" to "easy"
+            "Chin tucks daily to fix forward head posture that hides the jawline" to "easy",
+            "A short boxed beard or stubble along the jaw adds definition overnight" to "easy"
         ),
         "Cheekbones" to listOf(
             "Lower body fat — hollow cheeks show through leanness, not products" to "hard",
-            "Hard chewing (mastic gum) adds midface muscle tone over months" to "medium"
+            "Cut salty food and drink more water — less facial bloat reads sharper" to "easy"
         ),
         "Symmetry" to listOf(
             "Sleep on your back so one side of your face isn't pressed all night" to "easy",
@@ -365,8 +364,8 @@ object FaceAnalyzer {
             "Gentle lip scrub once a week to remove dead skin" to "easy"
         ),
         "Chin" to listOf(
-            "Mewing and tongue posture support the chin area over time" to "medium",
-            "Lower body fat to reveal chin definition" to "hard"
+            "Lower body fat to reveal chin definition" to "hard",
+            "Fix forward head posture — chin tucks make the chin read stronger" to "easy"
         ),
         "FWHR" to listOf(
             "Drop body fat — FWHR reads best on a lean midface" to "hard",
@@ -378,7 +377,6 @@ object FaceAnalyzer {
         ),
         "Side profile" to listOf(
             "Chin tucks against a wall, 2 minutes daily — posture changes the profile more than anything" to "easy",
-            "Tongue on the roof of your mouth all day keeps the lower third forward" to "medium",
             "Side-profile photos: chin slightly down, jaw pushed a touch forward" to "easy"
         )
     )
