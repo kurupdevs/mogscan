@@ -1,3 +1,4 @@
+---
 name: Build Android APK
 
 on:
@@ -25,21 +26,33 @@ jobs:
           curl -sL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /tmp
 
-      - name: Build debug APK
-        run: /tmp/gradle-8.7/bin/gradle :app:assembleDebug --no-daemon
+      - name: Restore release keystore
+        run: echo "${{ secrets.RELEASE_KEYSTORE_B64 }}" | base64 -d > /tmp/moggr-release.p12
+
+      - name: Build signed release APK
+        env:
+          MOGGR_KEYSTORE_PATH: /tmp/moggr-release.p12
+          MOGGR_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          MOGGR_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          MOGGR_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: /tmp/gradle-8.7/bin/gradle :app:assembleRelease --no-daemon
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk MogScan-${{ github.ref_name }}.apk
+        run: cp app/build/outputs/apk/release/app-release.apk Moggr-${{ github.ref_name }}.apk
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: MogScan-${{ github.ref_name }}.apk
-          name: MogScan ${{ github.ref_name }}
+          files: Moggr-${{ github.ref_name }}.apk
+          name: Moggr ${{ github.ref_name }}
           body: |
-            MogScan for Android — free PSL face rating, 100% on-device.
+            Moggr for Android — free PSL face rating on the real 1–8 scale. Now with Moggr Coach.
 
-            How it works: watch the intro, answer a few quick questions, then capture your face from 3 angles (front, left profile, right profile). ML Kit measures your facial structure on your phone and rates your jawline, cheekbones, symmetry and more on the PSL scale, with concrete softmaxxing tips to level up. No API key, no account, no photo ever leaves your device, no paywall.
+            How it works: watch the intro, answer a few quick questions, then capture your face from 3 angles (front, left profile, right profile). The app measures 11 facial features on your phone — jawline, cheekbones, symmetry, FWHR, eye spacing, side profile and more — and rates you LTN / MTN / HTN / Chadlite / Chad, with a concrete softmaxxing roadmap. Then ask Moggr Coach anything, or send a photo for a full breakdown.
+
+            100% free. No API key, no account, no paywall. The face scan is 100% on-device — no photo ever leaves your phone.
 
             Install: download the APK on your phone, open it, allow "install unknown apps" if asked.
+            Note: v1.1 is signed with a new release key — uninstall any older MogScan build first.
+---
