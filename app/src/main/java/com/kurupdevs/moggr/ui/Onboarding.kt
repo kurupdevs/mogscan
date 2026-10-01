@@ -59,10 +59,12 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import java.util.Calendar
 
-val PslBlue = Color(0xFF1E90FF)
-val PslBlack = Color(0xFF000000)
-val PslCard = Color(0xFF141414)
-val PslGrey = Color(0xFF9E9E9E)
+val PslBlue = Color(0xFF2F6BFF)
+val PslBlack = Color(0xFFF4F6FB)
+val PslCard = Color(0xFFFFFFFF)
+val PslGrey = Color(0xFF667085)
+val PslText = Color(0xFF101828)
+val PslDeep = Color(0xFF1B2A6B)
 
 // ---------- Intro: full-screen looping video, Get started only ----------
 
@@ -150,7 +152,7 @@ fun QuestionFlow(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = ::back, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = PslText)
             }
             Spacer(Modifier.size(8.dp))
             LinearProgressIndicator(
@@ -159,8 +161,8 @@ fun QuestionFlow(
                     .weight(1f)
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp)),
-                color = Color.White,
-                trackColor = Color(0xFF2A2A2A)
+                color = PslBlue,
+                trackColor = Color(0xFFE4E9F2)
             )
             Spacer(Modifier.size(40.dp))
         }
@@ -356,7 +358,7 @@ private fun WheelColumn(
                         label,
                         fontSize = if (isSel) 21.sp else 17.sp,
                         fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (isSel) Color.White else Color.White.copy(alpha = 0.35f),
+                        color = if (isSel) PslText else PslText.copy(alpha = 0.35f),
                         textAlign = TextAlign.Center
                     )
                 }
@@ -370,7 +372,7 @@ private fun WheelColumn(
                 .fillMaxWidth()
                 .height(itemHeight)
                 .clip(RoundedCornerShape(10.dp))
-                .background(Color.White.copy(alpha = 0.10f))
+                .background(PslBlue.copy(alpha = 0.08f))
         )
     }
 }
@@ -381,7 +383,7 @@ private fun QuestionTitle(title: String, subtitle: String) {
         title,
         fontSize = 24.sp,
         fontWeight = FontWeight.Bold,
-        color = Color.White,
+        color = PslText,
         textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth()
     )
@@ -410,8 +412,8 @@ private fun OptionList(options: List<String>, selected: String, onSelect: (Strin
                     .clip(RoundedCornerShape(14.dp))
                     .background(Color.White)
                     .border(
-                        width = if (isSel) 2.dp else 0.dp,
-                        color = if (isSel) PslBlue else Color.Transparent,
+                        width = if (isSel) 2.dp else 1.dp,
+                        color = if (isSel) PslBlue else Color(0xFFE4E9F2),
                         shape = RoundedCornerShape(14.dp)
                     )
                     .clickable { onSelect(opt) }
@@ -423,7 +425,7 @@ private fun OptionList(options: List<String>, selected: String, onSelect: (Strin
                         .size(22.dp)
                         .border(
                             2.dp,
-                            if (isSel) PslBlue else Color(0xFF9E9E9E),
+                            if (isSel) PslBlue else Color(0xFFD0D5DD),
                             RoundedCornerShape(6.dp)
                         )
                         .background(
@@ -441,7 +443,7 @@ private fun OptionList(options: List<String>, selected: String, onSelect: (Strin
                     opt,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.Black
+                    color = PslText
                 )
             }
         }
@@ -455,9 +457,9 @@ private fun PslNextButton(text: String, enabled: Boolean, onClick: () -> Unit) {
         enabled = enabled,
         colors = ButtonDefaults.buttonColors(
             containerColor = PslBlue,
-            disabledContainerColor = Color(0xFF2A2A2A),
+            disabledContainerColor = Color(0xFFE4E9F2),
             contentColor = Color.White,
-            disabledContentColor = Color(0xFF777777)
+            disabledContentColor = Color(0xFF98A2B3)
         ),
         modifier = Modifier
             .fillMaxWidth()
@@ -480,10 +482,10 @@ private fun parseHeightCm(input: String): Int? {
 
 @Composable
 private fun textFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedTextColor = Color.White,
-    unfocusedTextColor = Color.White,
+    focusedTextColor = PslText,
+    unfocusedTextColor = PslText,
     focusedBorderColor = PslBlue,
-    unfocusedBorderColor = Color(0xFF3A3A3A),
+    unfocusedBorderColor = Color(0xFFD0D5DD),
     cursorColor = PslBlue,
     focusedContainerColor = PslCard,
     unfocusedContainerColor = PslCard
