@@ -62,7 +62,6 @@ import com.kurupdevs.moggr.ui.theme.EqPeach
 import com.kurupdevs.moggr.ui.theme.EqPillDark
 import com.kurupdevs.moggr.ui.theme.EqRose
 import com.kurupdevs.moggr.ui.theme.EqSage
-import com.kurupdevs.moggr.ui.theme.EqSerif
 import com.kurupdevs.moggr.ui.theme.EqTeal
 import com.kurupdevs.moggr.ui.theme.MogCoral
 import com.kurupdevs.moggr.util.PlanStore
@@ -543,7 +542,6 @@ private fun VoiceCheckCard(onOpen: () -> Unit) {
 
 // ---------- Method: how the rating works ----------
 
-@Composable
 @Composable
 private fun MethodScreen(
     report: PslReport?,
