@@ -61,6 +61,11 @@ val LtSage = Color(0xFF8CA69D)
 val LtSageDeep = Color(0xFF6B847B)
 val LtCheckBadge = Color(0xFF2E2A26)
 
+/** App-wide background — Coach-style blue-white gradient. */
+val AppBg: Brush = Brush.linearGradient(
+    colors = listOf(Color(0xFFFFF9F2), Color(0xFFEAF1FD), Color(0xFFF1EAFB))
+)
+
 // profile (pink) palette — Ayush's profile brand
 val PkBg = Color(0xFFF6DADA)
 val PkInk = Color(0xFF2B2320)

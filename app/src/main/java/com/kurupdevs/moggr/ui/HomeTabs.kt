@@ -108,7 +108,7 @@ fun MainTabs(
         TabDef("coach", Icons.Filled.Chat),
         TabDef("routine", Icons.Filled.Checklist)
     )
-    Box(modifier = Modifier.fillMaxSize().background(LtBg)) {
+    Box(modifier = Modifier.fillMaxSize().background(AppBg)) {
     Scaffold(
         containerColor = Color.Transparent,
         bottomBar = {
@@ -261,7 +261,7 @@ private fun HomeTab(
     val routineState = remember { RoutineStore.load(context) }
     var seg by remember { mutableIntStateOf(0) }
 
-    Box(modifier = Modifier.fillMaxSize().background(LtBg)) {
+    Box(modifier = Modifier.fillMaxSize().background(AppBg)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -373,7 +373,7 @@ private fun LightWelcome(onRescan: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(LtBg)
+            .background(AppBg)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -639,7 +639,7 @@ private fun MethodScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MoggrBg)
+            .background(AppBg)
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
@@ -878,7 +878,7 @@ private fun RoutineScreen(onChallenges: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MoggrBg)
+            .background(AppBg)
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
