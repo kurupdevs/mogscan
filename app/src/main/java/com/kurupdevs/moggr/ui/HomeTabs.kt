@@ -291,6 +291,18 @@ private fun MethodScreen() {
             )
         }
 
+        Card(
+            colors = CardDefaults.cardColors(containerColor = PslCard),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp)
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                GuidesSection()
+            }
+        }
+
         MethodSection("For an accurate scan") {
             val tips = listOf(
                 "Neutral expression, mouth closed, no smile.",
