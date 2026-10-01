@@ -48,6 +48,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -66,7 +68,7 @@ import com.kurupdevs.moggr.ui.EqCoralPillButton
 import com.kurupdevs.moggr.ui.EqGlassCard
 import com.kurupdevs.moggr.ui.EqHeadline
 import com.kurupdevs.moggr.ui.EqSectionLabel
-import com.kurupdevs.moggr.ui.eqBackgroundBrush
+import com.kurupdevs.moggr.ui.AppBg
 import com.kurupdevs.moggr.ui.GhostOverlay
 import com.kurupdevs.moggr.ui.theme.EqInk
 import com.kurupdevs.moggr.ui.theme.EqLine
@@ -344,7 +346,7 @@ fun CameraCapture(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(eqBackgroundBrush())
+            .background(AppBg)
     ) {
         Column(
             modifier = Modifier
@@ -375,11 +377,31 @@ fun CameraCapture(
                 TopPill(text = "Rank my pics", onClick = { showPicker = true })
             }
             Spacer(Modifier.height(4.dp))
-            EqHeadline(
-                text = if (allDone) "All angles captured" else angles[step].title,
-                size = 28,
-                color = EqInk
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (allDone) "All angles captured"
+                        else angles[step].title.replace("—", "-"),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = EqInk,
+                    modifier = Modifier.weight(1f)
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    angles.forEachIndexed { i, _ ->
+                        val filled = allDone || i <= step
+                        Box(
+                            modifier = Modifier
+                                .width(42.dp)
+                                .height(10.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(if (filled) MogCoral else EqLine)
+                        )
+                    }
+                }
+            }
             Spacer(Modifier.height(8.dp))
 
             if (!allDone) {
@@ -395,7 +417,8 @@ fun CameraCapture(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(3f / 4f)
-                    .clip(RoundedCornerShape(20.dp))
+                    .shadow(14.dp, RoundedCornerShape(28.dp), spotColor = Color(0x20000000))
+                    .clip(RoundedCornerShape(28.dp))
             ) {
                 AndroidView(
                     factory = { previewView },
@@ -521,6 +544,22 @@ fun CameraCapture(
                     .padding(top = 4.dp),
                 textAlign = TextAlign.Center
             )
+            Spacer(Modifier.height(10.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(EqLine)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(shots.size / 3f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(50))
+                        .background(MogCoral)
+                )
+            }
 
             Spacer(Modifier.weight(1f))
 
@@ -534,22 +573,58 @@ fun CameraCapture(
                     modifier = Modifier.fillMaxWidth()
                 )
             } else {
-                // v2.7 reskin: coral pill capture button (keeps the capturing state).
+                // v2.8 restyle: circular coral shutter like the mockup.
+                // Logic untouched: same takePhoto() call, same enabled gate.
                 val shutterReady = !capturing && !grading && grade == null
-                EqCoralPillButton(
-                    text = if (capturing || grading) "Capturing…" else "Capture",
-                    onClick = { takePhoto() },
-                    enabled = shutterReady,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Good lighting, plain background, no filters",
-                    fontSize = 13.sp,
-                    color = EqMuted,
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center
-                )
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(84.dp)
+                            .shadow(
+                                12.dp, CircleShape,
+                                spotColor = MogCoral.copy(alpha = 0.45f)
+                            )
+                            .clip(CircleShape)
+                            .background(
+                                if (shutterReady) Brush.radialGradient(
+                                    listOf(Color(0xFFFF9D85), MogCoral)
+                                ) else EqLine
+                            )
+                            .clickable(enabled = shutterReady) { takePhoto() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (capturing || grading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(30.dp),
+                                strokeWidth = 3.dp
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = if (capturing || grading) "Capturing…" else "Tap to capture",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = EqInk
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "Good lighting, plain background, no filters",
+                        fontSize = 12.sp,
+                        color = EqMuted
+                    )
+                }
             }
             Spacer(Modifier.width(1.dp))
         }
@@ -606,7 +681,7 @@ fun CameraCapture(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(eqBackgroundBrush())
+                    .background(AppBg)
             ) {
                 BestPicPicker(
                     onPick = { bmp ->
@@ -688,7 +763,7 @@ private fun PhotoGateExplainer(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(eqBackgroundBrush())
+            .background(AppBg)
     ) {
         Column(
             modifier = Modifier
