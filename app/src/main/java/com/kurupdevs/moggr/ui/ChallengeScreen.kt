@@ -80,7 +80,7 @@ fun ChallengeScreen(onBack: () -> Unit) {
     var tick by remember { mutableIntStateOf(0) }
     val state = remember(tick) { ChallengeStore.state(context) }
     var tab by remember { mutableIntStateOf(0) }
-    val reload = { tick++ }
+    val reload: () -> Unit = { tick++ }
 
     Column(
         modifier = Modifier

@@ -630,7 +630,8 @@ fun CameraCapture(
                     onCancel = { clearPending() },
                     onUseAnyway = { acceptPending() }
                 )
-                // v2.6-photogate end            }
+                // v2.6-photogate end
+            }
         }
 
         // --- best-pic picker overlay ---
