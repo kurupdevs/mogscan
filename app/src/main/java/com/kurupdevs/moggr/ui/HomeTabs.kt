@@ -310,7 +310,7 @@ private fun HomeTab(
                 }
                 item {
                     LtPhotoCard(
-                        imageRes = R.drawable.inspire_glow,
+                        imageRes = R.drawable.inspire_glowbasics,
                         title = if (hi) "Glow basics" else "Glow basics",
                         body = if (hi) "Skin pehle. Baaki sab baad me." else "Skin first. Everything else follows.",
                         onClick = { onGoTab(3) }
