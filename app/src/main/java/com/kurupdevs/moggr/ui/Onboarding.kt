@@ -1,7 +1,6 @@
 package com.kurupdevs.moggr.ui
 
 import android.net.Uri
-import android.widget.VideoView
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -119,17 +118,18 @@ fun IntroVideoScreen(onGetStarted: () -> Unit) {
     Box(Modifier.fillMaxSize().background(PslBlack)) {
         AndroidView(
             factory = { ctx ->
-                VideoView(ctx).apply {
+                CropVideoView(ctx).apply {
                     setVideoURI(
                         Uri.parse("android.resource://${ctx.packageName}/raw/intro")
                     )
                     setOnPreparedListener { mp ->
+                        setVideoSize(mp.videoWidth, mp.videoHeight)
                         mp.isLooping = true
                         start()
                     }
                 }
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().clipToBounds()
         )
         // Bottom scrim so the button stays readable over the video
         Box(
