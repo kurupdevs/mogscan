@@ -606,14 +606,6 @@ private fun MethodScreen(report: PslReport?) {
             EqBody(Strings.s("honest_body", hi))
         }
 
-        // v2.6-science begin: myth-buster cards + crisis card in Method tab
-        MethodSection("Myth busters, honestly") {
-            ScienceCards()
-        }
-        MethodSection("If your head feels heavy") {
-            CrisisCard()
-        }
-        // v2.6-science end
         Spacer(Modifier.height(20.dp))
     }
     // v2.6-hinglish end
