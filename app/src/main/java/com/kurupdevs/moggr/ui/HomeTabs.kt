@@ -219,7 +219,7 @@ private fun MethodScreen() {
                 "Your face is measured 15 ways from your 3 photos. Each measurement is scored " +
                     "1–8 by distance from the community ideal, then grouped into 4 pillars. " +
                     "The pillars combine into your overall PSL. Big deviations cap your tier — " +
-                    "one weak area drags the whole score, just like real raters judge.",
+                    "one weak area drags the whole score, like community raters tend to judge.",
                 fontSize = 14.sp,
                 color = Color.White
             )

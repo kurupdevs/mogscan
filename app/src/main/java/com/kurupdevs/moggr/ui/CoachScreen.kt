@@ -70,8 +70,7 @@ private data class ChatMsg(
 )
 
 private const val COACH_FALLBACK =
-    "Coach is resting right now (network hiccup on the free API). " +
-        "Your scan data never left your phone — try again in a bit."
+    "Coach is resting right now — the free API didn't answer. Try again in a bit."
 
 @Composable
 fun CoachScreen(
@@ -158,7 +157,9 @@ fun CoachScreen(
                     )
                 val sys = baseSystem + "\n\nThe user just sent an additional photo, " +
                     "scanned on-device: $photoCtx Analyze THIS photo scan now — full " +
-                    "breakdown: verdict, why, top 3 fixes, what not to worry about."
+                    "breakdown: verdict, why, top 3 fixes, what not to worry about. " +
+                    "Note: this is a single-photo read, so treat it as a limited estimate — " +
+                    "say so briefly."
                 CoachClient.ask(
                     sys, h,
                     "I just sent a photo — give me your full analysis of it."
@@ -319,7 +320,7 @@ fun CoachScreen(
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            "Coach runs on a free API — replies can be slow. Your photos never leave your phone.",
+            "Coach runs on a free API — replies can be slow. Your photos never leave your phone; only your questions and measurement numbers may be sent to the AI service.",
             fontSize = 11.sp,
             color = PslGrey,
             modifier = Modifier

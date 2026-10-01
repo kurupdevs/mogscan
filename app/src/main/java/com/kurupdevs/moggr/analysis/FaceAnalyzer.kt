@@ -501,21 +501,20 @@ object FaceAnalyzer {
 
     private val ADVICE: Map<String, List<Pair<String, String>>> = mapOf(
         "Jawline" to listOf(
-            "Drop body fat through diet and training — leanness defines the jaw more than anything" to "hard",
+            "Keep a healthy weight with balanced food and regular movement — no crash diets; a leaner face shows more jaw definition" to "hard",
             "Chin tucks daily to fix forward head posture that hides the jawline" to "easy",
             "A short boxed beard or stubble along the jaw adds definition overnight" to "easy"
         ),
         "Jaw angle" to listOf(
-            "Lower body fat — angularity shows through leanness, not products" to "hard",
+            "A healthy weight shows more angularity — never crash diet, definition follows overall leanness, not products" to "hard",
             "Bodyweight neck curls build neck thickness that frames the jaw" to "medium"
         ),
         "Cheekbones" to listOf(
-            "Lower body fat — hollow cheeks show through leanness, not products" to "hard",
+            "A healthy weight hollows the cheeks — never crash diet; it follows overall leanness, not products" to "hard",
             "Cut salty food and drink more water — less facial bloat reads sharper" to "easy"
         ),
         "Symmetry" to listOf(
             "Sleep on your back so one side of your face isn't pressed all night" to "easy",
-            "Chew evenly on both sides instead of favoring one" to "easy",
             "Fix forward head posture — wall chin tucks, 2 minutes daily" to "medium",
             "Stop resting your chin or cheek on your hand" to "easy"
         ),
@@ -537,7 +536,7 @@ object FaceAnalyzer {
             "Cold spoon or cold compress in the morning for puffiness" to "easy"
         ),
         "Brows" to listOf(
-            "Grow them thicker, trim strays — the #1 eye-area lever, per raters" to "easy",
+            "Grow them thicker, trim strays — community raters tend to rate the eye area first" to "easy",
             "Keep the shape straight and natural; avoid arched ends" to "easy"
         ),
         "Nose" to listOf(
@@ -549,11 +548,11 @@ object FaceAnalyzer {
             "Gentle lip scrub once a week to remove dead skin" to "easy"
         ),
         "Chin" to listOf(
-            "Lower body fat to reveal chin definition" to "hard",
+            "A healthy weight reveals chin definition — never crash diet" to "hard",
             "Fix forward head posture — chin tucks make the chin read stronger" to "easy"
         ),
         "FWHR" to listOf(
-            "Drop body fat — FWHR reads best on a lean midface" to "hard",
+            "FWHR reads best at a healthy weight — never crash diet for it" to "hard",
             "Hairstyle with height on top can balance a wide or narrow read" to "easy"
         ),
         "Eye spacing" to listOf(
@@ -679,7 +678,7 @@ object FaceAnalyzer {
                 add(
                     Improvement(
                         "Biggest lever",
-                        "Drop body fat — raters call leanness the single most powerful non-surgical looksmax",
+                        "Healthy weight and low bloat — community raters treat leanness as the biggest softmaxx lever; never crash diet",
                         "hard"
                     )
                 )

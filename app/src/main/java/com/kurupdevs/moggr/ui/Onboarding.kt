@@ -224,7 +224,7 @@ fun QuestionFlow(
             3 -> {
                 QuestionTitle(
                     title = "When were you born?",
-                    subtitle = "This gives us information about your growth stage & potential and will be used to calibrate your custom plan."
+                    subtitle = "This helps calibrate your plan to your age group."
                 )
                 Spacer(Modifier.height(8.dp))
                 Row(
