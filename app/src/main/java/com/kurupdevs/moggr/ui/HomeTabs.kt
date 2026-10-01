@@ -1,6 +1,7 @@
 package com.kurupdevs.moggr.ui
 
 import android.graphics.Bitmap
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -42,8 +44,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -75,52 +80,58 @@ fun MainTabs(
         TabDef("Coach", Icons.Filled.Chat),
         TabDef("Routine", Icons.Filled.Checklist)
     )
+    Box(modifier = Modifier.fillMaxSize().background(MoggrBg)) {
     Scaffold(
-        containerColor = PslBlack,
+        containerColor = Color.Transparent,
         bottomBar = {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF1C1917))
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                contentAlignment = Alignment.Center
             ) {
+                Row(
+                    modifier = Modifier
+                        .shadow(16.dp, RoundedCornerShape(50))
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.White.copy(alpha = 0.88f))
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     tabs.forEachIndexed { idx, t ->
                         val selected = tab == idx
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
-                                .background(if (selected) PslBlack else Color.Transparent)
+                                .background(if (selected) PslDeep else Color.Transparent)
                                 .clickable { tab = idx }
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
                                 t.icon,
                                 contentDescription = t.label,
-                                tint = if (selected) PslText else Color(0xFFA8A29E),
+                                tint = if (selected) Color.White else PslGrey,
                                 modifier = Modifier.size(20.dp)
                             )
-                            if (selected) {
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    t.label,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = PslText
-                                )
-                            }
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                t.label,
+                                fontSize = 10.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (selected) Color.White else PslGrey
+                            )
                         }
                     }
                 }
+            }
         }
     ) { pad ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(pad)
-                .background(PslBlack)
         ) {
             when (tab) {
                 0 -> HomeTab(report = report, profile = profile, photo = frontPhoto, onRescan = onRescan)
@@ -129,6 +140,7 @@ fun MainTabs(
                 3 -> RoutineScreen()
             }
         }
+    }
     }
 }
 
@@ -146,7 +158,7 @@ private fun HomeTab(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PslBlack)
+                .background(MoggrBg)
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -184,10 +196,76 @@ private fun HomeTab(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PslBlack)
+            .background(MoggrBg)
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
+        // Greeting header, reference style
+        val daypart = remember {
+            when (java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)) {
+                in 5..11 -> "morning"
+                in 12..16 -> "afternoon"
+                in 17..21 -> "evening"
+                else -> "night"
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (photo != null) {
+                Image(
+                    bitmap = photo.asImageBitmap(),
+                    contentDescription = "You",
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(PslDeep),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        (profile?.name?.firstOrNull()?.uppercase() ?: "M"),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    )
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text("Good $daypart,", fontSize = 13.sp, color = PslGrey)
+                Text(
+                    if (!profile?.name.isNullOrBlank()) "${profile!!.name} — how's the ascension?"
+                    else "How's the ascension going?",
+                    fontFamily = MogSerif,
+                    fontStyle = FontStyle.Italic,
+                    fontSize = 18.sp,
+                    color = PslText
+                )
+            }
+        }
+        Spacer(Modifier.height(20.dp))
+        Text(
+            "Know your face,",
+            fontFamily = MogSerif,
+            fontSize = 34.sp,
+            fontWeight = FontWeight.Bold,
+            color = PslText,
+            lineHeight = 38.sp
+        )
+        Text(
+            "own your rating.",
+            fontFamily = MogSerif,
+            fontStyle = FontStyle.Italic,
+            fontSize = 34.sp,
+            color = PslText,
+            lineHeight = 38.sp
+        )
+        Spacer(Modifier.height(18.dp))
         ReportBody(report = report, profile = profile, photo = photo)
         Spacer(Modifier.height(20.dp))
         Row(
@@ -225,7 +303,7 @@ private fun MethodScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PslBlack)
+            .background(MoggrBg)
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
@@ -421,7 +499,7 @@ private fun RoutineScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PslBlack)
+            .background(MoggrBg)
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
