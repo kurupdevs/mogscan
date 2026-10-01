@@ -294,7 +294,7 @@ private fun HomeTab(
             ) {
                 item {
                     LtPhotoCard(
-                        imageRes = R.drawable.inspire_posture,
+                        imageRes = R.drawable.inspire_standtall,
                         title = if (hi) "Seedhe khade raho" else "Stand tall",
                         body = if (hi) "2 minute me posture fix karo." else "Fix your posture in 2 minutes flat.",
                         onClick = { onGoTab(3) }
