@@ -78,7 +78,7 @@ fun AnalyzingScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PslBlack)
+            .background(MoggrBg)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -162,7 +162,7 @@ fun ResultScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PslBlack)
+            .background(MoggrBg)
     ) {
         Column(
             modifier = Modifier
