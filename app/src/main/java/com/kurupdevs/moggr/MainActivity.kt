@@ -52,6 +52,7 @@ import com.kurupdevs.moggr.ui.MoggrBg
 import com.kurupdevs.moggr.ui.PslBlue
 import com.kurupdevs.moggr.ui.PslGrey
 import com.kurupdevs.moggr.ui.PslText
+import com.kurupdevs.moggr.ui.ProfileScreen
 import com.kurupdevs.moggr.ui.QuestionFlow
 import com.kurupdevs.moggr.ui.ResultScreen
 import com.kurupdevs.moggr.ui.theme.MoggrTheme

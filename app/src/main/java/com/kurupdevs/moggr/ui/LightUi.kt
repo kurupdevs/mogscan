@@ -67,6 +67,7 @@ val PkInk = Color(0xFF2B2320)
 val PkMuted = Color(0xFF8D7B74)
 val PkCoral = Color(0xFFE07856)
 val PkCoralDeep = Color(0xFFC25E3C)
+val PkLine = Color(0xFFF1E3E3)
 val PkPill = Color(0xFFF3D3C8)
 
 val LtSerif = FontFamily.Serif
