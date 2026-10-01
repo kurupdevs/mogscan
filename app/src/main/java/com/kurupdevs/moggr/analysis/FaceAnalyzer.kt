@@ -503,7 +503,8 @@ object FaceAnalyzer {
         "Jawline" to listOf(
             "Keep a healthy weight with balanced food and regular movement — no crash diets; a leaner face shows more jaw definition" to "hard",
             "Chin tucks daily to fix forward head posture that hides the jawline" to "easy",
-            "A short boxed beard or stubble along the jaw adds definition overnight" to "easy"
+            "A short boxed beard or stubble along the jaw adds definition overnight" to "easy",
+            "Beard density routine: 3-5 min daily massage along the jawline and cheeks for blood flow, protein-rich food, 7-9h sleep — visible gains in 4-6 weeks" to "medium"
         ),
         "Jaw angle" to listOf(
             "A healthy weight shows more angularity — never crash diet, definition follows overall leanness, not products" to "hard",
@@ -549,7 +550,8 @@ object FaceAnalyzer {
         ),
         "Chin" to listOf(
             "A healthy weight reveals chin definition — never crash diet" to "hard",
-            "Fix forward head posture — chin tucks make the chin read stronger" to "easy"
+            "Fix forward head posture — chin tucks make the chin read stronger" to "easy",
+            "A defined short beard or stubble visually projects the chin and squares the lower third" to "easy"
         ),
         "FWHR" to listOf(
             "FWHR reads best at a healthy weight — never crash diet for it" to "hard",
@@ -683,6 +685,26 @@ object FaceAnalyzer {
                     )
                 )
             }
+            // Beard growth routine for low-dimorphism reads: safe mechanical + nutrition method.
+            if (dimorphism < 5.0) {
+                add(
+                    Improvement(
+                        "Beard density",
+                        "Daily 3-5 min massage along jaw and cheeks for blood flow, protein-rich food, 7-9h sleep, keep the skin underneath clean — first gains in 4-6 weeks, real coverage in 3-6 months",
+                        "medium"
+                    )
+                )
+            }
+            // Hyoid/under-chin drill: safe exercise method for a tighter throat-jaw angle.
+            if (weakest.any { it.name == "Jawline" || it.name == "Chin" }) {
+                add(
+                    Improvement(
+                        "Under-chin",
+                        "Tongue pressed to the palate + slow, wide jaw opens (3x10, twice daily) tightens the under-chin area — stop if the jaw clicks or aches",
+                        "easy"
+                    )
+                )
+            }
             addAll(
                 weakest.flatMap { f ->
                     (ADVICE[f.name] ?: emptyList()).take(2).map { (method, effort) ->
@@ -690,7 +712,11 @@ object FaceAnalyzer {
                     }
                 }
             )
-        }.take(6)
+        }.take(6) + Improvement(
+            "Fragrance",
+            "1-2 sprays on pulse points (neck sides, wrists) — less is more; fresh or citrus for daytime, woody or spicy for evenings",
+            "easy"
+        )
 
         val best = ranked.first()
         val worst = ranked.last()
