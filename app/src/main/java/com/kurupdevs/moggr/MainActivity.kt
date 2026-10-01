@@ -47,6 +47,7 @@ import com.kurupdevs.moggr.ui.MainTabs
 import com.kurupdevs.moggr.ui.PslBlack
 import com.kurupdevs.moggr.ui.PslBlue
 import com.kurupdevs.moggr.ui.PslGrey
+import com.kurupdevs.moggr.ui.PslText
 import com.kurupdevs.moggr.ui.QuestionFlow
 import com.kurupdevs.moggr.ui.ResultScreen
 import com.kurupdevs.moggr.ui.theme.MoggrTheme
@@ -240,7 +241,7 @@ private fun CameraPermissionRationale(denied: Boolean, onRequest: () -> Unit) {
         Text(
             text = "Moggr Face Scan",
             fontSize = 22.sp,
-            color = Color.White
+            color = PslText
         )
         Spacer(Modifier.height(8.dp))
         Text(
