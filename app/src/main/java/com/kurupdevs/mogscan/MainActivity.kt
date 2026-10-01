@@ -41,6 +41,7 @@ import com.kurupdevs.mogscan.analysis.AnalysisViewModel
 import com.kurupdevs.mogscan.camera.CameraCapture
 import com.kurupdevs.mogscan.ui.AnalysisErrorState
 import com.kurupdevs.mogscan.ui.AnalyzingScreen
+import com.kurupdevs.mogscan.ui.InfoSlidesScreen
 import com.kurupdevs.mogscan.ui.IntroVideoScreen
 import com.kurupdevs.mogscan.ui.PslBlack
 import com.kurupdevs.mogscan.ui.PslBlue
@@ -52,7 +53,7 @@ import com.kurupdevs.mogscan.util.ProfileStore
 import com.kurupdevs.mogscan.util.UserProfile
 import kotlinx.coroutines.delay
 
-private enum class Screen { INTRO, QUESTIONS, CAMERA, ANALYZING, RESULT }
+private enum class Screen { INTRO, INFO, QUESTIONS, CAMERA, ANALYZING, RESULT }
 
 class MainActivity : ComponentActivity() {
 
@@ -118,9 +119,13 @@ private fun MogScanApp() {
             IntroVideoScreen(
                 onGetStarted = {
                     profile = ProfileStore.load(context)
-                    screen = if (profile != null) Screen.CAMERA else Screen.QUESTIONS
+                    screen = if (profile != null) Screen.CAMERA else Screen.INFO
                 }
             )
+        }
+
+        Screen.INFO -> {
+            InfoSlidesScreen(onDone = { screen = Screen.QUESTIONS })
         }
 
         Screen.QUESTIONS -> {
