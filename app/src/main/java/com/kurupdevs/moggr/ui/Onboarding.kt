@@ -62,11 +62,16 @@ import java.util.Calendar
 
 val PslBlue = Color(0xFFE07856)
 val PslBlack = Color(0xFFFAF7F1)
-val PslCard = Color(0xFFFFFFFF)
+val PslCard = Color(0xC9FFFFFF) // frosted glass white
 val PslGrey = Color(0xFF78716C)
 val PslText = Color(0xFF1C1917)
 val PslDeep = Color(0xFF1C1917)
 val MogSerif = FontFamily.Serif
+
+/** Warm greige gradient backdrop, reference-UI style. */
+val MoggrBg = Brush.verticalGradient(
+    listOf(Color(0xFFF8F3E9), Color(0xFFEEE4D1), Color(0xFFE4D8C1))
+)
 
 /** Small letter-spaced uppercase label, e.g. "TODAY'S THOUGHT". */
 @Composable
@@ -115,7 +120,7 @@ fun MogChip(
 
 @Composable
 fun IntroVideoScreen(onGetStarted: () -> Unit) {
-    Box(Modifier.fillMaxSize().background(PslBlack)) {
+    Box(Modifier.fillMaxSize().background(MoggrBg)) {
         AndroidView(
             factory = { ctx ->
                 CropVideoView(ctx).apply {
@@ -202,7 +207,7 @@ fun QuestionFlow(
     Column(
         Modifier
             .fillMaxSize()
-            .background(PslBlack)
+            .background(MoggrBg)
             .padding(horizontal = 20.dp)
             .padding(top = 12.dp, bottom = 20.dp)
     ) {
