@@ -19,6 +19,21 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Signed release when the keystore is provided (CI); falls back to
+            // unsigned locally.
+            if (!System.getenv("KEYSTORE_PATH").isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "")
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
+            storeType = "PKCS12"
         }
     }
 
