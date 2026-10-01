@@ -418,40 +418,46 @@ fun LtBottomBar(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.background(LtCard)) {
-        Spacer(
-            Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(LtLine)
-        )
+    // v3.3: floating white bar, pink-gradient pill for the active tab — mockup style.
+    val activeGrad = Brush.horizontalGradient(listOf(Color(0xFFFF6A62), Color(0xFFF8579B)))
+    val idleGray = Color(0xFF9AA0A6)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 22.dp, vertical = 10.dp)
+            .shadow(12.dp, RoundedCornerShape(30.dp), spotColor = Color(0x26000000))
+            .clip(RoundedCornerShape(30.dp))
+            .background(Color.White)
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             items.forEachIndexed { i, (label, icon) ->
                 val active = i == selected
                 Column(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(RoundedCornerShape(22.dp))
+                        .then(if (active) Modifier.background(activeGrad) else Modifier)
                         .clickable { onSelect(i) }
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                        .padding(horizontal = 18.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
                         icon,
                         contentDescription = label,
-                        tint = if (active) LtInk else LtMuted,
-                        modifier = Modifier.size(23.dp)
+                        tint = if (active) Color.White else idleGray,
+                        modifier = Modifier.size(22.dp)
                     )
-                    Spacer(Modifier.height(3.dp))
+                    Spacer(Modifier.height(2.dp))
                     Text(
                         text = label,
                         fontSize = 11.sp,
                         fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-                        color = if (active) LtInk else LtMuted
+                        color = if (active) Color.White else idleGray
                     )
                 }
             }
