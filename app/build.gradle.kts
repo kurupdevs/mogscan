@@ -1,3 +1,5 @@
+import java.io.File
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -25,12 +27,12 @@ android {
     val keyPass = System.getenv("MOGGR_KEY_PASSWORD")
     val hasReleaseKey = !ksPath.isNullOrBlank() && !ksPass.isNullOrBlank() &&
         !kAlias.isNullOrBlank() && !keyPass.isNullOrBlank() &&
-        java.io.File(ksPath).exists()
+        File(ksPath).exists()
 
     signingConfigs {
         create("moggr") {
             if (hasReleaseKey) {
-                storeFile = java.io.File(ksPath!!)
+                storeFile = File(ksPath!!)
                 storePassword = ksPass
                 keyAlias = kAlias
                 keyPassword = keyPass
