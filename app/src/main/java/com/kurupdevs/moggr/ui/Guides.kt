@@ -19,11 +19,14 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,6 +42,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.kurupdevs.moggr.R
 
 // ---------- Glow-up cards: swipeable visual guides ----------
@@ -130,6 +135,139 @@ fun GlowUpCarousel() {
                 .align(Alignment.CenterHorizontally)
                 .padding(top = 6.dp)
         )
+    }
+}
+
+// ---------- Winter Arc: tap-to-open slide deck ----------
+
+val WINTER_ARC_CARDS: List<GlowUpCard> = listOf(
+    GlowUpCard(R.drawable.winterarc_cover, "Best Winter Arc Ascension Guide"),
+    GlowUpCard(R.drawable.winterarc_hunter, "Hunter Eyes"),
+    GlowUpCard(R.drawable.winterarc_lymph, "Depuff: Lymphatic Drainage"),
+    GlowUpCard(R.drawable.winterarc_mewing, "Jawline Through Mewing")
+)
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun WinterArcSection() {
+    var open by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        CapsLabel("WINTER ARC")
+        Spacer(Modifier.height(8.dp))
+        Card(
+            colors = CardDefaults.cardColors(containerColor = PslCard),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { open = true }
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.winterarc_cover),
+                    contentDescription = "Winter Arc",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .padding(horizontal = 12.dp)
+                ) {
+                    Text(
+                        "Winter Arc Ascension",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = PslText
+                    )
+                    Text(
+                        "Tap to open the slides",
+                        fontSize = 12.sp,
+                        color = PslGrey
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Filled.ChevronRight,
+                    contentDescription = "Open",
+                    tint = PslBlue
+                )
+            }
+        }
+    }
+    if (open) {
+        Dialog(
+            onDismissRequest = { open = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            val pagerState = rememberPagerState(pageCount = { WINTER_ARC_CARDS.size })
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .background(Color.Black)
+            ) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxWidth()
+                ) { page ->
+                    val card = WINTER_ARC_CARDS[page]
+                    Image(
+                        painter = painterResource(card.imageRes),
+                        contentDescription = card.title,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(0.66f)
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "${pagerState.currentPage + 1} / ${WINTER_ARC_CARDS.size}",
+                        fontSize = 13.sp,
+                        color = Color.White
+                    )
+                    IconButton(onClick = { open = false }) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Close",
+                            tint = Color.White
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    repeat(WINTER_ARC_CARDS.size) { i ->
+                        val active = i == pagerState.currentPage
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 3.dp)
+                                .size(if (active) 9.dp else 7.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (active) Color.White
+                                    else Color.White.copy(alpha = 0.35f)
+                                )
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -226,6 +364,8 @@ val GUIDES: List<Guide> = listOf(
 fun GuidesSection() {
     Column(Modifier.fillMaxWidth()) {
         GlowUpCarousel()
+        Spacer(Modifier.height(20.dp))
+        WinterArcSection()
         Spacer(Modifier.height(20.dp))
         CapsLabel("SOFTMAXX GUIDES")
         Spacer(Modifier.height(8.dp))
