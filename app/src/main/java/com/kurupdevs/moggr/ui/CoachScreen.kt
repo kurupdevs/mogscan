@@ -188,7 +188,7 @@ fun CoachScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PslBlack)
+            .background(MoggrBg)
     ) {
         // Top bar
         Row(
@@ -284,8 +284,8 @@ fun CoachScreen(
                 enabled = !waiting,
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFF4EFE7))
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.85f))
             ) {
                 Text("◉", color = PslBlue, fontSize = 20.sp)
             }
@@ -298,11 +298,13 @@ fun CoachScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = PslText,
                     unfocusedTextColor = PslText,
+                    focusedContainerColor = Color.White.copy(alpha = 0.85f),
+                    unfocusedContainerColor = Color.White.copy(alpha = 0.85f),
                     focusedBorderColor = PslBlue,
-                    unfocusedBorderColor = Color(0xFFD8D0C2),
+                    unfocusedBorderColor = Color.Transparent,
                     cursorColor = PslBlue
                 ),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(50),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { sendText(input) }),
                 singleLine = false,
