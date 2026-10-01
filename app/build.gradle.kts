@@ -5,53 +5,43 @@ plugins {
 }
 
 android {
-    namespace = "com.kurupdevs.mogscan"
+    namespace = "com.kurupdevs.moggr"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.kurupdevs.mogscan"
+        applicationId = "com.kurupdevs.moggr"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
     }
 
-    // Sign every build (including debug) with a proper release key instead of the
-    // well-known Android debug key — that's what makes Play Protect hard-block
-    // sideloaded installs. The key is generated once per build machine.
-    val ksFile = java.io.File(System.getProperty("user.home"), ".mogscan-release.p12")
-    if (!ksFile.exists()) {
-        try {
-            ProcessBuilder(
-                "keytool", "-genkeypair",
-                "-keystore", ksFile.absolutePath, "-storetype", "PKCS12",
-                "-alias", "mogscan", "-keyalg", "RSA", "-keysize", "2048",
-                "-validity", "10950",
-                "-storepass", "mogscan", "-keypass", "mogscan",
-                "-dname", "CN=kurupdevs, O=kurupdevs, C=IN"
-            ).redirectErrorStream(true).start().waitFor()
-        } catch (_: Exception) { /* fall back to default signing */ }
-    }
-    val hasReleaseKey = ksFile.exists()
+    // Release signing comes ONLY from environment (GitHub Actions secrets).
+    // No key generation here, no hardcoded passwords — a missing keystore
+    // fails the build loudly instead of shipping a wrongly-signed APK.
+    val ksPath = System.getenv("MOGGR_KEYSTORE_PATH")
+    val ksPass = System.getenv("MOGGR_KEYSTORE_PASSWORD")
+    val kAlias = System.getenv("MOGGR_KEY_ALIAS")
+    val keyPass = System.getenv("MOGGR_KEY_PASSWORD")
+    val hasReleaseKey = !ksPath.isNullOrBlank() && !ksPass.isNullOrBlank() &&
+        !kAlias.isNullOrBlank() && !keyPass.isNullOrBlank() &&
+        java.io.File(ksPath).exists()
 
     signingConfigs {
-        create("mogscan") {
+        create("moggr") {
             if (hasReleaseKey) {
-                storeFile = ksFile
-                storePassword = "mogscan"
-                keyAlias = "mogscan"
-                keyPassword = "mogscan"
+                storeFile = java.io.File(ksPath!!)
+                storePassword = ksPass
+                keyAlias = kAlias
+                keyPassword = keyPass
             }
         }
     }
 
     buildTypes {
-        debug {
-            if (hasReleaseKey) signingConfig = signingConfigs.getByName("mogscan")
-        }
         release {
             isMinifyEnabled = false
-            if (hasReleaseKey) signingConfig = signingConfigs.getByName("mogscan")
+            signingConfig = signingConfigs.getByName("moggr")
         }
     }
 
@@ -94,4 +84,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+
+    // OkHttp for the keyless Moggr Coach chat (free tier, no API key)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
