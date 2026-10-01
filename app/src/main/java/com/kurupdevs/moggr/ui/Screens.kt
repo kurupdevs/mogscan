@@ -2,6 +2,7 @@ package com.kurupdevs.moggr.ui
 
 import android.content.Intent
 import android.graphics.Bitmap
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -35,8 +36,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -205,6 +208,46 @@ fun ResultScreen(
     }
 }
 
+/** Stylized face-mapping scan overlay — decorative geometry look over the result photo. */
+@Composable
+private fun ScanOverlay() {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val w = size.width
+        val h = size.height
+        val c = Color(0xFF38BDF8)
+        val sw = 3.dp.toPx()
+        val l = 26.dp.toPx()
+        // corner brackets
+        drawLine(c, Offset(0f, l), Offset(0f, 0f), sw)
+        drawLine(c, Offset(0f, 0f), Offset(l, 0f), sw)
+        drawLine(c, Offset(w - l, 0f), Offset(w, 0f), sw)
+        drawLine(c, Offset(w, 0f), Offset(w, l), sw)
+        drawLine(c, Offset(0f, h - l), Offset(0f, h), sw)
+        drawLine(c, Offset(0f, h), Offset(l, h), sw)
+        drawLine(c, Offset(w - l, h), Offset(w, h), sw)
+        drawLine(c, Offset(w, h), Offset(w, h - l), sw)
+        // landmark-style dot grid
+        val cols = 7
+        val rows = 9
+        for (i in 0..cols) {
+            for (j in 0..rows) {
+                val x = w * 0.14f + (w * 0.72f) * i / cols
+                val y = h * 0.10f + (h * 0.80f) * j / rows
+                drawCircle(c.copy(alpha = 0.30f), radius = 2.dp.toPx(), center = Offset(x, y))
+            }
+        }
+        // horizontal scan line
+        drawLine(
+            c.copy(alpha = 0.55f),
+            Offset(0f, h * 0.52f), Offset(w, h * 0.52f),
+            2.dp.toPx()
+        )
+        // thirds guides
+        drawLine(c.copy(alpha = 0.25f), Offset(0f, h / 3f), Offset(w, h / 3f), 1.dp.toPx())
+        drawLine(c.copy(alpha = 0.25f), Offset(0f, 2f * h / 3f), Offset(w, 2f * h / 3f), 1.dp.toPx())
+    }
+}
+
 @Composable
 fun ReportBody(
     report: PslReport,
@@ -213,15 +256,20 @@ fun ReportBody(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         photo?.let {
-            Image(
-                bitmap = it.asImageBitmap(),
-                contentDescription = "Your scan photo",
+            Box(
                 modifier = Modifier
                     .size(170.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .align(Alignment.CenterHorizontally),
-                contentScale = ContentScale.Crop
-            )
+                    .align(Alignment.CenterHorizontally)
+            ) {
+                Image(
+                    bitmap = it.asImageBitmap(),
+                    contentDescription = "Your scan photo",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                ScanOverlay()
+            }
             Spacer(Modifier.height(16.dp))
         }
         Text(
@@ -264,7 +312,15 @@ fun ReportBody(
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            text = "${report.failoCount} failos · ${report.haloCount} halos · potential is a rough ceiling with consistent softmaxxing",
+            text = "Top ${100 - report.percentile}% of faces (est.) · ${report.failoCount} negative points · ${report.haloCount} halos",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = "potential is a rough ceiling with consistent softmaxxing",
             fontSize = 11.sp,
             color = PslGrey,
             textAlign = TextAlign.Center,
@@ -331,8 +387,8 @@ fun ReportBody(
 
         if (report.strengths.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
-            SectionTitle("Halos")
-            Text("Your best features, in order of importance", fontSize = 13.sp, color = PslGrey)
+            SectionTitle("Positives")
+            Text("Your best features — what carries the rating", fontSize = 13.sp, color = PslGrey)
             Spacer(Modifier.height(10.dp))
             report.strengths.forEach { s ->
                 Card(
@@ -350,16 +406,44 @@ fun ReportBody(
             }
         }
 
+        run {
+            val negatives = report.features.sortedBy { it.score }.take(3)
+            if (negatives.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                SectionTitle("Negatives")
+                Text("Biggest deductions — fix these first", fontSize = 13.sp, color = PslGrey)
+                Spacer(Modifier.height(10.dp))
+                negatives.forEach { f ->
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A1414)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Row(Modifier.padding(12.dp)) {
+                            Text("✕ ", color = Color(0xFFF87171), fontWeight = FontWeight.Bold)
+                            Text(
+                                "${f.name} (${"%.1f".format(Locale.US, f.score)}) — ${f.note}",
+                                color = Color.White,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         if (report.improvements.isNotEmpty()) {
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Your ascension roadmap")
+            SectionTitle("Ascension plan")
             Text(
-                "Concrete steps for your weakest features — no surgery, ever",
+                "Ordered fixes for your weakest features — no surgery, ever",
                 fontSize = 13.sp,
                 color = PslGrey
             )
             Spacer(Modifier.height(10.dp))
-            report.improvements.forEach { im ->
+            report.improvements.forEachIndexed { i, im ->
                 Card(
                     colors = CardDefaults.cardColors(containerColor = PslCard),
                     shape = RoundedCornerShape(14.dp),
@@ -373,13 +457,35 @@ fun ReportBody(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(im.area, fontWeight = FontWeight.SemiBold, color = Color.White, fontSize = 15.sp)
+                            Text(
+                                "${i + 1}. ${im.area}",
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White,
+                                fontSize = 15.sp
+                            )
                             EffortChip(im.effort)
                         }
                         Spacer(Modifier.height(6.dp))
                         Text(im.method, fontSize = 14.sp, color = PslGrey)
                     }
                 }
+            }
+            Spacer(Modifier.height(10.dp))
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF12261A)),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "Projected: ${pslTierShort(potential)} — if every step sticks",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF4ADE80),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp)
+                )
             }
         }
 

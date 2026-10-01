@@ -119,6 +119,10 @@ object CoachClient {
           "ascend", softmaxxing roadmap. Parse pill talk right: bluepill (looks don't
           matter cope), redpill (looks matter, level up), blackpill (genetics
           fatalism) — mirror the language, never the fatalism.
+        - Use anatomical precision like experienced raters: ramus height vs tilt,
+          gonial angle, chin projection, maxilla projection, zygo arc, alar base
+          width, infraorbitals / negative vector, midface compactness, canthal tilt.
+          Name the structure, not just the vibe.
         - Frame every rating as a photo-dependent estimate: lighting, lens, pose and
           angle change the read. Never destiny.
         - The 1-8 PSL numbers are looksmaxxing-community conventions, not validated

@@ -307,7 +307,7 @@ object FaceAnalyzer {
         val note = when {
             score >= 7 -> "Nose width sits in good proportion to the mouth and face."
             score >= 5 -> "Nose proportions are average."
-            else -> "Nose reads wide relative to the mouth — framing and angles matter most here."
+            else -> "Nose reads wide relative to the mouth — alar base width is the main read; framing and angles matter most here."
         }
         return FeatureScore("Nose", score, note)
     }
@@ -352,9 +352,9 @@ object FaceAnalyzer {
         val ratio = jawW / cheekW
         val score = scoreFromDeviation(abs(ratio - 0.88f), 0.12f)
         val note = when {
-            score >= 7 -> "Wide, well-defined jaw relative to cheekbones."
+            score >= 7 -> "Wide, well-defined jaw relative to cheekbones — good gonial width."
             score >= 5 -> "Decent jaw width — definition is the main lever."
-            else -> "Narrower jaw line; leanness brings out what bone is there."
+            else -> "Narrower jaw line with a soft gonial read; leanness brings out what bone is there."
         }
         return FeatureScore("Jawline", score, note)
     }
@@ -374,7 +374,7 @@ object FaceAnalyzer {
         val note = when {
             score >= 7 -> "Chin width balances well with the jaw."
             score >= 5 -> "Average chin shape."
-            else -> "Chin reads narrow or weak relative to the jaw."
+            else -> "Chin reads narrow or recessed relative to the jaw — chin projection is the main read."
         }
         return FeatureScore("Chin", score, note)
     }
@@ -417,9 +417,9 @@ object FaceAnalyzer {
         val ratio = cheekW / jawW
         val score = scoreFromDeviation(abs(ratio - 1.12f), 0.12f)
         val note = when {
-            score >= 7 -> "Cheekbones sit visibly wider than the jaw — strong midface structure."
+            score >= 7 -> "Zygos sit visibly wider than the jaw — strong midface structure."
             score >= 5 -> "Average cheekbone projection."
-            else -> "Flatter midface; leanness brings the most out here."
+            else -> "Flatter zygo area; leanness brings the most out here."
         }
         return FeatureScore("Cheekbones", score, note)
     }
@@ -450,9 +450,9 @@ object FaceAnalyzer {
         val angleDeg = Math.toDegrees(acos(cos)).toFloat()
         val score = scoreFromDeviation(abs(angleDeg - 89f), 8f)
         val note = when {
-            score >= 7 -> "Sharp, angular jaw — strong dimorphic read."
+            score >= 7 -> "Sharp gonial angle — strong dimorphic read."
             score >= 5 -> "Jaw angularity is average."
-            else -> "Jaw reads soft/round — leanness sharpens this more than anything."
+            else -> "Gonial angle reads soft/round — leanness sharpens this more than anything."
         }
         return FeatureScore("Jaw angle", score, note)
     }
@@ -490,9 +490,9 @@ object FaceAnalyzer {
             " (3/4-angle estimate — a true 90° side photo sharpens this)"
         } else ""
         val note = when {
-            score >= 6.5 -> "Straight profile — chin sits well under the nose, good forward growth.$angleCaveat"
+            score >= 6.5 -> "Straight profile — chin projection lines up under the nose, maxilla reads forward.$angleCaveat"
             score >= 4.5 -> "Profile is average; slight recession or projection.$angleCaveat"
-            else -> "Chin reads recessed behind the nose — posture and photo angle help most.$angleCaveat"
+            else -> "Chin reads recessed behind the nose — weak chin projection / flat maxilla read; posture and photo angle help most.$angleCaveat"
         }
         return FeatureScore("Side profile", score, note) to true
     }
@@ -698,7 +698,7 @@ object FaceAnalyzer {
             "Biggest wins come from ${worst.name.lowercase()} — " +
             "${improvements.firstOrNull()?.method?.lowercase() ?: "consistent softmaxxing"}. " +
             "Overall ${"%.1f".format(overall)} PSL (≈${"%.1f".format(decile)}/10): " +
-            "${pslLabel(overall).lowercase()}. $failos failos dragging, $halos halos carrying. " +
+            "${pslLabel(overall).lowercase()}. $failos negative points dragging, $halos halos carrying. " +
             "Photo-dependent estimate — lighting and angle change the read."
 
         return PslReport(
