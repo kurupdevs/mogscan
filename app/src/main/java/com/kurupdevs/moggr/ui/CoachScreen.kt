@@ -8,7 +8,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,12 +32,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
@@ -173,15 +170,7 @@ fun CoachScreen(
                 onSearch = { screen = "chat" },
                 onSeeAll = { showChallenges = true },
                 onUpcoming = { showChallenges = true },
-                onActivity = { screen = "chat" },
-                onNav = { idx ->
-                    when (idx) {
-                        0 -> screen = "home"
-                        1 -> screen = "chat"
-                        2 -> showFlows = true
-                        3 -> showVoice = true
-                    }
-                }
+                onActivity = { screen = "chat" }
             )
         } else {
             CoachChat(
@@ -196,7 +185,8 @@ fun CoachScreen(
                 pendingPrompt = pendingPrompt,
                 onPromptConsumed = { pendingPrompt = null },
                 onHome = { screen = "home" },
-                onVoice = { showVoice = true }
+                onVoice = { showVoice = true },
+                onOpenFlows = { showFlows = true }
             )
         }
 
@@ -285,8 +275,7 @@ private fun CoachHome(
     onSearch: () -> Unit,
     onSeeAll: () -> Unit,
     onUpcoming: () -> Unit,
-    onActivity: () -> Unit,
-    onNav: (Int) -> Unit
+    onActivity: () -> Unit
 ) {
     val context = LocalContext.current
     val initial = name.firstOrNull()?.uppercase() ?: "M"
@@ -303,7 +292,7 @@ private fun CoachHome(
             if (hi) "Routine + photo log karo" else "Log your routine + photo"
         )
     }
-    val upcomingImg = if (active?.key == "debloat7") R.drawable.inspire_debloat else R.drawable.inspire_glow
+    val upcomingImg = R.drawable.coach_upcoming
 
     // Real recent activity.
     val scans = remember { ScanHistoryStore.load(context) }
@@ -343,13 +332,12 @@ private fun CoachHome(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-        ) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp)
+    ) {
             Spacer(Modifier.height(10.dp))
             // Top bar: menu | bell + avatar
             Row(
@@ -494,22 +482,8 @@ private fun CoachHome(
                     Spacer(Modifier.height(10.dp))
                 }
             }
-            Spacer(Modifier.height(110.dp))
+            Spacer(Modifier.height(24.dp))
         }
-        // Bottom 4-circle nav (reference style)
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 26.dp),
-            horizontalArrangement = Arrangement.spacedBy(18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CoachNavCircle(icon = Icons.Filled.Home, active = true, onClick = { onNav(0) })
-            CoachNavCircle(icon = Icons.Filled.ChatBubble, active = false, onClick = { onNav(1) })
-            CoachNavCircle(icon = Icons.Filled.Explore, active = false, onClick = { onNav(2) })
-            CoachNavCircle(icon = Icons.Filled.Mic, active = false, onClick = { onNav(3) })
-        }
-    }
 }
 
 @Composable
@@ -524,27 +498,6 @@ private fun CircleIcon(icon: ImageVector, onClick: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = null, tint = GInk, modifier = Modifier.size(22.dp))
-    }
-}
-
-@Composable
-private fun CoachNavCircle(icon: ImageVector, active: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(62.dp)
-            .shadow(6.dp, CircleShape, spotColor = GCardShadow)
-            .clip(CircleShape)
-            .background(if (active) GInk else Color.White)
-            .border(1.dp, if (active) GInk else Color(0xFFE8E2D8), CircleShape)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = if (active) Color.White else GInk,
-            modifier = Modifier.size(24.dp)
-        )
     }
 }
 
@@ -600,7 +553,8 @@ private fun CoachChat(
     pendingPrompt: String?,
     onPromptConsumed: () -> Unit,
     onHome: () -> Unit,
-    onVoice: () -> Unit
+    onVoice: () -> Unit,
+    onOpenFlows: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -807,6 +761,8 @@ private fun CoachChat(
                 Text("Looksmax AI", fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = GInk)
             }
             Spacer(Modifier.width(12.dp))
+            CircleIcon(icon = Icons.Filled.Explore, onClick = onOpenFlows)
+            Spacer(Modifier.width(8.dp))
             CircleIcon(icon = Icons.Filled.VolumeUp, onClick = { showVibeDialog = true })
         }
 

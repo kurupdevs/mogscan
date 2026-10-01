@@ -351,13 +351,13 @@ private fun HomeTab(
             }
             Spacer(Modifier.height(26.dp))
 
-            // v3.0: developer option — extra, pink, tappable → profile.
-            DeveloperCard(onOpen = onOpenProfile)
-            Spacer(Modifier.height(16.dp))
-
             ChallengesPromoCard(onChallenges = onChallenges)
             Spacer(Modifier.height(8.dp))
             VoiceCheckCard(onOpen = { showVoice = true })
+            Spacer(Modifier.height(16.dp))
+
+            // v3.1: developer card moved to the very bottom.
+            DeveloperCard(onOpen = onOpenProfile)
             Spacer(Modifier.height(28.dp))
         }
         if (showVoice) {
