@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -56,6 +57,20 @@ private val EXPLAINERS: Map<String, String> = mapOf(
 private fun explainerFor(name: String): String =
     EXPLAINERS[name]
         ?: "How this feature measures against the community ideal. Higher means closer to the ratios experienced raters reward."
+
+// v2.6-science begin: honest study citations per measurement. Only real,
+// well-known citations; everything else is a community benchmark, not science.
+private val CITATIONS: Map<String, String> = mapOf(
+    "FWHR" to "Carré & McCormick (2008)",
+    "Facial thirds" to "Farkas anthropometry",
+    "Facial fifths" to "Farkas anthropometry",
+    "Symmetry" to "Rhodes et al. (2006)",
+    "Skin clarity" to "Fink et al. — skin evenness"
+)
+
+private fun citationFor(name: String): String =
+    CITATIONS[name] ?: "community benchmark — not a clinical measure"
+// v2.6-science end
 
 /** Tap-a-feature dialog: score, yours-vs-ideal line, explainer, fix priority. */
 @Composable
@@ -103,6 +118,15 @@ fun WhyThisScoreDialog(
                 Text("What this means", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = PslText)
                 Spacer(Modifier.height(4.dp))
                 Text(explainerFor(feature.name), fontSize = 14.sp, color = PslGrey)
+                // v2.6-science begin
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Source: ${citationFor(feature.name)}",
+                    fontSize = 11.sp,
+                    fontStyle = FontStyle.Italic,
+                    color = PslGrey
+                )
+                // v2.6-science end
                 Spacer(Modifier.height(12.dp))
 
                 val (priority, hint) = when {

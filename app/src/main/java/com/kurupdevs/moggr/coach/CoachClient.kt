@@ -92,8 +92,26 @@ object CoachClient {
      * (from [com.kurupdevs.moggr.util.CoachMemory.getMemoryContext]); blank means
      * nothing is remembered yet. Kept optional so older call sites keep working.
      */
-    fun systemPrompt(userName: String, metricsContext: String, memoryContext: String = ""): String {
-        val base = """
+    // v2.6-science: teen mode softens the framing for 13–17 users
+    // v2.6-hinglish: hinglish param switches the coach to Hinglish bade-bhai register
+    fun systemPrompt(
+        userName: String,
+        metricsContext: String,
+        memoryContext: String = "",
+        teen: Boolean = false,
+        hinglish: Boolean = false
+    ): String {
+        // v2.6-hinglish: when hi mode is on, the coach replies in Hinglish,
+        // bade-bhai register — same rules, same structure, different language.
+        val langBlock = if (hinglish) """
+        LANGUAGE (hard rule — follow it for every reply):
+        Reply ONLY in Hinglish: Hindi written in Roman/English script, the way
+        Indian Gen-Z actually talks ("bhai sun", "scene ye hai", "sahi kar raha hai").
+        Warm elder-brother (bade bhai) register: direct and caring, zero lecture
+        tone, zero corporate speak. Keep the same reply structure (verdict →
+        why → top 3 fixes → what NOT to worry about) and the under-150-words
+        limit. Never slip back into full English mid-reply.
+        """.trimIndent() else ""        val base = """
         You are Moggr's Looksmaxing AI — the in-app looksmaxxing coach (Moggr Coach).
         Blunt older-brother energy, Gen-Z register, zero corporate speak. Honest first,
         kind second. Never cruel about things the user can't change.
@@ -139,6 +157,13 @@ object CoachClient {
         community tiers — no sugarcoating):
         $metricsContext
         User's name: $userName. Use it occasionally, not every message.
+        ${if (teen) """
+        TEEN MODE: this user is 13–17. Soften your framing: say "glow-up", not "mog"/
+        "mogging" or dominance talk. No blackpill fatalism, no competitive ranking
+        language — extra care with self-image. Be warm, encouraging, and fun; push
+        healthy habits (sleep, skincare, posture, fitness, style), never fatalism.
+        """ else ""}
+        $langBlock
     """.trimIndent()
         return if (memoryContext.isBlank()) {
             base

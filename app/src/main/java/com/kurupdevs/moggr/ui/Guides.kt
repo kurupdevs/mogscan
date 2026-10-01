@@ -46,6 +46,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kurupdevs.moggr.R
 import com.kurupdevs.moggr.analysis.PslReport
+// v2.6-hinglish begin
+import com.kurupdevs.moggr.util.LanguageStore
+// v2.6-hinglish end
 
 // ---------- Glow-up cards: swipeable visual guides ----------
 
@@ -64,13 +67,15 @@ val GLOWUP_CARDS: List<GlowUpCard> = listOf(
 @Composable
 fun GlowUpCarousel() {
     val pagerState = rememberPagerState(pageCount = { GLOWUP_CARDS.size })
+    // v2.6-hinglish: translated card titles.
+    val hi = LanguageStore.isHinglish
     Column(Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            CapsLabel("GLOW-UP CARDS")
+            CapsLabel(Strings.s("caps_glowup", hi))
             Text(
                 "${pagerState.currentPage + 1} / ${GLOWUP_CARDS.size}",
                 fontSize = 12.sp,
@@ -83,6 +88,9 @@ fun GlowUpCarousel() {
             modifier = Modifier.fillMaxWidth()
         ) { page ->
             val card = GLOWUP_CARDS[page]
+            val title = Strings.s("glowup_$page", hi).let {
+                if (it == "glowup_$page") card.title else it
+            }
             Card(
                 colors = CardDefaults.cardColors(containerColor = PslCard),
                 shape = RoundedCornerShape(20.dp),
@@ -94,7 +102,7 @@ fun GlowUpCarousel() {
                 Column {
                     Image(
                         painter = painterResource(card.imageRes),
-                        contentDescription = card.title,
+                        contentDescription = title,
                         contentScale = ContentScale.FillWidth,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -102,7 +110,7 @@ fun GlowUpCarousel() {
                             .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                     )
                     Text(
-                        card.title,
+                        title,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = PslText,
@@ -129,7 +137,7 @@ fun GlowUpCarousel() {
             }
         }
         Text(
-            "Swipe for the next card",
+            Strings.s("swipe_next", hi),
             fontSize = 12.sp,
             color = PslGrey,
             modifier = Modifier
@@ -152,8 +160,10 @@ val WINTER_ARC_CARDS: List<GlowUpCard> = listOf(
 @Composable
 fun WinterArcSection() {
     var open by remember { mutableStateOf(false) }
+    // v2.6-hinglish: translated labels.
+    val hi = LanguageStore.isHinglish
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel("WINTER ARC")
+        CapsLabel(Strings.s("caps_winter", hi))
         Spacer(Modifier.height(8.dp))
         Card(
             colors = CardDefaults.cardColors(containerColor = PslCard),
@@ -181,13 +191,13 @@ fun WinterArcSection() {
                         .padding(horizontal = 12.dp)
                 ) {
                     Text(
-                        "Winter Arc Ascension",
+                        Strings.s("winter_title", hi),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = PslText
                     )
                     Text(
-                        "Tap to open the slides",
+                        Strings.s("winter_sub", hi),
                         fontSize = 12.sp,
                         color = PslGrey
                     )
@@ -216,9 +226,12 @@ fun WinterArcSection() {
                     modifier = Modifier.fillMaxWidth()
                 ) { page ->
                     val card = WINTER_ARC_CARDS[page]
+                    val slideTitle = Strings.s("winter_slide_$page", hi).let {
+                        if (it == "winter_slide_$page") card.title else it
+                    }
                     Image(
                         painter = painterResource(card.imageRes),
-                        contentDescription = card.title,
+                        contentDescription = slideTitle,
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -399,6 +412,8 @@ val GUIDES: List<Guide> = listOf(
 
 @Composable
 fun GuidesSection(report: PslReport? = null) {
+    // v2.6-hinglish: softmaxx headers translated.
+    val hi = LanguageStore.isHinglish
     Column(Modifier.fillMaxWidth()) {
         GlowUpCarousel()
         Spacer(Modifier.height(20.dp))
@@ -414,10 +429,10 @@ fun GuidesSection(report: PslReport? = null) {
         Spacer(Modifier.height(20.dp))
         SeasonQuizCard(report)
         Spacer(Modifier.height(20.dp))
-        CapsLabel("SOFTMAXX GUIDES")
+        CapsLabel(Strings.s("caps_softmaxx", hi))
         Spacer(Modifier.height(8.dp))
         Text(
-            "Every method Moggr recommends, in plain words. Tap a guide to read it.",
+            Strings.s("softmaxx_sub", hi),
             fontSize = 13.sp,
             color = PslGrey,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -426,9 +441,21 @@ fun GuidesSection(report: PslReport? = null) {
     }
 }
 
+/** v2.6-hinglish: guide categories in Hinglish. */
+private fun guideCategoryHi(cat: String, hi: Boolean): String {
+    if (!hi) return cat
+    return when (cat) {
+        "Skin & eyes" -> "Skin aur eyes"
+        "Hair" -> "Baal"
+        else -> cat
+    }
+}
+
 @Composable
 private fun GuideCard(guide: Guide) {
     var expanded by remember { mutableStateOf(false) }
+    // v2.6-hinglish: translated title + body.
+    val hi = LanguageStore.isHinglish
     Card(
         colors = CardDefaults.cardColors(containerColor = PslCard),
         shape = RoundedCornerShape(16.dp),
@@ -445,12 +472,12 @@ private fun GuideCard(guide: Guide) {
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        guide.title,
+                        Strings.guideTitle(guide.title, hi),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = PslText
                     )
-                    Text(guide.category, fontSize = 12.sp, color = PslGrey)
+                    Text(guideCategoryHi(guide.category, hi), fontSize = 12.sp, color = PslGrey)
                 }
                 Icon(
                     imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
@@ -460,7 +487,11 @@ private fun GuideCard(guide: Guide) {
             }
             if (expanded) {
                 Spacer(Modifier.height(8.dp))
-                Text(guide.body, fontSize = 14.sp, color = PslText)
+                Text(
+                    Strings.guideBody(guide.body, guide.title, hi),
+                    fontSize = 14.sp,
+                    color = PslText
+                )
             }
         }
     }

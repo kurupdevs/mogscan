@@ -39,6 +39,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+// v2.6-hinglish begin
+import com.kurupdevs.moggr.util.LanguageStore
+// v2.6-hinglish end
 
 // ---------------------------------------------------------------------------
 // Morning check-in card
@@ -52,6 +55,14 @@ fun MorningCheckinCard(
     onDone: (sleep: String, puff: Int, focus: String) -> Unit,
     onSkip: () -> Unit
 ) {
+    // v2.6-hinglish: check-in labels follow the app language.
+    val hi = LanguageStore.isHinglish
+    // Display-translated focus options; the stored value stays the English key.
+    val focusOpts = FOCUS_OPTIONS.mapIndexed { i, stored ->
+        val key = "focus_opt_$i"
+        val label = Strings.s(key, hi)
+        stored to if (label == key) stored else label
+    }
     var sleep by remember { mutableStateOf<String?>(null) }
     var puff by remember { mutableStateOf<Int?>(null) }
     var focus by remember { mutableStateOf<String?>(null) }
@@ -65,20 +76,20 @@ fun MorningCheckinCard(
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(
-                "Morning check-in",
+                Strings.s("coach_checkin_title", hi),
                 fontFamily = MogSerif,
                 fontSize = 19.sp,
                 fontWeight = FontWeight.Bold,
                 color = PslText
             )
             Text(
-                "30 seconds — the coach uses this in today's advice.",
+                Strings.s("coach_checkin_sub", hi),
                 fontSize = 12.sp,
                 color = PslGrey
             )
             Spacer(Modifier.height(12.dp))
 
-            Text("Sleep last night", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PslGrey)
+            Text(Strings.s("coach_checkin_sleep", hi), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PslGrey)
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SLEEP_OPTIONS.forEach { opt ->
@@ -87,7 +98,7 @@ fun MorningCheckinCard(
             }
             Spacer(Modifier.height(12.dp))
 
-            Text("Face puffiness", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PslGrey)
+            Text(Strings.s("coach_checkin_puff", hi), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PslGrey)
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 (1..5).forEach { n ->
@@ -107,15 +118,15 @@ fun MorningCheckinCard(
                         )
                     }
                 }
-                Text("1 = tight, 5 = balloon", fontSize = 11.sp, color = PslGrey)
+                Text(Strings.s("coach_puff_scale", hi), fontSize = 11.sp, color = PslGrey)
             }
             Spacer(Modifier.height(12.dp))
 
-            Text("Today's #1 focus", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PslGrey)
+            Text(Strings.s("coach_checkin_focus", hi), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PslGrey)
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FOCUS_OPTIONS.forEach { opt ->
-                    CheckinPill(opt, selected = focus == opt, onClick = { focus = opt })
+                focusOpts.forEach { (stored, label) ->
+                    CheckinPill(label, selected = focus == stored, onClick = { focus = stored })
                 }
             }
             Spacer(Modifier.height(14.dp))
@@ -126,7 +137,7 @@ fun MorningCheckinCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onSkip) {
-                    Text("Skip", color = PslGrey, fontSize = 14.sp)
+                    Text(Strings.s("coach_checkin_skip", hi), color = PslGrey, fontSize = 14.sp)
                 }
                 Spacer(Modifier.width(4.dp))
                 Button(
@@ -135,7 +146,7 @@ fun MorningCheckinCard(
                     colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
                     shape = RoundedCornerShape(50)
                 ) {
-                    Text("Log it", fontWeight = FontWeight.Bold)
+                    Text(Strings.s("coach_checkin_log", hi), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -166,9 +177,9 @@ private fun CheckinPill(text: String, selected: Boolean, onClick: () -> Unit) {
 // ---------------------------------------------------------------------------
 
 private val VIBES = listOf(
-    com.kurupdevs.moggr.util.CoachMemory.VIBE_BLUNT to "Blunt",
-    com.kurupdevs.moggr.util.CoachMemory.VIBE_BIGBRO to "Big bro",
-    com.kurupdevs.moggr.util.CoachMemory.VIBE_HYPE to "Hype"
+    com.kurupdevs.moggr.util.CoachMemory.VIBE_BLUNT to "vibe_short_blunt",
+    com.kurupdevs.moggr.util.CoachMemory.VIBE_BIGBRO to "vibe_short_bigbro",
+    com.kurupdevs.moggr.util.CoachMemory.VIBE_HYPE to "vibe_short_hype"
 )
 
 @Composable
@@ -184,7 +195,10 @@ fun VibeSegmentedControl(
             .padding(3.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        VIBES.forEach { (key, label) ->
+        // v2.6-hinglish: vibe pill labels translated.
+        val hiVibe = LanguageStore.isHinglish
+        VIBES.forEach { (key, labelKey) ->
+            val label = Strings.s(labelKey, hiVibe).let { if (it == labelKey) labelKey else it }
             val selected = vibe == key
             Box(
                 modifier = Modifier
@@ -224,7 +238,7 @@ fun CelebrationBanner(text: String, onDismiss: () -> Unit) {
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    "New milestone",
+                    Strings.s("coach_milestone", LanguageStore.isHinglish),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White.copy(alpha = 0.85f)
@@ -359,7 +373,21 @@ fun GuidedFlowCards(onFlow: (GuidedFlow) -> Unit) {
             .padding(horizontal = 14.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        // v2.6-hinglish: flow card titles follow the app language.
+        val hiFlow = LanguageStore.isHinglish
         GUIDED_FLOWS.forEach { flow ->
+            val titleKey = when (flow.id) {
+                "diagnose" -> "coach_flow_title"
+                "plan" -> "coach_plan_title"
+                else -> "coach_photo_title"
+            }
+            val subKey = when (flow.id) {
+                "diagnose" -> "coach_flow_sub"
+                "plan" -> "coach_plan_sub"
+                else -> "coach_photo_sub"
+            }
+            val flowTitle = Strings.s(titleKey, hiFlow).let { if (it == titleKey) flow.title else it }
+            val flowSub = Strings.s(subKey, hiFlow).let { if (it == subKey) flow.subtitle else it }
             Card(
                 colors = CardDefaults.cardColors(containerColor = PslCard),
                 shape = RoundedCornerShape(16.dp),
@@ -369,16 +397,16 @@ fun GuidedFlowCards(onFlow: (GuidedFlow) -> Unit) {
             ) {
                 Column(Modifier.padding(13.dp)) {
                     Text(
-                        flow.title,
+                        flowTitle,
                         fontFamily = MogSerif,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = PslText
                     )
                     Spacer(Modifier.height(3.dp))
-                    Text(flow.subtitle, fontSize = 11.sp, color = PslGrey)
+                    Text(flowSub, fontSize = 11.sp, color = PslGrey)
                     Spacer(Modifier.height(8.dp))
-                    Text("Start →", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PslBlue)
+                    Text(Strings.s("coach_start", hiFlow), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PslBlue)
                 }
             }
         }
@@ -395,6 +423,8 @@ fun GuidedFlowDialog(
     var stepIdx by remember(flow.id) { mutableStateOf(0) }
     var review by remember(flow.id) { mutableStateOf(false) }
     val steps = flow.steps
+    // v2.6-hinglish: dialog chrome follows the app language.
+    val hiDialog = LanguageStore.isHinglish
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -413,11 +443,11 @@ fun GuidedFlowDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text("✕ Close", color = PslGrey, fontSize = 14.sp)
+                    Text(Strings.s("flow_close", hiDialog), color = PslGrey, fontSize = 14.sp)
                 }
                 Spacer(Modifier.weight(1f))
                 Text(
-                    if (review) "Review" else "Step ${stepIdx + 1} of ${steps.size}",
+                    if (review) Strings.s("flow_review", hiDialog) else Strings.fmt("flow_step", hiDialog, "i" to "${stepIdx + 1}", "n" to "${steps.size}"),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = PslGrey
@@ -501,11 +531,11 @@ fun GuidedFlowDialog(
             ) {
                 if (!review && stepIdx > 0) {
                     TextButton(onClick = { stepIdx-- }) {
-                        Text("‹ Back", color = PslGrey, fontSize = 14.sp)
+                        Text(Strings.s("flow_back", hiDialog), color = PslGrey, fontSize = 14.sp)
                     }
                 } else if (review) {
                     TextButton(onClick = { review = false; stepIdx = steps.lastIndex }) {
-                        Text("‹ Edit", color = PslGrey, fontSize = 14.sp)
+                        Text(Strings.s("flow_edit", hiDialog), color = PslGrey, fontSize = 14.sp)
                     }
                 } else {
                     Spacer(Modifier.width(1.dp))

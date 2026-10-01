@@ -14,6 +14,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+// v2.6-photogate begin
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+// v2.6-photogate end
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,6 +67,9 @@ import androidx.core.content.ContextCompat
 import com.kurupdevs.moggr.ui.BestPicPicker
 import com.kurupdevs.moggr.ui.CapsLabel
 import com.kurupdevs.moggr.ui.GhostOverlay
+// v2.6-photogate begin
+import com.kurupdevs.moggr.ui.MogSerif
+// v2.6-photogate end
 import com.kurupdevs.moggr.ui.PslBlack
 import com.kurupdevs.moggr.ui.PslBlue
 import com.kurupdevs.moggr.ui.PslGrey
@@ -70,6 +77,10 @@ import com.kurupdevs.moggr.ui.PslText
 import com.kurupdevs.moggr.ui.loadGhostBitmap
 import com.kurupdevs.moggr.util.PhotoGrade
 import com.kurupdevs.moggr.util.PhotoQuality
+// v2.6-hinglish begin
+import com.kurupdevs.moggr.util.LanguageStore
+import com.kurupdevs.moggr.ui.Strings
+// v2.6-hinglish end
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -123,6 +134,13 @@ fun CameraCapture(
     var pendingAngle by remember { mutableStateOf<CaptureAngle?>(null) }
     var pendingShot by remember { mutableStateOf<Bitmap?>(null) }
     var pendingGrade by remember { mutableStateOf<PhotoGrade?>(null) }
+    // v2.6-photogate begin
+    var failStreak by remember { mutableIntStateOf(0) } // consecutive gate failures this session
+    // --- gallery hard-gate state (Best Pic Picker path) ---
+    var galleryBmp by remember { mutableStateOf<Bitmap?>(null) }
+    var galleryGrade by remember { mutableStateOf<PhotoGrade?>(null) }
+    var galleryGrading by remember { mutableStateOf(false) }
+    // v2.6-photogate end
 
     // --- ghost + picker state ---
     var ghostOn by remember { mutableStateOf(false) }
@@ -227,8 +245,36 @@ fun CameraCapture(
             shots[angle] = bmp
             if (step < angles.lastIndex) step++
         }
+        // v2.6-photogate begin: a passing shot breaks the failure streak
+        failStreak = 0
+        // v2.6-photogate end
         clearPending()
     }
+
+    // v2.6-photogate begin
+    /** Runs a gallery-picked photo through the same hard gate before scoring. */
+    fun gradePickedPhoto(bmp: Bitmap) {
+        galleryBmp = bmp
+        galleryGrading = true
+        galleryGrade = null
+        scope.launch(Dispatchers.Default) {
+            val g = try {
+                PhotoQuality.grade(bmp)
+            } catch (_: Exception) {
+                // fail-open: never trap the user on a grading hiccup
+                PhotoGrade(70, emptyList(), true)
+            }
+            galleryGrading = false
+            if (g.pass) {
+                onAnalyze(bmp, bmp, bmp)
+                galleryBmp = null
+            } else {
+                failStreak++ // consecutive failure counter drives the "use anyway" escape hatch
+                galleryGrade = g
+            }
+        }
+    }
+    // v2.6-photogate end
 
     fun takePhoto() {
         if (capturing || grading || pendingGrade != null) return
@@ -256,6 +302,9 @@ fun CameraCapture(
                             }
                             pendingAngle = angle
                             pendingShot = bmp
+                            // v2.6-photogate begin: hard gate — count consecutive failures
+                            if (!grade.pass) failStreak++
+                            // v2.6-photogate end
                             pendingGrade = grade
                             grading = false
                         }
@@ -501,7 +550,7 @@ fun CameraCapture(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
-                    Text("Analyze my face", style = MaterialTheme.typography.titleMedium)
+                    Text(Strings.s("cam_analyze", LanguageStore.isHinglish), style = MaterialTheme.typography.titleMedium)
                 }
             } else {
                 // Big round shutter button
@@ -571,80 +620,17 @@ fun CameraCapture(
                     }
                 }
             } else {
-                // full sheet: score ring, issues, retake / use-anyway
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.55f)),
-                    contentAlignment = Alignment.BottomCenter
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                            .background(PslBlack)
-                            .padding(20.dp)
-                    ) {
-                        CapsLabel("photo check")
-                        Spacer(Modifier.height(10.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            ScoreRing(score = grade.score, pass = false)
-                            Spacer(Modifier.width(16.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    "Not scan-ready yet",
-                                    fontWeight = FontWeight.Bold,
-                                    color = PslText,
-                                    fontSize = 18.sp
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    "Fix the lighting or hold stiller, then retake — or roll with it.",
-                                    color = PslGrey,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        }
-                        if (grade.issues.isNotEmpty()) {
-                            Spacer(Modifier.height(12.dp))
-                            grade.issues.forEach { issue ->
-                                Row(
-                                    modifier = Modifier.padding(vertical = 3.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(PslBlue)
-                                    )
-                                    Spacer(Modifier.width(10.dp))
-                                    Text(issue, color = PslText, fontSize = 14.sp)
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(16.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            TextButton(
-                                onClick = { clearPending() },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Retake", color = PslText, fontSize = 16.sp)
-                            }
-                            Button(
-                                onClick = { acceptPending() },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = PslBlue)
-                            ) {
-                                Text("Use anyway →", color = PslBlack, fontSize = 16.sp)
-                            }
-                        }
-                    }
-                }
-            }
+                // v2.6-photogate begin: HARD GATE — full-screen retake explainer.
+                // "Use anyway" is only unlocked after 3 consecutive failures.
+                PhotoGateExplainer(
+                    grade = grade,
+                    allowBypass = failStreak >= 3,
+                    retakeLabel = Strings.s("cam_retake", LanguageStore.isHinglish), // v2.6-hinglish
+                    onRetake = { clearPending() },
+                    onCancel = { clearPending() },
+                    onUseAnyway = { acceptPending() }
+                )
+                // v2.6-photogate end            }
         }
 
         // --- best-pic picker overlay ---
@@ -657,16 +643,225 @@ fun CameraCapture(
                 BestPicPicker(
                     onPick = { bmp ->
                         showPicker = false
-                        // single-photo path: reuse the existing analyze entry
-                        // point with the picked photo for all three angles
-                        onAnalyze(bmp, bmp, bmp)
+                        // v2.6-photogate begin: gallery picks go through the same hard gate
+                        gradePickedPhoto(bmp)
+                        // v2.6-photogate end
                     },
                     onDismiss = { showPicker = false }
                 )
             }
         }
+
+        // v2.6-photogate begin: gallery hard-gate overlays
+        if (galleryGrading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.55f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = PslBlue)
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Checking your pic…",
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
+        val gateGrade = galleryGrade
+        val gateBmp = galleryBmp
+        if (gateGrade != null && gateBmp != null && !galleryGrading) {
+            PhotoGateExplainer(
+                grade = gateGrade,
+                allowBypass = failStreak >= 3,
+                retakeLabel = "Pick another",
+                onRetake = {
+                    galleryGrade = null
+                    galleryBmp = null
+                    showPicker = true
+                },
+                onCancel = {
+                    galleryGrade = null
+                    galleryBmp = null
+                },
+                onUseAnyway = {
+                    galleryGrade = null
+                    galleryBmp = null
+                    onAnalyze(gateBmp, gateBmp, gateBmp)
+                }
+            )
+        }
+        // v2.6-photogate end
     }
 }
+
+// v2.6-photogate begin
+/**
+ * Full-screen hard-gate explainer. Names exactly what failed and how to fix
+ * each issue. Big "Retake" + "Cancel" (back to camera); "Use anyway" only
+ * unlocks after 3 consecutive failures, with an honest warning that the
+ * score may be off. Warm cream editorial look, Gen Z tone, no emojis.
+ */
+@Composable
+private fun PhotoGateExplainer(
+    grade: PhotoGrade,
+    allowBypass: Boolean,
+    retakeLabel: String,
+    onRetake: () -> Unit,
+    onCancel: () -> Unit,
+    onUseAnyway: () -> Unit
+) {
+    val rows: List<Pair<String, String>> =
+        if (grade.details.isNotEmpty()) grade.details.map { it.title to it.fix }
+        else grade.issues.map { it to "retake in better light with your face in frame" }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PslBlack)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(Modifier.height(24.dp))
+            CapsLabel("photo check")
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = "This pic won't score right",
+                fontFamily = MogSerif,
+                fontWeight = FontWeight.Bold,
+                color = PslText,
+                fontSize = 30.sp,
+                lineHeight = 34.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Bad photo = bad score. Fix the stuff below and your score will actually mean something.",
+                color = PslGrey,
+                fontSize = 15.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(20.dp))
+            // score ring
+            Box(
+                modifier = Modifier.size(112.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    progress = { grade.score / 100f },
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color(0xFFD64545),
+                    trackColor = PslText.copy(alpha = 0.08f),
+                    strokeWidth = 9.dp
+                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "${grade.score}",
+                        fontWeight = FontWeight.Bold,
+                        color = PslText,
+                        fontSize = 28.sp
+                    )
+                    Text(
+                        text = "/100",
+                        color = PslGrey,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+            // one fix line per failed check
+            Column(modifier = Modifier.fillMaxWidth()) {
+                rows.forEach { (title, fix) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 6.dp)
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(PslBlue)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = title,
+                                fontWeight = FontWeight.SemiBold,
+                                color = PslText,
+                                fontSize = 16.sp
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = fix,
+                                color = PslGrey,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = onRetake,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp),
+                shape = RoundedCornerShape(30.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = PslBlue)
+            ) {
+                Text(
+                    text = retakeLabel,
+                    color = PslBlack,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            if (allowBypass) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = "Use anyway is unlocked — heads up, the score might be way off.",
+                    color = PslGrey,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center
+                )
+                TextButton(
+                    onClick = onUseAnyway,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Use anyway",
+                        color = PslBlue,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+            TextButton(
+                onClick = onCancel,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Cancel",
+                    color = PslText,
+                    fontSize = 16.sp
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+// v2.6-photogate end
 
 /** Small pill button for the camera top bar. */
 @Composable

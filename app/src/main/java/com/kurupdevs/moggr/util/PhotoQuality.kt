@@ -21,15 +21,34 @@ import kotlin.math.hypot
  * IMPORTANT: [grade] blocks (ML Kit detection) — always call it off the
  * main thread (e.g. Dispatchers.Default).
  */
+// v2.6-photogate begin
+/** Machine-readable reason a photo failed the gate, paired with a per-issue fix line. */
+enum class PhotoIssueCode {
+    DARK, BRIGHT, FLAT_LIGHT, BLURRY, NO_FACE, TOO_FAR, TOO_CLOSE, OFF_CENTER, ANGLE
+}
+
+/** One failed quality check: what went wrong ([title]) and how to fix it ([fix]). */
+data class PhotoIssue(
+    val code: PhotoIssueCode,
+    val title: String,
+    val fix: String
+)
+// v2.6-photogate end
+
 data class PhotoGrade(
     val score: Int,
     val issues: List<String>,
-    val pass: Boolean
+    val pass: Boolean,
+    // v2.6-photogate begin
+    val details: List<PhotoIssue> = emptyList()
+    // v2.6-photogate end
 )
 
 object PhotoQuality {
 
-    private const val PASS_AT = 65
+    // v2.6-photogate begin
+    private const val PASS_AT = 55 // hard-gate threshold: block bad photos, not decent ones
+    // v2.6-photogate end
 
     // Luma/contrast bands (0-255).
     private const val DARK_BELOW = 60.0
@@ -46,12 +65,23 @@ object PhotoQuality {
     private const val BLUR_BELOW = 80.0
 
     private const val FACE_MIN_FRAC = 0.25   // face must cover >= 25% of the frame
+    // v2.6-photogate begin
+    private const val FACE_MAX_FRAC = 0.85   // face covering >= 85% of the frame = too close
+    // v2.6-photogate end
     private const val OFF_CENTER_ABOVE = 0.4 // normalized distance of face center from frame center
     private const val ANGLE_ABOVE = 15f      // yaw/pitch degrees
 
     fun grade(bitmap: Bitmap): PhotoGrade {
         val issues = mutableListOf<String>()
         var score = 100
+        // v2.6-photogate begin
+        val details = mutableListOf<PhotoIssue>()
+        fun flag(code: PhotoIssueCode, title: String, fix: String, penalty: Int) {
+            issues += "$title — $fix"
+            details += PhotoIssue(code, title, fix)
+            score -= penalty
+        }
+        // v2.6-photogate end
 
         // --- luma + contrast on a small grey copy ---
         val (grey, gw, gh) = greyDownscale(bitmap, 256)
@@ -66,51 +96,65 @@ object PhotoQuality {
         val std = kotlin.math.sqrt((sumSq / n - mean * mean).coerceAtLeast(0.0))
 
         if (mean < DARK_BELOW) {
-            score -= 25
-            issues += "Too dark — face a window"
+            // v2.6-photogate begin
+            flag(PhotoIssueCode.DARK, "Lighting too dim", "face a window or step into brighter light", 25)
+            // v2.6-photogate end
         } else if (mean > BRIGHT_ABOVE) {
-            score -= 20
-            issues += "Too bright — harsh light on your face"
+            // v2.6-photogate begin
+            flag(PhotoIssueCode.BRIGHT, "Lighting too harsh", "move out of direct sun — find softer light", 20)
+            // v2.6-photogate end
         } else if (std < FLAT_STD_BELOW) {
-            score -= 12
-            issues += "Flat light — needs more contrast"
+            // v2.6-photogate begin
+            flag(PhotoIssueCode.FLAT_LIGHT, "Flat lighting", "move near a window for more contrast", 12)
+            // v2.6-photogate end
         }
 
         // --- sharpness: Laplacian variance on the center crop (face zone) ---
         val lapVar = laplacianVarianceCenter(grey, gw, gh)
         if (lapVar < BLUR_BELOW) {
-            score -= 30
-            issues += "Hold still — photo is blurry"
+            // v2.6-photogate begin
+            flag(PhotoIssueCode.BLURRY, "Too blurry", "hold still for 1 second and try again", 30)
+            // v2.6-photogate end
         }
 
         // --- face geometry via ML Kit (fast mode, no landmarks needed) ---
         val face = detectLargestFace(bitmap)
         if (face == null) {
-            score -= 45
-            issues += "No face found — retake with your face in frame"
+            // v2.6-photogate begin
+            flag(PhotoIssueCode.NO_FACE, "No face found", "retake with your face in the frame", 45)
+            // v2.6-photogate end
         } else {
             val w = bitmap.width.toFloat()
             val h = bitmap.height.toFloat()
             val box = face.boundingBox
             val frac = (box.width() * box.height()) / (w * h)
             if (frac < FACE_MIN_FRAC) {
-                score -= 20
-                issues += "Move closer"
+                // v2.6-photogate begin
+                flag(PhotoIssueCode.TOO_FAR, "You're too far", "move a little closer", 20)
+                // v2.6-photogate end
+            // v2.6-photogate begin
+            } else if (frac > FACE_MAX_FRAC) {
+                flag(PhotoIssueCode.TOO_CLOSE, "Too close", "hold the phone at arm's length", 20)
+            // v2.6-photogate end
             }
             val dx = (box.exactCenterX() - w / 2f) / (w / 2f)
             val dy = (box.exactCenterY() - h / 2f) / (h / 2f)
             if (hypot(dx, dy) > OFF_CENTER_ABOVE) {
-                score -= 10
-                issues += "Center your face in the frame"
+                // v2.6-photogate begin
+                flag(PhotoIssueCode.OFF_CENTER, "Face is off-center", "line your face up with the frame guides", 10)
+                // v2.6-photogate end
             }
             if (abs(face.headEulerAngleY) > ANGLE_ABOVE || abs(face.headEulerAngleX) > ANGLE_ABOVE) {
-                score -= 10
-                issues += "Look straight at the camera"
+                // v2.6-photogate begin
+                flag(PhotoIssueCode.ANGLE, "Face not straight", "look directly at the camera", 10)
+                // v2.6-photogate end
             }
         }
 
         val final = score.coerceIn(0, 100)
-        return PhotoGrade(final, issues, final >= PASS_AT)
+        // v2.6-photogate begin
+        return PhotoGrade(final, issues, final >= PASS_AT, details)
+        // v2.6-photogate end
     }
 
     // ---------- internals ----------

@@ -186,6 +186,9 @@ fun QuestionFlow(
     var language by remember { mutableStateOf("") }
     var heightText by remember { mutableStateOf("") }
     var goal by remember { mutableStateOf("") }
+    // v2.6-science begin
+    var ageBracket by remember { mutableStateOf("") }
+    // v2.6-science end
 
     // DOB wheel state
     val months = remember {
@@ -200,7 +203,9 @@ fun QuestionFlow(
     var dayIdx by remember { mutableIntStateOf(0) }
     var yearIdx by remember { mutableIntStateOf(years.indexOf("2005").takeIf { it >= 0 } ?: 20) }
 
-    val totalSteps = 5
+    // v2.6-science begin: added age-bracket step -> 6 steps total
+    val totalSteps = 6
+    // v2.6-science end
 
     fun next() { if (step < totalSteps - 1) step++ }
     fun back() { if (step > 0) step-- else onBack() }
@@ -335,6 +340,23 @@ fun QuestionFlow(
             }
 
             4 -> {
+                // v2.6-science begin: optional age-bracket question
+                QuestionTitle(
+                    title = "Which age group are you in?",
+                    subtitle = "Younger users get softer language and fewer scans per day."
+                )
+                OptionList(
+                    options = com.kurupdevs.moggr.util.TeenMode.BRACKETS,
+                    selected = ageBracket,
+                    onSelect = { ageBracket = it }
+                )
+                Spacer(Modifier.height(24.dp))
+                PslNextButton("Next", enabled = ageBracket.isNotBlank(), onClick = ::next)
+                SkipForNowButton(onSkip)
+                // v2.6-science end
+            }
+
+            5 -> {
                 QuestionTitle(
                     title = "What's your main goal?",
                     subtitle = "We'll shape your ascension roadmap around it."
@@ -364,7 +386,10 @@ fun QuestionFlow(
                                 language = language,
                                 heightCm = parseHeightCm(heightText) ?: 0,
                                 dobMillis = cal.timeInMillis,
-                                goal = goal
+                                goal = goal,
+                                // v2.6-science begin
+                                ageBracket = ageBracket
+                                // v2.6-science end
                             )
                         )
                     }

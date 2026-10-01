@@ -2,7 +2,11 @@ package com.kurupdevs.moggr.ui
 
 import android.content.Intent
 import android.graphics.Bitmap
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -36,6 +40,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -66,28 +71,43 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.kurupdevs.moggr.analysis.AnalysisUiState
+import com.kurupdevs.moggr.analysis.FaceAnalyzer
 import com.kurupdevs.moggr.analysis.FeatureScore
 import com.kurupdevs.moggr.analysis.PillarScore
 import com.kurupdevs.moggr.analysis.PslReport
 import com.kurupdevs.moggr.util.ProfileStore
 import com.kurupdevs.moggr.util.ScanHistoryStore
+// v2.6-science begin
+import com.kurupdevs.moggr.util.TeenMode
+import com.kurupdevs.moggr.util.TeenStrings
+// v2.6-science end
+// v2.6-hinglish begin
+import com.kurupdevs.moggr.util.LanguageStore
+// v2.6-hinglish end
 import com.kurupdevs.moggr.util.UserProfile
 import kotlinx.coroutines.delay
 import java.io.File
 import java.util.Locale
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 // ---------- Analyzing ----------
 
+// v2.6-landmark: staged scan — landmark dots appear in phases over the photo
+// ("finding face" → "mapping eyes" → "mapping jaw" → "measuring") with a
+// looping scanline sweep. The dots are a stylized loading animation; the real
+// measured mesh is drawn on the result screen.
 private val ANALYZE_STEPS = listOf(
-    "Mapping your facial geometry…",
-    "Scoring every feature…",
-    "Calculating your PSL tier…",
-    "Building your ascension roadmap…"
+    "Finding your face",
+    "Mapping your eyes",
+    "Mapping your jawline",
+    "Measuring your ratios"
 )
 
 @Composable
-fun AnalyzingScreen() {
+fun AnalyzingScreen(photo: Bitmap? = null) {
     var step by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         repeat(ANALYZE_STEPS.size - 1) {
@@ -102,42 +122,48 @@ fun AnalyzingScreen() {
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(48.dp))
+        Spacer(Modifier.height(32.dp))
         Text(
-            "Analyzing your face",
-            fontSize = 26.sp,
+            Strings.s("cam_analyzing", LanguageStore.isHinglish),
+            fontFamily = MogSerif,
+            fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = PslText
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(6.dp))
         Text(
-            "Mapping your facial geometry…",
+            ANALYZE_STEPS[step],
             fontSize = 14.sp,
-            color = PslGrey
+            color = PslBlue,
+            fontWeight = FontWeight.SemiBold
         )
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(24.dp))
 
-        // PSL radar ring
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(190.dp)) {
-            CircularProgressIndicator(
-                progress = { (step + 1) / ANALYZE_STEPS.size.toFloat() },
-                modifier = Modifier.size(190.dp),
-                color = PslBlue,
-                trackColor = Color(0xFFEDE7DB),
-                strokeWidth = 8.dp
-            )
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("PSL", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = PslText)
-                Text(
-                    "${step + 1}/4",
-                    fontSize = 14.sp,
+        if (photo != null) {
+            ScanPhaseCard(photo = photo, step = step)
+        } else {
+            // PSL radar ring (fallback when the photo isn't available)
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(190.dp)) {
+                CircularProgressIndicator(
+                    progress = { (step + 1) / ANALYZE_STEPS.size.toFloat() },
+                    modifier = Modifier.size(190.dp),
                     color = PslBlue,
-                    fontWeight = FontWeight.SemiBold
+                    trackColor = Color(0xFFEDE7DB),
+                    strokeWidth = 8.dp
                 )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("PSL", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = PslText)
+                    Text(
+                        "${step + 1}/4",
+                        fontSize = 14.sp,
+                        color = PslBlue,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
 
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(32.dp))
         Card(
             colors = CardDefaults.cardColors(containerColor = PslCard),
             shape = RoundedCornerShape(16.dp),
@@ -168,6 +194,121 @@ fun AnalyzingScreen() {
     }
 }
 
+/**
+ * v2.6-landmark: photo card for the analyzing screen. A scanline sweeps the
+ * photo on a loop while landmark dots fade in phase by phase: face oval,
+ * then eyes, then jawline, then the measuring guides.
+ */
+@Composable
+private fun ScanPhaseCard(photo: Bitmap, step: Int) {
+    val coral = Color(0xFFE07856)
+    val bw = photo.width.toFloat().coerceAtLeast(1f)
+    val bh = photo.height.toFloat().coerceAtLeast(1f)
+
+    val scanTransition = rememberInfiniteTransition(label = "scanline")
+    val scanY by scanTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "scanY"
+    )
+    val reveals = (0..3).map { i ->
+        animateFloatAsState(
+            targetValue = if (step >= i) 1f else 0f,
+            animationSpec = tween(700),
+            label = "phase$i"
+        ).value
+    }
+
+    // Stylized dot layout in normalized photo space (loading animation only).
+    val ovalDots = remember {
+        List(28) { i ->
+            val a = i / 28f * 2f * PI.toFloat()
+            Offset(0.5f + 0.26f * cos(a), 0.46f + 0.34f * sin(a))
+        }
+    }
+    val eyeDots = remember {
+        buildList {
+            listOf(0.39f, 0.61f).forEach { cx ->
+                repeat(8) { k ->
+                    val a = k / 8f * 2f * PI.toFloat()
+                    add(Offset(cx + 0.030f * cos(a), 0.42f + 0.022f * sin(a)))
+                }
+            }
+        }
+    }
+    val jawDots = remember {
+        List(14) { i ->
+            val a = (25f + i * (130f / 13f)) * PI.toFloat() / 180f
+            Offset(0.5f + 0.26f * cos(a), 0.46f + 0.34f * sin(a))
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(bw / bh)
+            .clip(RoundedCornerShape(24.dp))
+    ) {
+        Image(
+            bitmap = photo.asImageBitmap(),
+            contentDescription = "Photo being analyzed",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds
+        )
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            // scanline sweep
+            val y = scanY * h
+            val bandH = 64.dp.toPx()
+            val top = (y - bandH).coerceAtLeast(0f)
+            drawRect(
+                brush = Brush.verticalGradient(
+                    listOf(
+                        coral.copy(alpha = 0f),
+                        coral.copy(alpha = 0.16f),
+                        coral.copy(alpha = 0.16f),
+                        coral.copy(alpha = 0f)
+                    )
+                ),
+                topLeft = Offset(0f, top),
+                size = Size(w, (y - top).coerceAtLeast(1f))
+            )
+            drawLine(coral, Offset(0f, y), Offset(w, y), 3.dp.toPx())
+
+            fun drawDots(dots: List<Offset>, reveal: Float, radius: Float) {
+                val n = dots.size
+                dots.forEachIndexed { i, o ->
+                    val a = ((reveal * (n + 6) - i) / 6f).coerceIn(0f, 1f)
+                    if (a > 0f) {
+                        drawCircle(coral.copy(alpha = 0.9f * a), radius, Offset(o.x * w, o.y * h))
+                    }
+                }
+            }
+            val r = 3.dp.toPx()
+            drawDots(ovalDots, reveals[0], r)
+            drawDots(eyeDots, reveals[1], r * 1.15f)
+            drawDots(jawDots, reveals[2], r * 1.15f)
+            // measuring phase: thirds guides fade in
+            if (reveals[3] > 0f) {
+                val ga = 0.45f * reveals[3]
+                listOf(0.36f, 0.58f).forEach { ny ->
+                    drawLine(
+                        coral.copy(alpha = ga),
+                        Offset(w * 0.24f, h * ny),
+                        Offset(w * 0.76f, h * ny),
+                        1.5.dp.toPx()
+                    )
+                }
+            }
+        }
+    }
+}
+
 // ---------- Results (home style: photo + Overall + stat cards) ----------
 
 @Composable
@@ -176,21 +317,29 @@ fun ResultScreen(
     profile: UserProfile?,
     photo: Bitmap?,
     onRescan: () -> Unit,
-    onNext: () -> Unit
+    onNext: () -> Unit,
+    // v2.6-landmark begin
+    verifySnapshot: FaceAnalyzer.FaceGeometrySnapshot? = null,
+    recomputing: Boolean = false,
+    onRecalculate: (FaceAnalyzer.FaceGeometrySnapshot) -> Unit = {}
+    // v2.6-landmark end
 ) {
     val context = LocalContext.current
     // Per-report keys: the guess + reveal run once for each distinct scan.
+    // v2.6-landmark: keyed on the photo (stable across point-verify recomputes,
+    // which keep the same bitmap) so a recalculation skips straight to the body.
     val scanKeys: Array<Any> = arrayOf(
         report.timestamp,
-        report.overallPsl,
-        report.features.hashCode()
+        photo?.hashCode() ?: 0
     )
     var guessDone by rememberSaveable(*scanKeys) { mutableStateOf(false) }
     var guess by rememberSaveable(*scanKeys) { mutableStateOf(5f) }
     var revealDone by rememberSaveable(*scanKeys) { mutableStateOf(false) }
 
     // Append to the on-device scan history once per report (deduped by timestamp).
-    val entryTs = remember(report) {
+    // v2.6-landmark: keyed on (timestamp, photo) so a point-verify recompute of
+    // the same scan doesn't append a duplicate history entry.
+    val entryTs = remember(report.timestamp, photo) {
         if (report.timestamp != 0L) report.timestamp else System.currentTimeMillis()
     }
     LaunchedEffect(entryTs) {
@@ -217,12 +366,33 @@ fun ResultScreen(
         }
         return
     }
+    // v2.6-landmark begin: verify-points screen sits between reveal and body.
+    var verifying by rememberSaveable(*scanKeys) { mutableStateOf(false) }
+    if (verifying && verifySnapshot != null && photo != null) {
+        VerifyPointsScreen(
+            photo = photo,
+            snapshot = verifySnapshot,
+            busy = recomputing,
+            onCancel = { verifying = false },
+            onApply = { corrected ->
+                onRecalculate(corrected)
+                verifying = false
+            }
+        )
+        return
+    }
+    // v2.6-landmark end
     if (!revealDone) {
         StagedReveal(
             report = report,
             photo = photo,
             guess = guess,
-            onDone = { revealDone = true }
+            onDone = { revealDone = true },
+            // v2.6-landmark: verify is a step in the staged reveal.
+            onVerify = {
+                revealDone = true
+                verifying = true
+            }
         )
         return
     }
@@ -246,7 +416,15 @@ fun ResultScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
-            ReportBody(report = report, profile = profile, photo = photo)
+            ReportBody(
+                report = report,
+                profile = profile,
+                photo = photo,
+                // v2.6-landmark: "Verify points" button on the result screen.
+                onVerifyPoints = if (verifySnapshot != null && photo != null) {
+                    { verifying = true }
+                } else null
+            )
             Spacer(Modifier.height(20.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -259,7 +437,7 @@ fun ResultScreen(
                         .height(54.dp),
                     shape = RoundedCornerShape(50)
                 ) {
-                    Text("Scan again", color = PslBlue)
+                    Text(Strings.s("scan_again", LanguageStore.isHinglish), color = PslBlue)
                 }
                 OutlinedButton(
                     onClick = { shareReport(context, profile, report) },
@@ -268,7 +446,7 @@ fun ResultScreen(
                         .height(54.dp),
                     shape = RoundedCornerShape(50)
                 ) {
-                    Text("Share", color = PslBlue)
+                    Text(Strings.s("share_btn", LanguageStore.isHinglish), color = PslBlue)
                 }
             }
         }
@@ -281,7 +459,7 @@ fun ResultScreen(
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp)
         ) {
-            Text("NEXT", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+            Text(Strings.s("result_next", LanguageStore.isHinglish), fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
         }
     }
 }
@@ -372,7 +550,9 @@ private fun StagedReveal(
     report: PslReport,
     photo: Bitmap?,
     guess: Float,
-    onDone: () -> Unit
+    onDone: () -> Unit,
+    // v2.6-landmark: verify offered as a step of the staged reveal.
+    onVerify: () -> Unit = {}
 ) {
     var stage by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
@@ -380,7 +560,7 @@ private fun StagedReveal(
         delay(600); stage = 2   // dots in
         delay(1100); stage = 3  // count-up done
         delay(650); stage = 4   // tier slammed
-        delay(750); onDone()    // gap line shown → body
+        delay(2200); onDone()   // gap line + verify step shown → body
     }
 
     val sweep by animateFloatAsState(1f, tween(800), label = "sweep")
@@ -510,13 +690,32 @@ private fun StagedReveal(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "${String.format(Locale.US, "%.1f", report.overallPsl)} → ${String.format(Locale.US, "%.1f", potential)} potential · 3 moves to close it",
+                    "${String.format(Locale.US, "%.1f", report.overallPsl)} → ${String.format(Locale.US, "%.1f", potential)} potential · " +
+                        // v2.6-science begin: softer framing for teen mode
+                        TeenStrings.movesLine(TeenMode.isTeen(LocalContext.current)),
+                        // v2.6-science end
                     fontSize = 14.sp,
                     color = PslGrey,
                     textAlign = TextAlign.Center
                 )
             }
             Spacer(Modifier.height(28.dp))
+            // v2.6-landmark: verify step — offered once the score is revealed.
+            if (stage >= 4) {
+                OutlinedButton(
+                    onClick = onVerify,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.alpha(gapAlpha)
+                ) {
+                    Text(
+                        "Verify the AI's points",
+                        color = PslBlue,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+            }
             Text("tap to skip", fontSize = 12.sp, color = PslGrey)
         }
     }
@@ -645,8 +844,12 @@ private fun DecorativeScanOverlay() {
 fun ReportBody(
     report: PslReport,
     profile: UserProfile?,
-    photo: Bitmap?
+    photo: Bitmap?,
+    // v2.6-landmark: null hides the button (e.g. pre-v2.6 saved reports).
+    onVerifyPoints: (() -> Unit)? = null
 ) {
+    // v2.6-hinglish: report headers follow the app language.
+    val hi = LanguageStore.isHinglish
     Column(modifier = Modifier.fillMaxWidth()) {
         var faceMapOn by remember { mutableStateOf(false) }
         var selectedFeature by remember { mutableStateOf<FeatureScore?>(null) }
@@ -676,7 +879,7 @@ fun ReportBody(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Face map",
+                    Strings.s("face_map", hi),
                     color = PslText,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp
@@ -696,7 +899,7 @@ fun ReportBody(
             if (faceMapOn) {
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    "Proportional guides — not landmark-anchored",
+                    Strings.s("sub_face_map", hi),
                     fontSize = 12.sp,
                     color = PslGrey,
                     textAlign = TextAlign.Center,
@@ -705,15 +908,30 @@ fun ReportBody(
             }
             Spacer(Modifier.height(14.dp))
         }
+        // v2.6-landmark begin
+        if (onVerifyPoints != null) {
+            TextButton(
+                onClick = onVerifyPoints,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text(
+                    "Verify the AI's points",
+                    color = PslBlue,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp
+                )
+            }
+        }
+        // v2.6-landmark end
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            CapsLabel(text = "FACE REPORT")
+            CapsLabel(text = Strings.s("caps_face_report", hi))
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            text = if (profile != null) "${profile.name}'s score" else "Your score",
+            text = if (profile != null) Strings.fmt("score_of", hi, "n" to profile.name) else Strings.s("your_score", hi),
             fontFamily = MogSerif,
             fontSize = 34.sp,
             fontWeight = FontWeight.Bold,
@@ -818,9 +1036,9 @@ fun ReportBody(
         }
 
         Spacer(Modifier.height(18.dp))
-        SectionTitle("Feature scores")
+        SectionTitle(Strings.s("sec_feature_scores", hi))
         Text(
-            "Every measurement, scored 1–8 against community ideals",
+            Strings.s("sub_feature_scores", hi),
             fontSize = 13.sp,
             color = PslGrey
         )
@@ -859,8 +1077,8 @@ fun ReportBody(
 
         if (report.strengths.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
-            SectionTitle("Positives")
-            Text("Your best features — what carries the rating", fontSize = 13.sp, color = PslGrey)
+            SectionTitle(Strings.s("sec_positives", hi))
+            Text(Strings.s("sub_positives", hi), fontSize = 13.sp, color = PslGrey)
             Spacer(Modifier.height(10.dp))
             report.strengths.forEach { s ->
                 Card(
@@ -882,9 +1100,9 @@ fun ReportBody(
             // Only meaningful failos (< 5.0) — never pad the list with decent scores.
             val negatives = report.features.sortedBy { it.score }.filter { it.score < 5.0 }.take(3)
             Spacer(Modifier.height(10.dp))
-            SectionTitle("Negatives")
+            SectionTitle(Strings.s("sec_negatives", hi))
             if (negatives.isNotEmpty()) {
-                Text("Biggest deductions — fix these first", fontSize = 13.sp, color = PslGrey)
+                Text(Strings.s("sub_negatives", hi), fontSize = 13.sp, color = PslGrey)
                 Spacer(Modifier.height(10.dp))
                 negatives.forEach { f ->
                     Card(
@@ -925,9 +1143,9 @@ fun ReportBody(
 
         if (report.improvements.isNotEmpty()) {
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Ascension plan")
+            SectionTitle(Strings.s("sec_ascension", hi))
             Text(
-                "Ordered fixes for your weakest features — no surgery, ever",
+                Strings.s("sub_ascension", hi),
                 fontSize = 13.sp,
                 color = PslGrey
             )
@@ -980,7 +1198,7 @@ fun ReportBody(
 
         if (report.summary.isNotBlank()) {
             Spacer(Modifier.height(18.dp))
-            SectionTitle("Summary")
+            SectionTitle(Strings.s("sec_summary", hi))
             Spacer(Modifier.height(8.dp))
             Text(report.summary, color = PslText, fontSize = 15.sp)
         }

@@ -2,6 +2,7 @@ package com.kurupdevs.moggr.analysis
 
 import android.graphics.Bitmap
 import android.graphics.PointF
+import android.graphics.Rect
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceContour
@@ -41,7 +42,119 @@ import kotlin.math.sign
  */
 object FaceAnalyzer {
 
-    suspend fun analyze(bitmaps: List<Bitmap>): PslReport = withContext(Dispatchers.Default) {
+    // v2.6-landmark: full-resolution geometry snapshot + FaceGeo abstraction, so the
+    // measurement pipeline can run on user-corrected points, not just ML Kit output.
+
+    /**
+     * Full-resolution face geometry captured at scan time: every contour point
+     * (not the downsampled overlay mesh) plus the key landmarks, in the source
+     * bitmap's pixel space. The verify-points UI edits a copy of this; the
+     * corrected copy feeds [recompute].
+     */
+    data class FaceGeometrySnapshot(
+        val contours: Map<Int, List<PointF>>,
+        val marks: Map<Int, PointF>,
+        val box: Rect,
+        val eulerY: Float,
+        val eulerX: Float,
+        val eulerZ: Float,
+        val leftOpenP: Float?,
+        val rightOpenP: Float?
+    )
+
+    /** analyze() result: the report plus the editable geometry behind it. */
+    data class AnalysisResult(
+        val report: PslReport,
+        val geometry: FaceGeometrySnapshot?
+    )
+
+    /**
+     * Abstraction over face geometry: ML Kit's [Face] and corrected snapshots
+     * both satisfy it, so every measurement runs unchanged on either source.
+     */
+    interface FaceGeo {
+        val box: Rect
+        val eulerY: Float
+        val eulerX: Float
+        val eulerZ: Float
+        val leftOpenP: Float?
+        val rightOpenP: Float?
+        fun landmark(type: Int): PointF?
+        fun contourPoints(type: Int): List<PointF>
+    }
+
+    private class MlKitFaceGeo(private val f: Face) : FaceGeo {
+        override val box: Rect get() = f.boundingBox
+        override val eulerY: Float get() = f.headEulerAngleY
+        override val eulerX: Float get() = f.headEulerAngleX
+        override val eulerZ: Float get() = f.headEulerAngleZ
+        override val leftOpenP: Float? get() = f.leftEyeOpenProbability
+        override val rightOpenP: Float? get() = f.rightEyeOpenProbability
+        override fun landmark(type: Int): PointF? = f.landmark(type)
+        override fun contourPoints(type: Int): List<PointF> = f.contourPoints(type)
+    }
+
+    /** FaceGeo backed by a (possibly user-corrected) geometry snapshot. */
+    class SnapshotFaceGeo(val snapshot: FaceGeometrySnapshot) : FaceGeo {
+        override val box: Rect get() = snapshot.box
+        override val eulerY: Float get() = snapshot.eulerY
+        override val eulerX: Float get() = snapshot.eulerX
+        override val eulerZ: Float get() = snapshot.eulerZ
+        override val leftOpenP: Float? get() = snapshot.leftOpenP
+        override val rightOpenP: Float? get() = snapshot.rightOpenP
+        override fun landmark(type: Int): PointF? = snapshot.marks[type]
+        override fun contourPoints(type: Int): List<PointF> =
+            snapshot.contours[type] ?: emptyList()
+    }
+
+    /** Overlay kind for an ML Kit contour type: 0 oval, 1 eye, 2 brow, 3 nose, 4 mouth. */
+    fun contourKind(contourType: Int): Int = when (contourType) {
+        FaceContour.FACE -> 0
+        FaceContour.LEFT_EYE, FaceContour.RIGHT_EYE -> 1
+        FaceContour.LEFT_EYEBROW_TOP, FaceContour.RIGHT_EYEBROW_TOP,
+        FaceContour.LEFT_EYEBROW_BOTTOM, FaceContour.RIGHT_EYEBROW_BOTTOM -> 2
+        FaceContour.NOSE_BRIDGE, FaceContour.NOSE_BOTTOM -> 3
+        FaceContour.UPPER_LIP_TOP, FaceContour.UPPER_LIP_BOTTOM,
+        FaceContour.LOWER_LIP_TOP, FaceContour.LOWER_LIP_BOTTOM -> 4
+        else -> 0
+    }
+
+    /** Captures every contour + landmark the measurements read, at full resolution. */
+    fun snapshotOf(f: Face): FaceGeometrySnapshot {
+        val contourTypes = listOf(
+            FaceContour.FACE,
+            FaceContour.LEFT_EYEBROW_TOP, FaceContour.RIGHT_EYEBROW_TOP,
+            FaceContour.LEFT_EYEBROW_BOTTOM, FaceContour.RIGHT_EYEBROW_BOTTOM,
+            FaceContour.LEFT_EYE, FaceContour.RIGHT_EYE,
+            FaceContour.NOSE_BRIDGE, FaceContour.NOSE_BOTTOM,
+            FaceContour.UPPER_LIP_TOP, FaceContour.UPPER_LIP_BOTTOM,
+            FaceContour.LOWER_LIP_TOP, FaceContour.LOWER_LIP_BOTTOM
+        )
+        val contours = contourTypes.associateWith { t ->
+            f.getContour(t)?.points?.map { PointF(it.x, it.y) } ?: emptyList()
+        }
+        val landmarkTypes = listOf(
+            FaceLandmark.LEFT_EYE, FaceLandmark.RIGHT_EYE,
+            FaceLandmark.MOUTH_LEFT, FaceLandmark.MOUTH_RIGHT,
+            FaceLandmark.LEFT_CHEEK, FaceLandmark.RIGHT_CHEEK,
+            FaceLandmark.NOSE_BASE, FaceLandmark.LEFT_EAR, FaceLandmark.RIGHT_EAR
+        )
+        val marks = landmarkTypes.mapNotNull { t ->
+            f.getLandmark(t)?.position?.let { p -> t to PointF(p.x, p.y) }
+        }.toMap()
+        return FaceGeometrySnapshot(
+            contours = contours,
+            marks = marks,
+            box = Rect(f.boundingBox),
+            eulerY = f.headEulerAngleY,
+            eulerX = f.headEulerAngleX,
+            eulerZ = f.headEulerAngleZ,
+            leftOpenP = f.leftEyeOpenProbability,
+            rightOpenP = f.rightEyeOpenProbability
+        )
+    }
+
+    suspend fun analyze(bitmaps: List<Bitmap>): AnalysisResult = withContext(Dispatchers.Default) {
         val options = FaceDetectorOptions.Builder()
             .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
             .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
@@ -67,7 +180,11 @@ object FaceAnalyzer {
             val faces = pairs.map { it.second }
             // Primary face = most frontal detection (usually the front-angle photo).
             val primaryPair = pairs.minByOrNull { abs(it.second.headEulerAngleY) }!!
-            buildReport(primaryPair.second, faces, primaryPair.first)
+            val primary = primaryPair.second
+            AnalysisResult(
+                report = buildReport(primary, faces, primaryPair.first),
+                geometry = snapshotOf(primary)
+            )
         } finally {
             detector.close()
         }
@@ -129,7 +246,7 @@ object FaceAnalyzer {
     /** Vertical thirds divisions from the face oval: top, brow, nose base, chin. */
     private data class Thirds(val top: Float, val brow: Float, val nose: Float, val chin: Float)
 
-    private fun thirdsOf(face: Face): Thirds? {
+    private fun thirdsOf(face: FaceGeo): Thirds? {
         val oval = face.contourPoints(FaceContour.FACE)
         val browPts = face.contourPoints(FaceContour.LEFT_EYEBROW_TOP) +
             face.contourPoints(FaceContour.RIGHT_EYEBROW_TOP)
@@ -145,8 +262,8 @@ object FaceAnalyzer {
 
     // ================= HARMONY (40%) =================
 
-    private fun symmetry(face: Face): Pair<FeatureScore, String> {
-        val h = face.boundingBox.height().toFloat().coerceAtLeast(1f)
+    private fun symmetry(face: FaceGeo): Pair<FeatureScore, String> {
+        val h = face.box.height().toFloat().coerceAtLeast(1f)
         var dev = 0f
         var n = 0
         fun pair(a: PointF?, b: PointF?) {
@@ -186,9 +303,9 @@ object FaceAnalyzer {
      * symmetric. Null when landmarks are missing. Feeds the "why" dialog —
      * the results chunk draws the face map.
      */
-    private fun regionDeviations(face: Face): Triple<Float, Float, Float>? {
+    private fun regionDeviations(face: FaceGeo): Triple<Float, Float, Float>? {
         val t = thirdsOf(face) ?: return null
-        val cx = (face.boundingBox.left + face.boundingBox.right) / 2f
+        val cx = (face.box.left + face.box.right) / 2f
         fun devOf(pts: List<PointF>, yLo: Float, yHi: Float): Float? {
             val left = pts.filter { it.y in yLo..yHi && it.x < cx }
             val right = pts.filter { it.y in yLo..yHi && it.x >= cx }
@@ -212,7 +329,7 @@ object FaceAnalyzer {
         return Triple(upper, mid, lower)
     }
 
-    private fun facialThirds(face: Face): Pair<FeatureScore, String> {
+    private fun facialThirds(face: FaceGeo): Pair<FeatureScore, String> {
         val t = thirdsOf(face) ?: return noRead("Facial thirds")
         val faceH = (t.chin - t.top).coerceAtLeast(1f)
         val upper = t.brow - t.top
@@ -235,7 +352,7 @@ object FaceAnalyzer {
     }
 
     /** Facial fifths: eye width, inter-eye gap and nose width should each be ~1/5 of face width. */
-    private fun facialFifths(face: Face): Pair<FeatureScore, String> {
+    private fun facialFifths(face: FaceGeo): Pair<FeatureScore, String> {
         val le = face.landmark(FaceLandmark.LEFT_EYE)
         val re = face.landmark(FaceLandmark.RIGHT_EYE)
         val oval = face.contourPoints(FaceContour.FACE)
@@ -245,7 +362,7 @@ object FaceAnalyzer {
         if (le == null || re == null || oval.isEmpty() || leC.size < 4 || reC.size < 4 || nosePts.size < 2) {
             return noRead("Facial fifths")
         }
-        val h = face.boundingBox.height().toFloat().coerceAtLeast(1f)
+        val h = face.box.height().toFloat().coerceAtLeast(1f)
         val eyeY = (le.y + re.y) / 2f
         val bandW = widthOf(oval.filter { abs(it.y - eyeY) < h * 0.06f })
         if (bandW <= 0) return noRead("Facial fifths")
@@ -265,7 +382,7 @@ object FaceAnalyzer {
     }
 
     /** Midface ratio = IPD / (brow to upper lip). Community ideal ~1.0 (compact = youthful). */
-    private fun midfaceRatio(face: Face): Pair<FeatureScore, String> {
+    private fun midfaceRatio(face: FaceGeo): Pair<FeatureScore, String> {
         val le = face.landmark(FaceLandmark.LEFT_EYE)
         val re = face.landmark(FaceLandmark.RIGHT_EYE)
         val browPts = face.contourPoints(FaceContour.LEFT_EYEBROW_TOP) +
@@ -290,7 +407,7 @@ object FaceAnalyzer {
     }
 
     /** ESR = interpupillary distance / bizygomatic width. Community ideal 0.45-0.47. */
-    private fun eyeSpacing(face: Face, cheekW: Float): Pair<FeatureScore, String> {
+    private fun eyeSpacing(face: FaceGeo, cheekW: Float): Pair<FeatureScore, String> {
         val le = face.landmark(FaceLandmark.LEFT_EYE)
         val re = face.landmark(FaceLandmark.RIGHT_EYE)
         if (le == null || re == null || cheekW <= 0) {
@@ -308,7 +425,7 @@ object FaceAnalyzer {
     }
 
     /** FWHR = bizygomatic width / midface height. Community sweet spot ~1.8-1.95; both extremes penalized. */
-    private fun fwhr(face: Face, cheekW: Float): Pair<FeatureScore, String> {
+    private fun fwhr(face: FaceGeo, cheekW: Float): Pair<FeatureScore, String> {
         val browPts = face.contourPoints(FaceContour.LEFT_EYEBROW_TOP) +
             face.contourPoints(FaceContour.RIGHT_EYEBROW_TOP)
         val noseBase = face.landmark(FaceLandmark.NOSE_BASE)
@@ -330,7 +447,7 @@ object FaceAnalyzer {
 
     // ================= FEATURES (25%) =================
 
-    private fun eyes(face: Face): Pair<FeatureScore, String> {
+    private fun eyes(face: FaceGeo): Pair<FeatureScore, String> {
         val leC = face.contourPoints(FaceContour.LEFT_EYE)
         val reC = face.contourPoints(FaceContour.RIGHT_EYE)
         val le = face.landmark(FaceLandmark.LEFT_EYE)
@@ -373,7 +490,7 @@ object FaceAnalyzer {
      * on the closed loop, so min/max x is the correct corner estimate).
      * Positive = lateral corner higher. Community ideal band +3° to +8°.
      */
-    private fun canthalTiltDeg(face: Face): Float? {
+    private fun canthalTiltDeg(face: FaceGeo): Float? {
         val leC = face.contourPoints(FaceContour.LEFT_EYE)
         val reC = face.contourPoints(FaceContour.RIGHT_EYE)
         if (leC.size < 4 || reC.size < 4) return null
@@ -389,7 +506,7 @@ object FaceAnalyzer {
         return (tiltDeg(leC, true) + tiltDeg(reC, false)) / 2f
     }
 
-    private fun canthalTilt(face: Face): Pair<FeatureScore, String> {
+    private fun canthalTilt(face: FaceGeo): Pair<FeatureScore, String> {
         val tilt = canthalTiltDeg(face) ?: return noRead("Canthal tilt")
         val score = scoreFromBand(tilt, 3f, 8f, 6f)
         val note = when {
@@ -408,14 +525,14 @@ object FaceAnalyzer {
      * Visibility read combines ML Kit eye-open probability with the
      * brow-to-eye gap.
      */
-    private fun eyeSizePfl(face: Face, cheekW: Float): Pair<FeatureScore, String> {
+    private fun eyeSizePfl(face: FaceGeo, cheekW: Float): Pair<FeatureScore, String> {
         val leC = face.contourPoints(FaceContour.LEFT_EYE)
         val reC = face.contourPoints(FaceContour.RIGHT_EYE)
         if (leC.size < 4 || reC.size < 4 || cheekW <= 0) return noRead("Eye size (PFL)")
         val eyeW = (widthOf(leC) + widthOf(reC)) / 2f
         val ratio = eyeW / cheekW
         val score = scoreFromBand(ratio, 0.20f, 0.23f, 0.035f)
-        val openP = listOfNotNull(face.leftEyeOpenProbability, face.rightEyeOpenProbability)
+        val openP = listOfNotNull(face.leftOpenP, face.rightOpenP)
             .takeIf { it.isNotEmpty() }?.average()?.toFloat()
         val lbBot = face.contourPoints(FaceContour.LEFT_EYEBROW_BOTTOM)
         val rbBot = face.contourPoints(FaceContour.RIGHT_EYEBROW_BOTTOM)
@@ -447,7 +564,7 @@ object FaceAnalyzer {
         return FeatureScore("Eye size (PFL)", score, note) to detail
     }
 
-    private fun nose(face: Face, cheekW: Float): Pair<FeatureScore, String> {
+    private fun nose(face: FaceGeo, cheekW: Float): Pair<FeatureScore, String> {
         val noseW = widthOf(face.contourPoints(FaceContour.NOSE_BOTTOM))
         val lipW = widthOf(
             face.contourPoints(FaceContour.UPPER_LIP_BOTTOM) +
@@ -471,7 +588,7 @@ object FaceAnalyzer {
         return FeatureScore("Nose", score, note) to detail
     }
 
-    private fun lips(face: Face): Pair<FeatureScore, String> {
+    private fun lips(face: FaceGeo): Pair<FeatureScore, String> {
         val upperPts = face.contourPoints(FaceContour.UPPER_LIP_TOP) +
             face.contourPoints(FaceContour.UPPER_LIP_BOTTOM)
         val lowerPts = face.contourPoints(FaceContour.LOWER_LIP_TOP) +
@@ -502,11 +619,11 @@ object FaceAnalyzer {
      * mapped onto the 1-8 feature scale. Labeled as lighting-sensitive —
      * it is a texture read, not a diagnosis.
      */
-    private fun skinClarity(face: Face, bitmap: Bitmap): Pair<FeatureScore, String> {
+    private fun skinClarity(face: FaceGeo, bitmap: Bitmap): Pair<FeatureScore, String> {
         val cheek = face.landmark(FaceLandmark.LEFT_CHEEK)
             ?: face.landmark(FaceLandmark.RIGHT_CHEEK)
             ?: return noRead("Skin clarity")
-        val half = (face.boundingBox.height() / 12).coerceIn(12, 60)
+        val half = (face.box.height() / 12).coerceIn(12, 60)
         val l = (cheek.x - half).toInt().coerceIn(0, bitmap.width - 1)
         val t = (cheek.y - half).toInt().coerceIn(0, bitmap.height - 1)
         val r = (cheek.x + half).toInt().coerceIn(0, bitmap.width)
@@ -553,7 +670,7 @@ object FaceAnalyzer {
 
     // ================= DIMORPHISM (20%) =================
 
-    private fun jawline(face: Face, cheekW: Float): Pair<FeatureScore, String> {
+    private fun jawline(face: FaceGeo, cheekW: Float): Pair<FeatureScore, String> {
         val oval = face.contourPoints(FaceContour.FACE)
         if (oval.isEmpty() || cheekW <= 0) {
             return noRead("Jawline")
@@ -576,7 +693,7 @@ object FaceAnalyzer {
         return FeatureScore("Jawline", score, note) to detail
     }
 
-    private fun chin(face: Face, jawW: Float): Pair<FeatureScore, String> {
+    private fun chin(face: FaceGeo, jawW: Float): Pair<FeatureScore, String> {
         val oval = face.contourPoints(FaceContour.FACE)
         if (oval.isEmpty() || jawW <= 0) {
             return noRead("Chin")
@@ -598,7 +715,7 @@ object FaceAnalyzer {
     }
 
     /** Brows: thicker, lower-set brows read more dimorphic. Coarse ML Kit estimate. */
-    private fun brows(face: Face): Pair<FeatureScore, String> {
+    private fun brows(face: FaceGeo): Pair<FeatureScore, String> {
         val lbTop = face.contourPoints(FaceContour.LEFT_EYEBROW_TOP)
         val lbBot = face.contourPoints(FaceContour.LEFT_EYEBROW_BOTTOM)
         val rbTop = face.contourPoints(FaceContour.RIGHT_EYEBROW_TOP)
@@ -630,7 +747,7 @@ object FaceAnalyzer {
 
     // ================= ANGULARITY (15%) =================
 
-    private fun cheekbones(face: Face, cheekW: Float, jawW: Float): Pair<FeatureScore, String> {
+    private fun cheekbones(face: FaceGeo, cheekW: Float, jawW: Float): Pair<FeatureScore, String> {
         if (cheekW <= 0 || jawW <= 0) {
             return noRead("Cheekbones")
         }
@@ -649,7 +766,7 @@ object FaceAnalyzer {
      * Jaw frontal angle: angle at the chin between the two jaw (gonion-proxy) points.
      * Community ideal ~84-95 deg for men (sharper = more angular).
      */
-    private fun jawFrontalAngle(face: Face): Pair<FeatureScore, String> {
+    private fun jawFrontalAngle(face: FaceGeo): Pair<FeatureScore, String> {
         val oval = face.contourPoints(FaceContour.FACE)
         if (oval.size < 12) return noRead("Jaw angle")
         val chinY = oval.maxOf { it.y }
@@ -961,8 +1078,8 @@ object FaceAnalyzer {
     }
 
     /** Mean luminance of the face region; flags dark or blown-out captures. */
-    private fun lightingNote(face: Face, bitmap: Bitmap): String? {
-        val box = face.boundingBox
+    private fun lightingNote(face: FaceGeo, bitmap: Bitmap): String? {
+        val box = face.box
         val l = box.left.coerceIn(0, bitmap.width - 1)
         val t = box.top.coerceIn(0, bitmap.height - 1)
         val r = box.right.coerceIn(0, bitmap.width)
@@ -996,16 +1113,15 @@ object FaceAnalyzer {
      * Confidence 0..1 plus ± uncertainty, derived from pose angles, lighting,
      * framing distance and how many of the 3 angles read cleanly.
      */
-    private fun confidenceOf(
-        face: Face,
+    private fun confidenceOf(face: FaceGeo,
         angles: Int,
         badLight: Boolean,
         badDist: Boolean
     ): Pair<Double, Double> {
         var c = 0.95
-        c -= (abs(face.headEulerAngleY) / 12f).coerceIn(0f, 1f) * 0.18
-        c -= (abs(face.headEulerAngleX) / 12f).coerceIn(0f, 1f) * 0.15
-        c -= (abs(face.headEulerAngleZ) / 10f).coerceIn(0f, 1f) * 0.12
+        c -= (abs(face.eulerY) / 12f).coerceIn(0f, 1f) * 0.18
+        c -= (abs(face.eulerX) / 12f).coerceIn(0f, 1f) * 0.15
+        c -= (abs(face.eulerZ) / 10f).coerceIn(0f, 1f) * 0.12
         if (badLight) c -= 0.20
         if (badDist) c -= 0.15
         c -= (3 - angles).coerceIn(0, 3) * 0.08
@@ -1026,8 +1142,7 @@ object FaceAnalyzer {
      * normalized to 0..1 in the source bitmap's space. Also returns the
      * normalized face bounding box and thirds guide y-positions.
      */
-    private fun collectMesh(
-        face: Face,
+    private fun collectMesh(face: FaceGeo,
         bitmap: Bitmap
     ): Triple<List<LandmarkPt>, List<Float>, List<Float>> {
         val w = bitmap.width.toFloat().coerceAtLeast(1f)
@@ -1071,7 +1186,7 @@ object FaceAnalyzer {
                 LandmarkPt((p.x / w).coerceIn(0f, 1f), (p.y / h).coerceIn(0f, 1f), 5)
             )
         }
-        val box = face.boundingBox
+        val box = face.box
         val faceBox = listOf(box.left / w, box.top / h, box.right / w, box.bottom / h)
             .map { it.coerceIn(0f, 1f) }
         val oval = face.contourPoints(FaceContour.FACE)
@@ -1088,7 +1203,7 @@ object FaceAnalyzer {
     }
 
     /** Forehead width from the face oval at brow level (for face-shape classification). */
-    private fun foreheadWidth(face: Face): Float {
+    private fun foreheadWidth(face: FaceGeo): Float {
         val oval = face.contourPoints(FaceContour.FACE)
         val browPts = face.contourPoints(FaceContour.LEFT_EYEBROW_TOP) +
             face.contourPoints(FaceContour.RIGHT_EYEBROW_TOP)
@@ -1102,13 +1217,13 @@ object FaceAnalyzer {
      * Skin undertone from cheek pixels: warm/cool/neutral by red/blue channel
      * ratio. Crude — lighting shifts it; labeled as an estimate in the UI.
      */
-    private fun skinUndertone(face: Face, bitmap: Bitmap): String {
+    private fun skinUndertone(face: FaceGeo, bitmap: Bitmap): String {
         val pts = listOfNotNull(
             face.landmark(FaceLandmark.LEFT_CHEEK),
             face.landmark(FaceLandmark.RIGHT_CHEEK)
         )
         if (pts.isEmpty()) return ""
-        val half = (face.boundingBox.height() / 16).coerceIn(6, 48)
+        val half = (face.box.height() / 16).coerceIn(6, 48)
         var rSum = 0L
         var bSum = 0L
         var n = 0L
@@ -1139,10 +1254,31 @@ object FaceAnalyzer {
 
     // ---------- report assembly ----------
 
-    private fun buildReport(face: Face, faces: List<Face>, bitmap: Bitmap): PslReport {
-        val oval = face.contourPoints(FaceContour.FACE)
-        val lc = face.landmark(FaceLandmark.LEFT_CHEEK)
-        val rc = face.landmark(FaceLandmark.RIGHT_CHEEK)
+    /** The 18 frontal measured features plus the dims other reads need. */
+    private data class FrontalRead(
+        val features: List<FeatureScore>,
+        val details: Map<String, String>,
+        val cheekW: Float,
+        val faceH: Float,
+        val jawW: Float
+    )
+
+    /** Photo-quality bits that don't depend on landmark positions. */
+    private data class PhotoStatic(
+        val photoNotes: List<String>,
+        val confidence: Double,
+        val uncertainty: Double,
+        val anglesRead: Int
+    )
+
+    /**
+     * Runs the 18 frontal measurements on any face geometry — the ML Kit read
+     * or a user-corrected snapshot. Pure: same geometry in, same features out.
+     */
+    private fun frontalRead(geo: FaceGeo, bitmap: Bitmap): FrontalRead {
+        val oval = geo.contourPoints(FaceContour.FACE)
+        val lc = geo.landmark(FaceLandmark.LEFT_CHEEK)
+        val rc = geo.landmark(FaceLandmark.RIGHT_CHEEK)
         val cheekW = if (lc != null && rc != null) dist(lc, rc) else 0f
         val faceH = if (oval.isNotEmpty()) oval.maxOf { it.y } - oval.minOf { it.y } else 0f
         val jawW = if (oval.isNotEmpty() && cheekW > 0) {
@@ -1164,37 +1300,78 @@ object FaceAnalyzer {
         }
 
         // --- 18 measured features ---
-        val thirds = reg(facialThirds(face))
-        val fifths = reg(facialFifths(face))
-        val midface = reg(midfaceRatio(face))
-        val esr = reg(eyeSpacing(face, cheekW))
-        val fwhrV = reg(fwhr(face, cheekW))
-        val sym = reg(symmetry(face))
-        val eyesV = reg(eyes(face))
-        val canthalV = reg(canthalTilt(face))
-        val eyePflV = reg(eyeSizePfl(face, cheekW))
-        val noseV = reg(nose(face, cheekW))
-        val lipsV = reg(lips(face))
-        val skinV = reg(skinClarity(face, bitmap))
-        val jawV = reg(jawline(face, cheekW))
-        val chinV = reg(chin(face, jawW))
-        val browsV = reg(brows(face))
-        val cheekV = reg(cheekbones(face, cheekW, jawW))
-        val jawAngleV = reg(jawFrontalAngle(face))
+        val thirds = reg(facialThirds(geo))
+        val fifths = reg(facialFifths(geo))
+        val midface = reg(midfaceRatio(geo))
+        val esr = reg(eyeSpacing(geo, cheekW))
+        val fwhrV = reg(fwhr(geo, cheekW))
+        val sym = reg(symmetry(geo))
+        val eyesV = reg(eyes(geo))
+        val canthalV = reg(canthalTilt(geo))
+        val eyePflV = reg(eyeSizePfl(geo, cheekW))
+        val noseV = reg(nose(geo, cheekW))
+        val lipsV = reg(lips(geo))
+        val skinV = reg(skinClarity(geo, bitmap))
+        val jawV = reg(jawline(geo, cheekW))
+        val chinV = reg(chin(geo, jawW))
+        val browsV = reg(brows(geo))
+        val cheekV = reg(cheekbones(geo, cheekW, jawW))
+        val jawAngleV = reg(jawFrontalAngle(geo))
 
-        // Side profile is a bonus read, never the base score.
-        val side = sideProfile(faces, face)
-        details[side.feature.name] = side.detail
-        feats.add(side.feature)
-        val sideOk = side.ok
+        return FrontalRead(feats.toList(), details.toMap(), cheekW, faceH, jawW)
+    }
 
-        val features = feats.toList()
+    /** Photo-quality checks (raters' #1 rule: rate the undistorted photo). */
+    private fun photoStatic(geo: FaceGeo, bitmap: Bitmap, angles: Int): PhotoStatic {
+        val photoNotes = mutableListOf<String>()
+        if (abs(geo.eulerY) > 12f) {
+            photoNotes += "Front photo was angled — phone at eye level, 6-8 ft back, face straight at the lens."
+        }
+        if (abs(geo.eulerX) > 12f) {
+            photoNotes += "Chin was tilted up or down — keep the camera level with your eyes."
+        }
+        if (abs(geo.eulerZ) > 10f) {
+            photoNotes += "Head was rolled to one side — keep it straight for a clean read."
+        }
+        if (angles < 3) {
+            photoNotes += "Only $angles of 3 angles read clearly — retake the blurry one in good light."
+        }
+        // Lighting read from actual face-region pixels.
+        val lightNote = lightingNote(geo, bitmap)
+        if (lightNote != null) photoNotes += lightNote
+        // Distance read from face size relative to the frame.
+        val boxArea = geo.box.width().toFloat() * geo.box.height().toFloat()
+        val imgArea = bitmap.width.toFloat() * bitmap.height.toFloat()
+        val faceFrac = if (imgArea > 0) boxArea / imgArea else 0f
+        val badDist = faceFrac < 0.08f || faceFrac > 0.65f
+        if (faceFrac < 0.08f) {
+            photoNotes += "Face was too small in the frame — shoot from 6-8 ft, not across the room."
+        } else if (faceFrac > 0.65f) {
+            photoNotes += "Face was too close — back up so the full head fits with margin."
+        }
+        val (confidence, uncertainty) = confidenceOf(geo, angles, lightNote != null, badDist)
+        return PhotoStatic(photoNotes.toList(), confidence, uncertainty, angles)
+    }
+
+    /** Assembles the full report from frontal reads + side read + photo statics. */
+    private fun assembleReport(
+        frontal: FrontalRead,
+        sideFeature: FeatureScore,
+        sideDetail: String,
+        sideOk: Boolean,
+        geo: FaceGeo,
+        bitmap: Bitmap,
+        static: PhotoStatic
+    ): PslReport {
+        val details = frontal.details.toMutableMap()
+        details[sideFeature.name] = sideDetail
+        val features = frontal.features + sideFeature
 
         // --- v2.5 reads: face shape, skin undertone, canthal tilt degrees ---
         val (faceShape, faceShapeNote) =
-            FaceShape.classifyFaceShape(cheekW, jawW, foreheadWidth(face), faceH)
-        val undertone = skinUndertone(face, bitmap)
-        val tiltDeg = canthalTiltDeg(face)?.toDouble() ?: 0.0
+            FaceShape.classifyFaceShape(frontal.cheekW, frontal.jawW, foreheadWidth(geo), frontal.faceH)
+        val undertone = skinUndertone(geo, bitmap)
+        val tiltDeg = canthalTiltDeg(geo)?.toDouble() ?: 0.0
 
         val pillars = pillarScores(features)
         val overall = overallFromFeatures(features, sideOk)
@@ -1218,37 +1395,8 @@ object FaceAnalyzer {
         val percentile = (normalCdf(overall - 4.0) * 100).toInt().coerceIn(1, 99)
         val overall100 = ((overall - 1.0) / 7.0 * 100).toInt().coerceIn(0, 100)
 
-        // --- Photo-quality checks (raters' #1 rule: rate the undistorted photo) ---
-        val photoNotes = mutableListOf<String>()
-        if (abs(face.headEulerAngleY) > 12f) {
-            photoNotes += "Front photo was angled — phone at eye level, 6-8 ft back, face straight at the lens."
-        }
-        if (abs(face.headEulerAngleX) > 12f) {
-            photoNotes += "Chin was tilted up or down — keep the camera level with your eyes."
-        }
-        if (abs(face.headEulerAngleZ) > 10f) {
-            photoNotes += "Head was rolled to one side — keep it straight for a clean read."
-        }
-        if (faces.size < 3) {
-            photoNotes += "Only ${faces.size} of 3 angles read clearly — retake the blurry one in good light."
-        }
-        // Lighting read from actual face-region pixels.
-        val lightNote = lightingNote(face, bitmap)
-        if (lightNote != null) photoNotes += lightNote
-        // Distance read from face size relative to the frame.
-        val boxArea = face.boundingBox.width().toFloat() * face.boundingBox.height().toFloat()
-        val imgArea = bitmap.width.toFloat() * bitmap.height.toFloat()
-        val faceFrac = if (imgArea > 0) boxArea / imgArea else 0f
-        val badDist = faceFrac < 0.08f || faceFrac > 0.65f
-        if (faceFrac < 0.08f) {
-            photoNotes += "Face was too small in the frame — shoot from 6-8 ft, not across the room."
-        } else if (faceFrac > 0.65f) {
-            photoNotes += "Face was too close — back up so the full head fits with margin."
-        }
-        val (confidence, uncertainty) = confidenceOf(face, faces.size, lightNote != null, badDist)
-
         // --- Real measured mesh for the scan overlay ---
-        val (mesh, faceBox, thirdsY) = collectMesh(face, bitmap)
+        val (mesh, faceBox, thirdsY) = collectMesh(geo, bitmap)
 
         val ranked = features.sortedByDescending { it.score }
         val strengths = ranked.filter { it.score >= 6.0 }.take(3)
@@ -1305,7 +1453,7 @@ object FaceAnalyzer {
         val summary = "Your ${best.name.lowercase()} is your strongest asset right now. " +
             "Biggest wins come from ${worst.name.lowercase()} — " +
             "${improvements.firstOrNull()?.method?.lowercase() ?: "consistent softmaxxing"}. " +
-            "Overall ${"%.1f".format(overall)} PSL (±${"%.1f".format(uncertainty)}, ${confidenceLabel(confidence)}; " +
+            "Overall ${"%.1f".format(overall)} PSL (±${"%.1f".format(static.uncertainty)}, ${confidenceLabel(static.confidence)}; " +
             "≈${"%.1f".format(decile)}/10): " +
             "${pslLabel(overall).lowercase()}. $failos negative points dragging, $halos halos carrying. " +
             "Photo-dependent estimate — lighting and angle change the read."
@@ -1317,18 +1465,18 @@ object FaceAnalyzer {
             strengths = strengths,
             improvements = improvements,
             summary = summary,
-            anglesRead = faces.size,
+            anglesRead = static.anglesRead,
             decile = decile,
             percentile = percentile,
             pillars = pillars,
-            photoNotes = photoNotes,
+            photoNotes = static.photoNotes,
             failoCount = failos,
             haloCount = halos,
             landmarkMesh = mesh,
             faceBox = faceBox,
             thirdsY = thirdsY,
-            confidence = confidence,
-            uncertainty = uncertainty,
+            confidence = static.confidence,
+            uncertainty = static.uncertainty,
             potentialPsl = potentialPsl,
             // v2.5 fields — added to PslReport by the results chunk.
             faceShape = faceShape,
@@ -1337,6 +1485,39 @@ object FaceAnalyzer {
             skinUndertone = undertone,
             canthalTiltDeg = tiltDeg
         )
+    }
+
+    private fun buildReport(face: Face, faces: List<Face>, bitmap: Bitmap): PslReport {
+        val geo: FaceGeo = MlKitFaceGeo(face)
+        val frontal = frontalRead(geo, bitmap)
+        // Side profile is a bonus read, never the base score.
+        val side = sideProfile(faces, face)
+        val static = photoStatic(geo, bitmap, faces.size)
+        return assembleReport(frontal, side.feature, side.detail, side.ok, geo, bitmap, static)
+    }
+
+    /**
+     * v2.6: re-runs the measurement pipeline on user-corrected landmark geometry.
+     * Frontal features, pillars, PSL, mesh and the v2.5 reads are recomputed from
+     * [corrected]; the side-profile bonus and photo-quality notes are kept from
+     * the original scan (dragging points doesn't change the photo).
+     */
+    fun recompute(
+        original: PslReport,
+        corrected: FaceGeometrySnapshot,
+        bitmap: Bitmap
+    ): PslReport {
+        val geo: FaceGeo = SnapshotFaceGeo(corrected)
+        val frontal = frontalRead(geo, bitmap)
+        val sideFeature = original.features.firstOrNull { it.name == "Side profile" }
+            ?: FeatureScore("Side profile", 4.0, "Profile photo wasn't clear enough to assess.")
+        val sideDetail = original.measureDetails["Side profile"] ?: "needs a side photo"
+        val sideOk = sideDetail != "needs a side photo"
+        val static = PhotoStatic(
+            original.photoNotes, original.confidence, original.uncertainty, original.anglesRead
+        )
+        return assembleReport(frontal, sideFeature, sideDetail, sideOk, geo, bitmap, static)
+            .copy(timestamp = original.timestamp)
     }
 
     /** Community PSL tiers (1.0-8.0 scale). Brutally honest, no sugarcoating. */

@@ -18,6 +18,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+// v2.6-science begin
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+// v2.6-science end
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -53,6 +57,9 @@ import com.kurupdevs.moggr.ui.ResultScreen
 import com.kurupdevs.moggr.ui.theme.MoggrTheme
 import com.kurupdevs.moggr.util.ProfileStore
 import com.kurupdevs.moggr.util.ReportStore
+// v2.6-science begin
+import com.kurupdevs.moggr.util.ScanCooldown
+// v2.6-science end
 import com.kurupdevs.moggr.util.UserProfile
 import kotlinx.coroutines.delay
 
@@ -80,12 +87,21 @@ private fun MoggrApp() {
     val context = LocalContext.current
     val vm: AnalysisViewModel = viewModel()
 
+    // v2.6-hinglish begin: load saved app language (English / Hinglish) once.
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        com.kurupdevs.moggr.util.LanguageStore.load(context)
+    }
+    // v2.6-hinglish end
+
     var screen by remember { mutableStateOf(Screen.INTRO) }
     var profile by remember { mutableStateOf<UserProfile?>(null) }
     var pendingPhotos by remember { mutableStateOf<Triple<Bitmap, Bitmap, Bitmap>?>(null) }
     var analyzingMinDone by remember { mutableStateOf(false) }
     // Where CAMERA's back press goes: INTRO for first-run scans, MAIN for rescans.
     var scanReturnTo by remember { mutableStateOf(Screen.INTRO) }
+    // v2.6-science begin: daily scan cooldown block message
+    var cooldownMsg by remember { mutableStateOf<String?>(null) }
+    // v2.6-science end
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -103,6 +119,9 @@ private fun MoggrApp() {
     }
 
     val analysisState by vm.uiState.collectAsState()
+    // v2.6-landmark begin
+    val recomputing by vm.recomputing.collectAsState()
+    // v2.6-landmark end
 
     // Advance from ANALYZING once the animation has played AND the result is ready.
     // The report + front photo are saved permanently so the user never re-scans.
@@ -176,22 +195,45 @@ private fun MoggrApp() {
                 Box(Modifier.fillMaxSize()) {
                     CameraCapture(
                         onAnalyze = { front: Bitmap, left: Bitmap, right: Bitmap ->
-                            pendingPhotos = Triple(front, left, right)
-                            analyzingMinDone = false
-                            vm.reset()
-                            screen = Screen.ANALYZING
+                            // v2.6-science begin: scan cooldown enforced at the trigger point
+                            when (val scan = ScanCooldown.tryScan(context)) {
+                                is ScanCooldown.Result.Blocked -> cooldownMsg = scan.message
+                                is ScanCooldown.Result.Allowed -> {
+                                    pendingPhotos = Triple(front, left, right)
+                                    analyzingMinDone = false
+                                    vm.reset()
+                                    screen = Screen.ANALYZING
+                                }
+                            }
+                            // v2.6-science end
                         }
                     )
                     val s = analysisState
                     if (s is AnalysisUiState.Error) {
                         AnalysisErrorState(s, onDismiss = { vm.reset() })
                     }
+                    // v2.6-science begin: friendly cooldown-block dialog
+                    cooldownMsg?.let { msg ->
+                        AlertDialog(
+                            onDismissRequest = { cooldownMsg = null },
+                            title = { Text("Scan limit reached") },
+                            text = { Text(msg) },
+                            confirmButton = {
+                                TextButton(onClick = { cooldownMsg = null }) {
+                                    Text("Got it", color = PslBlue)
+                                }
+                            }
+                        )
+                    }
+                    // v2.6-science end
                 }
             }
         }
 
         Screen.ANALYZING -> {
-            AnalyzingScreen()
+            // v2.6-landmark begin: photo feeds the staged scanline card.
+            AnalyzingScreen(photo = pendingPhotos?.first)
+            // v2.6-landmark end
             LaunchedEffect(Unit) {
                 val photos = pendingPhotos
                 if (photos != null) {
@@ -219,7 +261,12 @@ private fun MoggrApp() {
                     onNext = {
                         profile = profile ?: ProfileStore.load(context)
                         screen = if (profile == null) Screen.QUESTIONS else Screen.MAIN
-                    }
+                    },
+                    // v2.6-landmark begin: verify-points recalculation wiring.
+                    verifySnapshot = vm.verifySnapshot,
+                    recomputing = recomputing,
+                    onRecalculate = { vm.recomputeWith(it) }
+                    // v2.6-landmark end
                 )
             } else {
                 LaunchedEffect(Unit) { screen = Screen.CAMERA }

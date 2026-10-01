@@ -63,11 +63,16 @@ import com.kurupdevs.moggr.util.RoutineStore
 import com.kurupdevs.moggr.util.RoutineTask
 import com.kurupdevs.moggr.util.TaskCategory
 import com.kurupdevs.moggr.util.UserProfile
+import com.kurupdevs.moggr.util.VoiceStore
 import kotlinx.coroutines.delay
+
+// v2.6-hinglish begin: app language (English / Hinglish) is global Compose state.
+import com.kurupdevs.moggr.util.LanguageStore
+// v2.6-hinglish end
 
 // ---------- Main tabs ----------
 
-private data class TabDef(val label: String, val icon: ImageVector)
+private data class TabDef(val key: String, val icon: ImageVector)
 
 @Composable
 fun MainTabs(
@@ -78,16 +83,22 @@ fun MainTabs(
     onRescan: () -> Unit
 ) {
     var tab by remember { mutableIntStateOf(0) }
+    // v2.6-hinglish: hi flips the whole tab UI; reading the state recomposes.
+    val hi = LanguageStore.isHinglish
+    // v2.6-challenges: overlay toggle
+    var showChallenges by remember { mutableStateOf(false) }
     val tabs = listOf(
-        TabDef("Home", Icons.Filled.Home),
-        TabDef("Method", Icons.Filled.School),
-        TabDef("Coach", Icons.Filled.Chat),
-        TabDef("Routine", Icons.Filled.Checklist)
+        TabDef("home", Icons.Filled.Home),
+        TabDef("method", Icons.Filled.School),
+        TabDef("coach", Icons.Filled.Chat),
+        TabDef("routine", Icons.Filled.Checklist)
     )
     Box(modifier = Modifier.fillMaxSize().background(MoggrBg)) {
     Scaffold(
         containerColor = Color.Transparent,
         bottomBar = {
+            // v2.6-challenges: hide the pill nav while the challenges overlay is open
+            if (!showChallenges) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -105,6 +116,8 @@ fun MainTabs(
                 ) {
                     tabs.forEachIndexed { idx, t ->
                         val selected = tab == idx
+                        // v2.6-hinglish: translated tab label.
+                        val label = Strings.s("tab_${t.key}", hi)
                         Column(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
@@ -115,13 +128,13 @@ fun MainTabs(
                         ) {
                             Icon(
                                 t.icon,
-                                contentDescription = t.label,
+                                contentDescription = label,
                                 tint = if (selected) Color.White else PslGrey,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                t.label,
+                                label,
                                 fontSize = 10.sp,
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (selected) Color.White else PslGrey
@@ -130,6 +143,7 @@ fun MainTabs(
                     }
                 }
             }
+            }
         }
     ) { pad ->
         Box(
@@ -137,66 +151,220 @@ fun MainTabs(
                 .fillMaxSize()
                 .padding(pad)
         ) {
-            when (tab) {
-                0 -> HomeTab(report = report, profile = profile, photo = frontPhoto, onRescan = onRescan)
-                1 -> MethodScreen(report = report)
-                2 -> CoachScreen(report = report, userName = userName, onBack = { tab = 0 })
-                3 -> RoutineScreen()
+            // v2.6-challenges: overlay screen, no nav-graph changes needed
+            if (showChallenges) {
+                ChallengeScreen(onBack = { showChallenges = false })
+            } else {
+                when (tab) {
+                    0 -> HomeTab(
+                        report = report,
+                        profile = profile,
+                        photo = frontPhoto,
+                        onRescan = onRescan,
+                        onChallenges = { showChallenges = true }
+                    )
+                    1 -> MethodScreen(report = report)
+                    // v2.6-hinglish: CoachScreen reads LanguageStore.isHinglish itself.
+                    2 -> CoachScreen(report = report, userName = userName, onBack = { tab = 0 })
+                    3 -> RoutineScreen(onChallenges = { showChallenges = true })
+                }
             }
         }
     }
     }
 }
 
+// ---------- v2.6 challenges: shared promo card ----------
+
+@Composable
+private fun ChallengesPromoCard(onChallenges: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = PslDeep),
+        shape = RoundedCornerShape(18.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onChallenges)
+    ) {
+        Row(
+            modifier = Modifier.padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                CapsLabelLightCard("CHALLENGES")
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "7-day debloat. 30-day glow-up.",
+                    fontFamily = MogSerif,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 19.sp,
+                    color = androidx.compose.ui.graphics.Color.White,
+                    lineHeight = 23.sp
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Daily photo check-ins, streaks, freezes + buddy mode.",
+                    fontSize = 13.sp,
+                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.72f)
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(PslBlue),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "›",
+                    color = androidx.compose.ui.graphics.Color.White,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 26.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CapsLabelLightCard(text: String) {
+    Text(
+        text,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.65f),
+        letterSpacing = 2.sp
+    )
+}
+
 // ---------- Home: saved face + ratings ----------
+
+// v2.6-hinglish begin: EN/HI language toggle — one tap, visible in the Home header.
+// v2.6-hinglish end
+@Composable
+fun LanguageToggle(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val hi = LanguageStore.isHinglish
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(Color.White.copy(alpha = 0.85f))
+            .padding(3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        listOf(false to "EN", true to "HI").forEach { (isHi, label) ->
+            val selected = hi == isHi
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(if (selected) PslBlue else Color.Transparent)
+                    .clickable { LanguageStore.set(context, isHi) }
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    label,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (selected) Color.White else PslGrey
+                )
+            }
+        }
+    }
+}
+
+/** v2.6-hinglish: routine task title/detail/counter-unit in the current language. */
+internal fun taskTitle(task: RoutineTask, hi: Boolean): String {
+    val key = "task_${task.id}_t"
+    val v = Strings.s(key, hi)
+    return if (v == key) task.title else v
+}
+
+internal fun taskDetail(task: RoutineTask, hi: Boolean): String {
+    val key = "task_${task.id}_d"
+    val v = Strings.s(key, hi)
+    return if (v == key) task.detail else v
+}
+
+internal fun taskUnit(task: RoutineTask, hi: Boolean): String {
+    if (task.counterUnit.isBlank()) return ""
+    val key = "task_${task.id}_u"
+    val v = Strings.s(key, hi)
+    return if (v == key) task.counterUnit else v
+}
+
+internal fun categoryLabel(cat: TaskCategory, hi: Boolean): String {
+    val key = "cat_${cat.key}"
+    val v = Strings.s(key, hi)
+    return if (v == key) cat.label else v
+}
 
 @Composable
 private fun HomeTab(
     report: PslReport?,
     profile: UserProfile?,
     photo: Bitmap?,
-    onRescan: () -> Unit
+    onRescan: () -> Unit,
+    onChallenges: () -> Unit
 ) {
     val context = LocalContext.current
+    // v2.6-hinglish: current app language.
+    val hi = LanguageStore.isHinglish
+    // v2.6-voice: voice check overlay toggle
+    var showVoice by remember { mutableStateOf(false) }
     if (report == null) {
-        Column(
+        // v2.6-hinglish begin: welcome screen — toggle up top, translated copy.
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MoggrBg)
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
         ) {
-            CapsLabel("WELCOME TO MOGGR")
-            Spacer(Modifier.height(14.dp))
-            Text(
-                "Know your face.\nOwn your look.",
-                fontFamily = MogSerif,
-                fontSize = 36.sp,
-                fontWeight = FontWeight.Bold,
-                color = PslText,
-                textAlign = TextAlign.Center,
-                lineHeight = 42.sp
+            LanguageToggle(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
             )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "Take your 3-angle scan once — your face and report stay saved here.",
-                color = PslGrey,
-                textAlign = TextAlign.Center,
-                fontSize = 14.sp
-            )
-            Spacer(Modifier.height(28.dp))
-            Button(
-                onClick = onRescan,
-                colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
-                shape = RoundedCornerShape(50),
-                modifier = Modifier.height(56.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Text("Start your scan", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                CapsLabel(Strings.s("home_welcome_caps", hi))
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    Strings.s("home_hero1", hi) + "\n" + Strings.s("home_hero2", hi),
+                    fontFamily = MogSerif,
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PslText,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 42.sp
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    Strings.s("home_hero_sub", hi),
+                    color = PslGrey,
+                    textAlign = TextAlign.Center,
+                    fontSize = 14.sp
+                )
+                Spacer(Modifier.height(28.dp))
+                Button(
+                    onClick = onRescan,
+                    colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.height(56.dp)
+                ) {
+                    Text(Strings.s("home_start_scan", hi), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             }
         }
         return
+        // v2.6-hinglish end
     }
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -213,6 +381,7 @@ private fun HomeTab(
                 else -> "night"
             }
         }
+        // v2.6-hinglish begin: translated greeting + EN/HI toggle in the header.
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (photo != null) {
                 Image(
@@ -240,21 +409,29 @@ private fun HomeTab(
                 }
             }
             Spacer(Modifier.width(12.dp))
-            Column {
-                Text("Good $daypart,", fontSize = 13.sp, color = PslGrey)
+            Column(Modifier.weight(1f)) {
                 Text(
-                    if (!profile?.name.isNullOrBlank()) "${profile!!.name} — how's the ascension?"
-                    else "How's the ascension going?",
+                    Strings.fmt("greet_good", hi, "d" to Strings.s("greet_$daypart", hi)),
+                    fontSize = 13.sp,
+                    color = PslGrey
+                )
+                Text(
+                    if (!profile?.name.isNullOrBlank())
+                        Strings.fmt("home_hello_name", hi, "n" to profile!!.name)
+                    else Strings.s("home_hello", hi),
                     fontFamily = MogSerif,
                     fontStyle = FontStyle.Italic,
                     fontSize = 18.sp,
                     color = PslText
                 )
             }
+            LanguageToggle()
         }
+        // v2.6-hinglish end
         Spacer(Modifier.height(20.dp))
+        // v2.6-hinglish: translated hero lines.
         Text(
-            "Know your face,",
+            Strings.s("home_know1", hi),
             fontFamily = MogSerif,
             fontSize = 34.sp,
             fontWeight = FontWeight.Bold,
@@ -262,7 +439,7 @@ private fun HomeTab(
             lineHeight = 38.sp
         )
         Text(
-            "own your rating.",
+            Strings.s("home_know2", hi),
             fontFamily = MogSerif,
             fontStyle = FontStyle.Italic,
             fontSize = 34.sp,
@@ -272,12 +449,16 @@ private fun HomeTab(
         Spacer(Modifier.height(18.dp))
         ReportBody(report = report, profile = profile, photo = photo)
         Spacer(Modifier.height(20.dp))
-        CapsLabel("PROGRESS")
+        CapsLabel(Strings.s("caps_progress", hi))
         Spacer(Modifier.height(10.dp))
         ProgressTimeline()
         Spacer(Modifier.height(14.dp))
         SleepMiniCard()
         DebloatMorningMini()
+        Spacer(Modifier.height(14.dp))
+        ChallengesPromoCard(onChallenges = onChallenges)
+        Spacer(Modifier.height(6.dp))
+        VoiceCheckCard(onOpen = { showVoice = true })
         Spacer(Modifier.height(20.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -290,7 +471,7 @@ private fun HomeTab(
                     .height(54.dp),
                 shape = RoundedCornerShape(50)
             ) {
-                Text("Scan again", color = PslBlue)
+                Text(Strings.s("scan_again", hi), color = PslBlue)
             }
             Button(
                 onClick = { shareReport(context, profile, report) },
@@ -300,10 +481,68 @@ private fun HomeTab(
                     .height(54.dp),
                 shape = RoundedCornerShape(50)
             ) {
-                Text("Share", fontWeight = FontWeight.Bold)
+                Text(Strings.s("share_btn", hi), fontWeight = FontWeight.Bold)
             }
         }
         Spacer(Modifier.height(20.dp))
+    }
+    if (showVoice) {
+        VoiceCheckScreen(onClose = { showVoice = false })
+    }
+    }
+}
+
+// ---------- Voice check card (opens overlay) ----------
+
+@Composable
+private fun VoiceCheckCard(onOpen: () -> Unit) {
+    val context = LocalContext.current
+    val streak = remember { VoiceStore.load(context).streak }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = PslCard),
+        shape = RoundedCornerShape(18.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+    ) {
+        Column(Modifier.padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CapsLabel("VOICE CHECK")
+                Spacer(Modifier.weight(1f))
+                if (streak > 0) {
+                    Text(
+                        "$streak-day streak",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = PslBlue
+                    )
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Your voice, steady and clear",
+                fontFamily = MogSerif,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = PslText
+            )
+            Text(
+                "10-second on-device check — pitch, pace, steadiness. The mic never leaves your phone.",
+                fontSize = 13.sp,
+                color = PslGrey,
+                lineHeight = 18.sp
+            )
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = onOpen,
+                colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.height(48.dp)
+            ) {
+                Text("Check my voice", fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }
 
@@ -312,6 +551,8 @@ private fun HomeTab(
 @Composable
 private fun MethodScreen(report: PslReport?) {
     val measuredCount = report?.features?.size ?: 15
+    // v2.6-hinglish begin: full Method tab translation + budget price tiers.
+    val hi = LanguageStore.isHinglish
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -319,10 +560,10 @@ private fun MethodScreen(report: PslReport?) {
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        CapsLabel("HOW IT WORKS")
+        CapsLabel(Strings.s("caps_how", hi))
         Spacer(Modifier.height(8.dp))
         Text(
-            "The method,",
+            Strings.s("method_head1", hi),
             fontFamily = MogSerif,
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
@@ -330,7 +571,7 @@ private fun MethodScreen(report: PslReport?) {
             lineHeight = 36.sp
         )
         Text(
-            "no black box.",
+            Strings.s("method_head2", hi),
             fontFamily = MogSerif,
             fontStyle = FontStyle.Italic,
             fontSize = 32.sp,
@@ -339,7 +580,7 @@ private fun MethodScreen(report: PslReport?) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "Exactly how Moggr turns your photos into a PSL score.",
+            Strings.s("method_sub", hi),
             fontSize = 14.sp,
             color = PslGrey
         )
@@ -348,65 +589,69 @@ private fun MethodScreen(report: PslReport?) {
         SeasonCard(report)
         Spacer(Modifier.height(12.dp))
 
-        MethodSection("How scoring works") {
+        MethodSection(Strings.s("sec_how_scoring", hi)) {
             Text(
-                "Your face is measured $measuredCount ways from your 3 photos. Each measurement is scored " +
-                    "1–8 by distance from the community ideal, then grouped into 4 pillars. " +
-                    "The pillars combine into your overall PSL. Big deviations cap your tier — " +
-                    "one weak area drags the whole score, like community raters tend to judge.",
+                Strings.fmt("scoring_body", hi, "n" to "$measuredCount"),
                 fontSize = 14.sp,
                 color = PslText
             )
         }
 
-        MethodSection("The 4 pillars") {
-            PillarRow("Harmony", "40%", "How well everything fits together — symmetry, thirds, fifths, midface balance. Raters notice this first.")
-            PillarRow("Features", "25%", "The individual pieces — eyes, nose, lips, brows, cheekbones.")
-            PillarRow("Dimorphism", "20%", "Structure cues — jaw width, chin, brow area.")
-            PillarRow("Angularity", "15%", "Sharp vs soft — jaw angle, cheek definition.")
+        MethodSection(Strings.s("sec_pillars", hi)) {
+            PillarRow(Strings.s("pillar_harmony", hi), "40%", Strings.s("pillar_harmony_d", hi))
+            PillarRow(Strings.s("pillar_features", hi), "25%", Strings.s("pillar_features_d", hi))
+            PillarRow(Strings.s("pillar_dimorphism", hi), "20%", Strings.s("pillar_dimorphism_d", hi))
+            PillarRow(Strings.s("pillar_angularity", hi), "15%", Strings.s("pillar_angularity_d", hi))
         }
 
-        MethodSection("The $measuredCount measurements") {
-            val items = listOf(
-                "Symmetry" to "Left-right balance of the whole face.",
-                "Facial thirds" to "Forehead, midface and lower face in balance.",
-                "Facial fifths" to "Face width split into five equal eye-widths.",
-                "Midface ratio" to "How compact the middle of the face is.",
-                "Eye spacing (ESR)" to "Distance between the eyes vs face width.",
-                "FWHR" to "Face width vs height.",
-                "Eyes" to "Shape, tilt and openness.",
-                "Nose" to "Width and proportion against the face.",
-                "Lips" to "Fullness and width balance.",
-                "Jawline" to "Width and definition.",
-                "Chin" to "Projection and width.",
-                "Brows" to "Density and shape framing the eyes.",
-                "Cheekbones" to "Width and prominence.",
-                "Jaw angle" to "Frontal sharpness of the jaw corners.",
-                "Side profile" to "Chin projection read from your side photo."
+        MethodSection(Strings.fmt("sec_measurements", hi, "n" to "$measuredCount")) {
+            // v2.6-science: study citation per measurement; v2.6-hinglish: translated names/descs
+            val cites = listOf(
+                "Rhodes et al. (2006)",
+                "Farkas anthropometry",
+                "Farkas anthropometry",
+                "community benchmark \u2014 not a clinical measure",
+                "community benchmark \u2014 not a clinical measure",
+                "Carr\u00e9 & McCormick (2008)",
+                "community benchmark \u2014 not a clinical measure",
+                "community benchmark \u2014 not a clinical measure",
+                "community benchmark \u2014 not a clinical measure",
+                "community benchmark \u2014 not a clinical measure",
+                "community benchmark \u2014 not a clinical measure",
+                "community benchmark \u2014 not a clinical measure",
+                "community benchmark \u2014 not a clinical measure",
+                "community benchmark \u2014 not a clinical measure",
+                "community benchmark \u2014 not a clinical measure"
             )
-            items.forEach { (name, desc) ->
-                Row(Modifier.padding(vertical = 5.dp)) {
-                    Text("• ", color = PslBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            for (i in 0 until 15) {
+                Column(Modifier.padding(vertical = 5.dp)) {
+                    Row {
+                        Text("\u2022 ", color = PslBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(
+                            buildString {
+                                append(Strings.s("meas_${i}_name", hi))
+                                append(" \u2014 ")
+                                append(Strings.s("meas_${i}_desc", hi))
+                            },
+                            fontSize = 14.sp,
+                            color = PslText
+                        )
+                    }
                     Text(
-                        buildString { append(name); append(" — "); append(desc) },
-                        fontSize = 14.sp,
-                        color = PslText
+                        "Source: ${cites[i]}",
+                        fontSize = 11.sp,
+                        fontStyle = FontStyle.Italic,
+                        color = PslGrey,
+                        modifier = Modifier.padding(start = 16.dp, top = 2.dp)
                     )
                 }
             }
+            // v2.6-science end
         }
 
-        MethodSection("The tiers") {
-            val tiers = listOf(
-                "7.75+" to "Gigachad — near-mythical",
-                "7.0+" to "Chad",
-                "6.0+" to "Chadlite",
-                "5.0+" to "HTN — High Tier Normie",
-                "3.0+" to "MTN — Mid Tier Normie",
-                "1.4+" to "LTN — Low Tier Normie",
-                "< 1.4" to "Sub-5 — maximum ascension potential"
-            )
-            tiers.forEach { (score, tier) ->
+        MethodSection(Strings.s("sec_tiers", hi)) {
+            val tierScores = listOf("7.75+", "7.0+", "6.0+", "5.0+", "3.0+", "1.4+", "< 1.4")
+            tierScores.forEachIndexed { i, score ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -414,16 +659,19 @@ private fun MethodScreen(report: PslReport?) {
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(score, color = PslText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(tier, color = PslGrey, fontSize = 14.sp)
+                    Text(Strings.s("tier_desc_$i", hi), color = PslGrey, fontSize = 14.sp)
                 }
             }
             Spacer(Modifier.height(6.dp))
             Text(
-                "Tiers are looksmaxxing-community conventions, not medical grades.",
+                Strings.s("tiers_note", hi),
                 fontSize = 12.sp,
                 color = PslGrey
             )
         }
+
+        // v2.6: grooming re-tiered by budget — ₹0 free habits, ₹100 basics, ₹500 level-up.
+        BudgetTierSection(hi)
 
         Card(
             colors = CardDefaults.cardColors(containerColor = PslCard),
@@ -438,35 +686,134 @@ private fun MethodScreen(report: PslReport?) {
             }
         }
 
-        MethodSection("For an accurate scan") {
-            val tips = listOf(
-                "Neutral expression, mouth closed, no smile.",
-                "Camera at eye level, arm's length away.",
-                "Even lighting on the face — no harsh shadows.",
-                "Hair off the forehead, nothing covering the jaw.",
-                "Look straight ahead for front, full 90° turn for profiles."
-            )
-            tips.forEach { tip ->
+        MethodSection(Strings.s("caps_accurate", hi)) {
+            for (i in 0 until 5) {
                 Row(Modifier.padding(vertical = 4.dp)) {
                     Text("• ", color = PslBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(tip, fontSize = 14.sp, color = PslText)
+                    Text(Strings.s("scan_tip_$i", hi), fontSize = 14.sp, color = PslText)
                 }
             }
         }
 
-        MethodSection("Honest limits") {
+        MethodSection(Strings.s("caps_honest", hi)) {
             Text(
-                "PSL ratios are forum conventions, not validated science. Scores shift with " +
-                    "lighting, pose, lens and expression — same setup gives comparable results. " +
-                    "A number from your camera is a starting point for the stuff you control " +
-                    "(skin, hair, fitness, style, posture), not a verdict on your worth.",
+                Strings.s("honest_body", hi),
                 fontSize = 14.sp,
                 color = PslText
             )
         }
+
+        // v2.6-science begin: myth-buster cards + crisis card in Method tab
+        MethodSection("Myth busters, honestly") {
+            ScienceCards()
+        }
+        MethodSection("If your head feels heavy") {
+            CrisisCard()
+        }
+        // v2.6-science end
         Spacer(Modifier.height(20.dp))
     }
+    // v2.6-hinglish end
 }
+
+// v2.6-hinglish begin: grooming by budget — three tracks, generic safe skincare only.
+@Composable
+private fun BudgetTierSection(hi: Boolean) {
+    Column(Modifier.fillMaxWidth()) {
+        CapsLabel(Strings.s("caps_budget", hi))
+        Spacer(Modifier.height(8.dp))
+        Text(
+            Strings.s("budget_head1", hi),
+            fontFamily = MogSerif,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = PslText,
+            lineHeight = 32.sp
+        )
+        Text(
+            Strings.s("budget_head2", hi),
+            fontFamily = MogSerif,
+            fontStyle = FontStyle.Italic,
+            fontSize = 28.sp,
+            color = PslText,
+            lineHeight = 32.sp
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(Strings.s("budget_sub", hi), fontSize = 14.sp, color = PslGrey)
+        Spacer(Modifier.height(12.dp))
+
+        BudgetTierCard(
+            title = Strings.s("tier_free_title", hi),
+            subtitle = Strings.s("tier_free_sub", hi),
+            items = listOf(
+                Strings.s("free_0_name", hi) to Strings.s("free_0_desc", hi),
+                Strings.s("free_1_name", hi) to Strings.s("free_1_desc", hi),
+                Strings.s("free_2_name", hi) to Strings.s("free_2_desc", hi),
+                Strings.s("free_3_name", hi) to Strings.s("free_3_desc", hi)
+            )
+        )
+        BudgetTierCard(
+            title = Strings.s("tier_100_title", hi),
+            subtitle = Strings.s("tier_100_sub", hi),
+            items = listOf(
+                Strings.s("b100_0_name", hi) to Strings.s("b100_0_desc", hi),
+                Strings.s("b100_1_name", hi) to Strings.s("b100_1_desc", hi),
+                Strings.s("b100_2_name", hi) to Strings.s("b100_2_desc", hi),
+                Strings.s("b100_3_name", hi) to Strings.s("b100_3_desc", hi)
+            )
+        )
+        BudgetTierCard(
+            title = Strings.s("tier_500_title", hi),
+            subtitle = Strings.s("tier_500_sub", hi),
+            items = listOf(
+                Strings.s("b500_0_name", hi) to Strings.s("b500_0_desc", hi),
+                Strings.s("b500_1_name", hi) to Strings.s("b500_1_desc", hi),
+                Strings.s("b500_2_name", hi) to Strings.s("b500_2_desc", hi),
+                Strings.s("b500_3_name", hi) to Strings.s("b500_3_desc", hi)
+            )
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            Strings.s("budget_note", hi),
+            fontSize = 12.sp,
+            color = PslGrey
+        )
+        Spacer(Modifier.height(12.dp))
+    }
+}
+
+@Composable
+private fun BudgetTierCard(
+    title: String,
+    subtitle: String,
+    items: List<Pair<String, String>>
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = PslCard),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = PslText)
+            Spacer(Modifier.height(2.dp))
+            Text(subtitle, fontSize = 13.sp, color = PslGrey)
+            Spacer(Modifier.height(10.dp))
+            items.forEach { (name, desc) ->
+                Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.Top) {
+                    Text("• ", color = PslBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Column(Modifier.weight(1f)) {
+                        Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = PslText)
+                        Text(desc, fontSize = 13.sp, color = PslGrey)
+                    }
+                }
+            }
+        }
+    }
+}
+// v2.6-hinglish end
 
 @Composable
 private fun MethodSection(title: String, content: @Composable () -> Unit) {
@@ -505,7 +852,7 @@ private fun PillarRow(name: String, weight: String, desc: String) {
 // ---------- Routine: 90-day plan + daily softmaxx ----------
 
 @Composable
-private fun RoutineScreen() {
+private fun RoutineScreen(onChallenges: () -> Unit) {
     val context = LocalContext.current
     val report = remember { ReportStore.loadReport(context) }
     var routineState by remember { mutableStateOf(RoutineStore.load(context)) }
@@ -517,6 +864,18 @@ private fun RoutineScreen() {
     }
     val doneCount = tasks.count { it.id in routineState.done }
     val onToggle: (String) -> Unit = { id -> routineState = RoutineStore.toggle(context, id) }
+    // v2.6-hinglish begin: routine screen translations.
+    val hi = LanguageStore.isHinglish
+    val phaseTitleKey = "phase_t_${phase.title.lowercase()}"
+    val phaseGoalKey = "phase_g_${phase.title.lowercase()}"
+    val phaseTitle = Strings.s(phaseTitleKey, hi).let { if (it == phaseTitleKey) phase.title else it }
+    val phaseGoal = Strings.s(phaseGoalKey, hi).let { if (it == phaseGoalKey) phase.goal else it }
+    // Weekly focus strings are ordered phase_w0..phase_w9 across the three phases.
+    val weekOffset = when (phase.index) { 0 -> 0; 1 -> 4; else -> 7 }
+    val weekIdx = (((planDay - 1) % 30) / 7).coerceIn(0, phase.weeklyFocus.size - 1)
+    val weekKey = "phase_w${weekOffset + weekIdx}"
+    val weekText = Strings.s(weekKey, hi).let { if (it == weekKey) phase.weeklyFocus[weekIdx] else it }
+    // v2.6-hinglish end
 
     Column(
         modifier = Modifier
@@ -525,10 +884,10 @@ private fun RoutineScreen() {
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        CapsLabel("90-DAY ASCENSION")
+        CapsLabel(Strings.s("caps_90", hi))
         Spacer(Modifier.height(8.dp))
         Text(
-            "The plan,",
+            Strings.s("plan_head1", hi),
             fontFamily = MogSerif,
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
@@ -536,7 +895,7 @@ private fun RoutineScreen() {
             lineHeight = 36.sp
         )
         Text(
-            "day by day.",
+            Strings.s("plan_head2", hi),
             fontFamily = MogSerif,
             fontStyle = FontStyle.Italic,
             fontSize = 32.sp,
@@ -545,7 +904,7 @@ private fun RoutineScreen() {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "Built from your scan — your weakest areas get the most reps.",
+            Strings.s("plan_sub", hi),
             fontSize = 14.sp,
             color = PslGrey
         )
@@ -560,13 +919,16 @@ private fun RoutineScreen() {
         ) {
             Column(Modifier.padding(18.dp)) {
                 Text(
-                    "Day $planDay / 90 · Phase ${phase.index + 1}: ${phase.title}",
+                    Strings.fmt(
+                        "day_phase", hi,
+                        "d" to "$planDay", "p" to "${phase.index + 1}", "t" to phaseTitle
+                    ),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = PslText
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(phase.goal, fontSize = 13.sp, color = PslGrey)
+                Text(phaseGoal, fontSize = 13.sp, color = PslGrey)
                 Spacer(Modifier.height(12.dp))
                 LinearProgressIndicator(
                     progress = { planDay / 90f },
@@ -578,9 +940,8 @@ private fun RoutineScreen() {
                     trackColor = Color(0xFFEDE7DB)
                 )
                 Spacer(Modifier.height(8.dp))
-                val weekIdx = (((planDay - 1) % 30) / 7).coerceIn(0, phase.weeklyFocus.size - 1)
                 Text(
-                    "This week: ${phase.weeklyFocus[weekIdx]}",
+                    Strings.fmt("this_week", hi, "w" to weekText),
                     fontSize = 12.sp,
                     color = PslGrey
                 )
@@ -594,24 +955,31 @@ private fun RoutineScreen() {
             Text("🔥", fontSize = 22.sp)
             Spacer(Modifier.width(8.dp))
             Text(
-                "${routineState.streak}-day streak",
+                Strings.fmt("streak_days", hi, "n" to "${routineState.streak}"),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = PslText
             )
             Spacer(Modifier.weight(1f))
-            Text("$doneCount/${tasks.size} today", fontSize = 14.sp, color = PslGrey)
+            Text(
+                Strings.fmt("today_count", hi, "d" to "$doneCount", "t" to "${tasks.size}"),
+                fontSize = 14.sp,
+                color = PslGrey
+            )
         }
 
         Spacer(Modifier.height(14.dp))
-        CapsLabel("TODAY'S PLAN")
+        // v2.6-challenges entry point from the Routine tab
+        ChallengesPromoCard(onChallenges = onChallenges)
+        Spacer(Modifier.height(14.dp))
+        CapsLabel(Strings.s("caps_today", hi))
         Spacer(Modifier.height(4.dp))
 
         TaskCategory.entries.forEach { cat ->
             val group = tasks.filter { it.category == cat }
             if (group.isNotEmpty()) {
                 Spacer(Modifier.height(10.dp))
-                CapsLabel(cat.label.uppercase())
+                CapsLabel(categoryLabel(cat, hi).uppercase())
                 Spacer(Modifier.height(4.dp))
                 group.forEach { task ->
                     SmartTaskRow(
@@ -621,7 +989,8 @@ private fun RoutineScreen() {
                         onToggle = { onToggle(task.id) },
                         onBump = { d ->
                             routineState = RoutineStore.bumpCounter(context, task.id, d)
-                        }
+                        },
+                        hi = hi
                     )
                 }
             }
@@ -630,7 +999,7 @@ private fun RoutineScreen() {
         if (tasks.isNotEmpty() && doneCount >= tasks.size) {
             Spacer(Modifier.height(12.dp))
             Text(
-                "All done today. Consistency is the whole game.",
+                Strings.s("all_done", hi),
                 color = Color(0xFF067647),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -648,7 +1017,7 @@ private fun RoutineScreen() {
 
         Spacer(Modifier.height(8.dp))
         Text(
-            "Tip: rescan every few weeks under the same lighting to track real change.",
+            Strings.s("tip_rescan", hi),
             fontSize = 12.sp,
             color = PslGrey,
             textAlign = TextAlign.Center,
@@ -664,7 +1033,8 @@ private fun SmartTaskRow(
     checked: Boolean,
     count: Int,
     onToggle: () -> Unit,
-    onBump: (Int) -> Unit
+    onBump: (Int) -> Unit,
+    hi: Boolean
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -692,12 +1062,12 @@ private fun SmartTaskRow(
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    task.title,
+                    taskTitle(task, hi),
                     color = PslText,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp
                 )
-                Text(task.detail, color = PslGrey, fontSize = 13.sp)
+                Text(taskDetail(task, hi), color = PslGrey, fontSize = 13.sp)
             }
             if (task.counterTarget > 0) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -712,8 +1082,9 @@ private fun SmartTaskRow(
                         )
                         TaskCounterBtn("+") { onBump(1) }
                     }
-                    if (task.counterUnit.isNotBlank()) {
-                        Text(task.counterUnit, fontSize = 10.sp, color = PslGrey)
+                    val unit = taskUnit(task, hi)
+                    if (unit.isNotBlank()) {
+                        Text(unit, fontSize = 10.sp, color = PslGrey)
                     }
                 }
             }
@@ -763,6 +1134,8 @@ private fun ChewingCard(
     val mm = secondsLeft / 60
     val ss = (secondsLeft % 60).toString().padStart(2, '0')
     val logged = marked || "chew_gum" in done
+    // v2.6-hinglish: gum timer translations.
+    val hi = LanguageStore.isHinglish
 
     Card(
         colors = CardDefaults.cardColors(containerColor = PslCard),
@@ -773,16 +1146,16 @@ private fun ChewingCard(
             .padding(vertical = 6.dp)
     ) {
         Column(Modifier.padding(18.dp)) {
-            CapsLabel("JAW SESSION")
+            CapsLabel(Strings.s("jaw_caps", hi))
             Spacer(Modifier.height(6.dp))
             Text(
-                "10-min gum timer",
+                Strings.s("jaw_title", hi),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = PslText
             )
             Text(
-                "Chew evenly on both sides — not just your strong side.",
+                Strings.s("jaw_detail", hi),
                 fontSize = 13.sp,
                 color = PslGrey
             )
@@ -817,7 +1190,9 @@ private fun ChewingCard(
                     shape = RoundedCornerShape(50)
                 ) {
                     Text(
-                        if (running) "Pause" else if (secondsLeft < 600) "Resume" else "Start",
+                        if (running) Strings.s("jaw_pause", hi)
+                        else if (secondsLeft < 600) Strings.s("jaw_resume", hi)
+                        else Strings.s("jaw_start", hi),
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -826,19 +1201,19 @@ private fun ChewingCard(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(50)
                 ) {
-                    Text("Reset", color = PslBlue)
+                    Text(Strings.s("jaw_reset", hi), color = PslBlue)
                 }
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                "Stop if your jaw clicks or hurts — pushing through pain is how TMJ starts.",
+                Strings.s("jaw_tmj", hi),
                 fontSize = 12.sp,
                 color = Color(0xFFB42318)
             )
             if (logged) {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Logged for today — nice work.",
+                    Strings.s("jaw_logged", hi),
                     fontSize = 12.sp,
                     color = Color(0xFF067647),
                     fontWeight = FontWeight.SemiBold

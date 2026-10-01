@@ -7,7 +7,10 @@ data class UserProfile(
     val language: String,
     val heightCm: Int,
     val dobMillis: Long,
-    val goal: String
+    val goal: String,
+    // v2.6-science begin
+    val ageBracket: String = ""
+    // v2.6-science end
 )
 
 object ProfileStore {
@@ -20,6 +23,9 @@ object ProfileStore {
             .putInt("heightCm", profile.heightCm)
             .putLong("dobMillis", profile.dobMillis)
             .putString("goal", profile.goal)
+            // v2.6-science begin
+            .putString("ageBracket", profile.ageBracket)
+            // v2.6-science end
             .apply()
     }
 
@@ -32,7 +38,10 @@ object ProfileStore {
             language = p.getString("language", "English") ?: "English",
             heightCm = p.getInt("heightCm", 0),
             dobMillis = dob,
-            goal = p.getString("goal", "") ?: ""
+            goal = p.getString("goal", "") ?: "",
+            // v2.6-science begin
+            ageBracket = p.getString("ageBracket", "") ?: ""
+            // v2.6-science end
         )
     }
 

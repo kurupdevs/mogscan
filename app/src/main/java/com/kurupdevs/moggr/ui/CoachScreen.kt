@@ -59,7 +59,10 @@ import com.kurupdevs.moggr.analysis.FaceAnalyzer
 import com.kurupdevs.moggr.analysis.PslReport
 import com.kurupdevs.moggr.coach.CoachClient
 import com.kurupdevs.moggr.util.CoachMemory
+import com.kurupdevs.moggr.util.LanguageStore
 import com.kurupdevs.moggr.util.RoutineStore
+import com.kurupdevs.moggr.util.TeenMode
+import com.kurupdevs.moggr.util.TeenStrings
 import com.kurupdevs.moggr.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -73,8 +76,8 @@ private data class ChatMsg(
     val isPhotoScan: Boolean = false
 )
 
-private const val COACH_FALLBACK =
-    "Coach is resting right now — the free API didn't answer. Try again in a bit."
+// v2.6-hinglish: fallback follows the app language.
+private fun coachFallback(hi: Boolean): String = Strings.s("coach_fallback", hi)
 
 @Composable
 fun CoachScreen(
@@ -85,6 +88,9 @@ fun CoachScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // v2.6-hinglish: current app language; flipping it rebuilds greeting + system prompt.
+    val hi = LanguageStore.isHinglish
+
     // Coach state: vibe dial, morning check-in, celebrations, guided flows.
     var vibe by remember { mutableStateOf(CoachMemory.getVibe(context)) }
     var checkinNonce by remember { mutableStateOf(0) }
@@ -92,9 +98,9 @@ fun CoachScreen(
     var celebration by remember { mutableStateOf<Pair<String, String>?>(null) }
     var activeFlow by remember { mutableStateOf<GuidedFlow?>(null) }
     val vibeLabel = when (vibe) {
-        CoachMemory.VIBE_BIGBRO -> "warm big-bro mode"
-        CoachMemory.VIBE_HYPE -> "hype mode"
-        else -> "blunt & honest"
+        CoachMemory.VIBE_BIGBRO -> Strings.s("coach_vibe_bigbro", hi)
+        CoachMemory.VIBE_HYPE -> Strings.s("coach_vibe_hype", hi)
+        else -> Strings.s("coach_vibe_blunt", hi)
     }
 
     val metricsCtx = remember(report) {
@@ -111,22 +117,48 @@ fun CoachScreen(
             )
         } ?: "No scan yet — user hasn't completed a face scan."
     }
-    val baseSystem = remember(userName, metricsCtx, vibe, checkinNonce) {
+    val baseSystem = remember(userName, metricsCtx, vibe, checkinNonce, hi) {
         CoachClient.systemPrompt(
             userName.ifBlank { "there" },
             metricsCtx,
-            CoachMemory.getMemoryContext(context)
+            CoachMemory.getMemoryContext(context),
+            // v2.6-science: teen mode softens coach framing
+            // v2.6-hinglish: hinglish mode switches coach language
+            teen = TeenMode.isTeen(context),
+            hinglish = hi
         )
     }
-    val greeting = remember(report) {
-        if (report != null) {
-            "Yo${if (userName.isNotBlank()) " $userName" else ""} — I'm Moggr's Looksmaxing AI. " +
+    val teen = TeenMode.isTeen(context)
+    // v2.6-science begin: show crisis link on offline fallback or distress words
+    var showCrisisLink by remember { mutableStateOf(false) }
+    var crisisExpanded by remember { mutableStateOf(false) }
+    fun hasDistressWords(text: String): Boolean {
+        val lower = text.lowercase(Locale.US)
+        return listOf("suicid", "kill myself", "self-harm", "selfharm", "want to die", "hopeless")
+            .any { lower.contains(it) }
+    }
+    // v2.6-science end
+    val greeting = remember(report, hi, teen) {
+        if (hi) {
+            // v2.6-hinglish: translated greeting
+            if (report != null) {
+                Strings.fmt(
+                    "coach_greet_scan", hi,
+                    "n" to userName.ifBlank { "bhai" },
+                    "p" to String.format(Locale.US, "%.1f", report.overallPsl)
+                )
+            } else {
+                Strings.s("coach_greet", hi)
+            }
+        } else if (report != null) {
+            // v2.6-science: teen-aware English greeting
+            "Yo${if (userName.isNotBlank()) " $userName" else ""} — I'm ${if (teen) "your glow-up coach" else "Moggr's Looksmaxing AI"}. " +
                 "I see your scan: ${String.format(Locale.US, "%.1f", report.overallPsl)} PSL. " +
                 "Ask me anything — what's dragging your score, what to fix first, hair, skin, " +
                 "photos. Or send a fresh photo and I'll break it down."
         } else {
-            "Yo — I'm Moggr's Looksmaxing AI. No scan on file yet, but ask me anything about " +
-                "looksmaxxing: jawline, skin, hair, posture, photos. Or send a photo and " +
+            "Yo — I'm ${if (teen) "your glow-up coach" else "Moggr's Looksmaxing AI"}. No scan on file yet, but ask me anything about " +
+                "${TeenStrings.mogging(teen)}: jawline, skin, hair, posture, photos. Or send a photo and " +
                 "I'll scan it on your phone and break it down."
         }
     }
@@ -188,13 +220,18 @@ fun CoachScreen(
     fun sendText(text: String) {
         val clean = text.trim()
         if (clean.isEmpty() || waiting) return
+        // v2.6-science begin: distress words surface the crisis link, non-preachy
+        if (hasDistressWords(clean)) showCrisisLink = true
+        // v2.6-science end
         val h = history()
         messages = messages + ChatMsg(true, clean)
         input = ""
         waiting = true
         CoachClient.ask(baseSystem, h, clean) { reply ->
             waiting = false
-            messages = messages + ChatMsg(false, reply ?: COACH_FALLBACK)
+            messages = messages + ChatMsg(false, reply ?: coachFallback(hi))
+            // v2.6-science: offline fallback surfaces the crisis link
+            if (reply == null) showCrisisLink = true
         }
     }
 
@@ -206,7 +243,7 @@ fun CoachScreen(
         scope.launch(Dispatchers.Default) {
             try {
                 val bmp = decodeDownscaled(context, uri)
-                val rep = FaceAnalyzer.analyze(listOf(bmp))
+                val rep = FaceAnalyzer.analyze(listOf(bmp)).report
                 val photoCtx = "FRESH PHOTO SCAN done on-device just now (single photo): " +
                     CoachClient.reportContext(
                         rep.overallPsl,
@@ -228,7 +265,9 @@ fun CoachScreen(
                     "I just sent a photo — give me your full analysis of it."
                 ) { reply ->
                     waiting = false
-                    messages = messages + ChatMsg(false, reply ?: COACH_FALLBACK)
+                    messages = messages + ChatMsg(false, reply ?: coachFallback(hi))
+                    // v2.6-science: offline fallback surfaces the crisis link
+                    if (reply == null) showCrisisLink = true
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -286,7 +325,7 @@ fun CoachScreen(
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.88f))
             ) {
-                Text("‹ Back", color = PslText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(Strings.s("coach_back", hi), color = PslText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             }
             VibeSegmentedControl(
                 vibe = vibe,
@@ -304,14 +343,17 @@ fun CoachScreen(
                     .padding(16.dp)
             ) {
                 Text(
-                    "Moggr Coach",
+                    Strings.s("coach_title", hi),
                     fontFamily = MogSerif,
                     color = Color.White,
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "Looksmaxing AI · softmaxxing guidance · $vibeLabel",
+                    // v2.6-science: softer header for teen mode; v2.6-hinglish: translated subtitle
+                    if (hi) Strings.fmt("coach_sub", hi, "v" to vibeLabel)
+                    else if (teen) "glow-up coach · skin, hair, style tips · $vibeLabel"
+                    else "Looksmaxing AI · softmaxxing guidance · $vibeLabel",
                     color = Color.White.copy(alpha = 0.85f),
                     fontSize = 12.sp
                 )
@@ -367,7 +409,7 @@ fun CoachScreen(
                                     strokeWidth = 2.dp
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                Text("Coach is typing…", color = PslGrey, fontSize = 14.sp)
+                                Text(Strings.s("coach_typing", hi), color = PslGrey, fontSize = 14.sp)
                             }
                         }
                     }
@@ -376,6 +418,23 @@ fun CoachScreen(
         }
 
         // Input row
+        // v2.6-science begin: crisis link above the input when fallback/distress shows
+        if (showCrisisLink) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp)
+            ) {
+                CrisisLinkButton(expanded = crisisExpanded) {
+                    crisisExpanded = !crisisExpanded
+                }
+                if (crisisExpanded) {
+                    CrisisCard()
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+        }
+        // v2.6-science end
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -397,7 +456,7 @@ fun CoachScreen(
                 value = input,
                 onValueChange = { input = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Ask about jawline, skin, hair…", color = PslGrey) },
+                placeholder = { Text(Strings.s("coach_placeholder", hi), color = PslGrey) },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = PslText,
                     unfocusedTextColor = PslText,
@@ -421,12 +480,12 @@ fun CoachScreen(
                 shape = RoundedCornerShape(50),
                 modifier = Modifier.height(52.dp)
             ) {
-                Text("Send", fontWeight = FontWeight.Bold)
+                Text(Strings.s("coach_send", hi), fontWeight = FontWeight.Bold)
             }
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            "Coach runs on a free API — replies can be slow. Your photos never leave your phone; only your questions and measurement numbers may be sent to the AI service.",
+            Strings.s("coach_offline_note", hi),
             fontSize = 11.sp,
             color = PslGrey,
             modifier = Modifier

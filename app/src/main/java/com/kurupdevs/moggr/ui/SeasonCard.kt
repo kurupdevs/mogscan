@@ -25,6 +25,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kurupdevs.moggr.analysis.PslReport
+// v2.6-hinglish begin
+import com.kurupdevs.moggr.util.LanguageStore
+// v2.6-hinglish end
 
 // ---------- Color season data ----------
 // Simplified warm/cool season system with desi-friendly palettes.
@@ -143,6 +146,24 @@ private fun SeasonPaletteDots(season: SeasonInfo) {
 
 @Composable
 fun SeasonResultContent(season: SeasonInfo) {
+    // v2.6-hinglish: season name + tagline translated.
+    val hi = LanguageStore.isHinglish
+    val nameKey = when (season) {
+        SeasonAutumn -> "season_name_autumn"
+        SeasonWinter -> "season_name_winter"
+        SeasonSpring -> "season_name_spring"
+        SeasonSummer -> "season_name_summer"
+        else -> "season_name_neutral"
+    }
+    val tagKey = when (season) {
+        SeasonAutumn -> "season_tagline_autumn"
+        SeasonWinter -> "season_tagline_winter"
+        SeasonSpring -> "season_tagline_spring"
+        SeasonSummer -> "season_tagline_summer"
+        else -> "season_tagline_neutral"
+    }
+    val seasonName = Strings.s(nameKey, hi).let { if (it == nameKey) season.name else it }
+    val seasonTag = Strings.s(tagKey, hi).let { if (it == tagKey) season.tagline else it }
     Card(
         colors = CardDefaults.cardColors(containerColor = PslCard),
         shape = RoundedCornerShape(16.dp),
@@ -150,16 +171,19 @@ fun SeasonResultContent(season: SeasonInfo) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text("You are ${season.name}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = PslText)
+            Text(
+                Strings.fmt("season_you_are", hi, "s" to seasonName),
+                fontSize = 18.sp, fontWeight = FontWeight.Bold, color = PslText
+            )
             Spacer(Modifier.height(4.dp))
-            Text(season.tagline, fontSize = 13.sp, color = PslGrey)
+            Text(seasonTag, fontSize = 13.sp, color = PslGrey)
             Spacer(Modifier.height(12.dp))
-            Text("DESI PALETTE", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PslBlue)
+            Text(Strings.s("caps_desi_palette", hi), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PslBlue)
             Spacer(Modifier.height(8.dp))
             SeasonPaletteDots(season)
             Spacer(Modifier.height(8.dp))
             Text(
-                "Start with one piece in your palette near your face — a tee, a kurta, a shirt. Watch how your skin looks in daylight.",
+                Strings.s("season_tip", hi),
                 fontSize = 12.sp,
                 color = PslGrey
             )
@@ -169,6 +193,8 @@ fun SeasonResultContent(season: SeasonInfo) {
 
 @Composable
 fun SwatchTestCard() {
+    // v2.6-hinglish: translated body.
+    val hi = LanguageStore.isHinglish
     // NOTE: we deliberately do NOT fake a "digital drape" by compositing color
     // swatches onto the user's photo. A composited swatch shifts perceived skin
     // tone and would mislead the read — honesty beats the gimmick. A real cloth
@@ -180,19 +206,16 @@ fun SwatchTestCard() {
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text("Swatch test — the honest drape", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = PslText)
+            Text(Strings.s("swatch_title", hi), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = PslText)
             Spacer(Modifier.height(6.dp))
             Text(
-                "Stand in daylight facing a window. Hold a solid-color cloth under your chin — " +
-                    "mustard or yellow for the warm test, grey or blue for the cool test.",
+                Strings.s("swatch_b0", hi),
                 fontSize = 14.sp,
                 color = PslText
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                "Watch your jawline shadows and your skin: if the shadows sharpen and your skin " +
-                    "looks alive, that temperature suits you. If your skin looks dull or grey, it's not yours. " +
-                    "Two cloths, two minutes — no app filter can fake this.",
+                Strings.s("swatch_b1", hi),
                 fontSize = 14.sp,
                 color = PslText
             )
@@ -206,9 +229,11 @@ fun SwatchTestCard() {
  */
 @Composable
 fun SeasonCard(report: PslReport?) {
+    // v2.6-hinglish: translated labels.
+    val hi = LanguageStore.isHinglish
     val season = seasonFromUndertone(report?.skinUndertone.orEmpty())
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel("YOUR COLOR SEASON")
+        CapsLabel(Strings.s("caps_color_season", hi))
         Spacer(Modifier.height(8.dp))
         if (season != null) {
             SeasonResultContent(season)
@@ -220,7 +245,7 @@ fun SeasonCard(report: PslReport?) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    "No undertone read yet — take the 3-question season quiz in the Guides tab to unlock your palette.",
+                    Strings.s("season_locked", hi),
                     fontSize = 14.sp,
                     color = PslText,
                     modifier = Modifier.padding(16.dp)

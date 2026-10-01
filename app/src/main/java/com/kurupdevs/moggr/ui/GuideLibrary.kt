@@ -37,6 +37,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kurupdevs.moggr.analysis.PslReport
+// v2.6-hinglish begin
+import com.kurupdevs.moggr.util.LanguageStore
+// v2.6-hinglish end
 
 // ---------- Small shared building blocks (guides library only) ----------
 
@@ -198,18 +201,33 @@ private val SKIN_QUESTIONS = listOf(
 
 @Composable
 fun SkinQuizCard() {
+    // v2.6-hinglish: quiz questions/options translated by index key.
+    val hi = LanguageStore.isHinglish
+    val questions = remember(hi) {
+        SKIN_QUESTIONS.mapIndexed { qi, q ->
+            val tKey = "sq$qi"
+            SkinQuestion(
+                Strings.s(tKey, hi).let { if (it == tKey) q.title else it },
+                q.options.mapIndexed { oi, (label, value) ->
+                    val oKey = "sq${qi}_o$oi"
+                    val l = Strings.s(oKey, hi)
+                    (if (l == oKey) label else l) to value
+                }
+            )
+        }
+    }
     val answers = remember { mutableStateListOf<String?>().apply { repeat(SKIN_QUESTIONS.size) { add(null) } } }
     val done = answers.all { it != null }
 
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel("SKIN QUIZ")
+        CapsLabel(Strings.s("caps_skin", hi))
         Spacer(Modifier.height(8.dp))
         if (!done) {
             SectionCard(
-                title = "Find your 3-step routine",
-                subtitle = "Tap one option per question — takes 20 seconds."
+                title = Strings.s("skinq_title", hi),
+                subtitle = Strings.s("skinq_sub", hi)
             ) {
-                SKIN_QUESTIONS.forEachIndexed { qi, q ->
+                questions.forEachIndexed { qi, q ->
                     Text(q.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = PslText)
                     Spacer(Modifier.height(4.dp))
                     q.options.forEach { (label, value) ->
@@ -240,43 +258,45 @@ private fun SkinRoutineResult(
     budget: String,
     onRetake: () -> Unit
 ) {
+    // v2.6-hinglish: result guidance in the current language.
+    val hi = LanguageStore.isHinglish
     val cleanser = when (skinType) {
-        "oily" -> "Gel or light foaming cleanser — skip the heavy cream washes."
-        "dry" -> "Gentle cream or milky cleanser — avoid foaming 'deep clean' ones."
-        "combo" -> "Gentle gel cleanser — light for the T-zone, kind to the cheeks."
-        else -> "Any gentle cleanser — keep it simple."
+        "oily" -> Strings.s("skin_cleanser_oily", hi)
+        "dry" -> Strings.s("skin_cleanser_dry", hi)
+        "combo" -> Strings.s("skin_cleanser_combo", hi)
+        else -> Strings.s("skin_cleanser_normal", hi)
     }
     val moisturizer = when (skinType) {
-        "oily" -> "Lightweight gel moisturizer — skip the heavy creams."
-        "dry" -> "Richer cream moisturizer — your skin will drink it up."
-        "combo" -> "Light lotion or gel-cream texture."
-        else -> "A basic light moisturizer."
+        "oily" -> Strings.s("skin_moist_oily", hi)
+        "dry" -> Strings.s("skin_moist_dry", hi)
+        "combo" -> Strings.s("skin_moist_combo", hi)
+        else -> Strings.s("skin_moist_normal", hi)
     }
     val spf = when {
-        sun == "high" -> "SPF 30+ every morning, reapplied every 3 hrs outdoors — carry it with you."
-        sensitivity == "sensitive" -> "SPF 30+ every morning — go fragrance-free if your skin reacts."
-        else -> "SPF 30+ every morning — the single highest-ROI skincare step."
+        sun == "high" -> Strings.s("skin_spf_high", hi)
+        sensitivity == "sensitive" -> Strings.s("skin_spf_sensitive", hi)
+        else -> Strings.s("skin_spf_default", hi)
     }
     val extras = buildList {
-        if (sensitivity == "sensitive") add("Fragrance-free everything — your skin votes no on fragrance.")
-        if (acne == "often") add("Keep it boring: cleanser, moisturizer, SPF. More products do not mean faster clear skin — persistent acne is a dermatologist visit, not more serums.")
-        if (budget == "low") add("Budget route: one gentle cleanser + one moisturizer + one sunscreen is the whole routine. Skip serums until the basics are daily.")
+        if (sensitivity == "sensitive") add(Strings.s("skin_extra_sensitive", hi))
+        if (acne == "often") add(Strings.s("skin_extra_acne", hi))
+        if (budget == "low") add(Strings.s("skin_extra_budget", hi))
     }
 
     SectionCard(
-        title = "YOUR 3-STEP",
-        subtitle = "Morning + night. Same three steps, every day."
+        title = Strings.s("skin_result_title", hi),
+        subtitle = Strings.s("skin_result_sub", hi)
     ) {
-        RoutineStep("1", "Cleanser", cleanser)
-        RoutineStep("2", "Moisturizer", moisturizer)
-        RoutineStep("3", "SPF 30+", spf)
+        RoutineStep("1", Strings.s("skin_step_cleanser", hi), cleanser)
+        RoutineStep("2", Strings.s("skin_step_moist", hi), moisturizer)
+        RoutineStep("3", Strings.s("skin_step_spf", hi), spf)
         if (extras.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
             extras.forEach { Bullet(it) }
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            "Retake quiz",
+            Strings.s("retake_quiz", hi),
             fontSize = 13.sp,
             color = PslBlue,
             fontWeight = FontWeight.SemiBold,
@@ -285,13 +305,12 @@ private fun SkinRoutineResult(
     }
     Spacer(Modifier.height(10.dp))
     SectionCard(
-        title = "Desi no-white-cast sunscreen guide",
-        subtitle = "Why sunscreen looks ashy on brown skin — and how to dodge it."
+        title = Strings.s("spf_title", hi),
+        subtitle = Strings.s("spf_sub", hi)
     ) {
-        Bullet("Chemical vs mineral: chemical filters absorb UV and usually blend invisibly; mineral filters (zinc, titanium) sit on top and reflect light — that white layer is the cast.")
-        Bullet("On brown skin, chemical or hybrid gel sunscreens disappear. Mineral-only ones almost always leave a grey/white cast.")
-        Bullet("Reapply every 3 hrs when you're outdoors — one morning layer doesn't survive the day.")
-        Bullet("Indian-market tips: look for gel sunscreens labelled 'no white cast'; skip thick white creams unless the label says otherwise; a 50g tube covers about a month of daily face use.")
+        for (i in 0 until 4) {
+            Bullet(Strings.s("spf_b$i", hi))
+        }
     }
 }
 
@@ -357,37 +376,37 @@ private val DEBLOAT_DAYS = listOf(
 
 @Composable
 fun DebloatSection() {
+    // v2.6-hinglish: 7-day plan + sodium guide translated by index key.
+    val hi = LanguageStore.isHinglish
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel("DEBLOAT PROTOCOL")
+        CapsLabel(Strings.s("caps_debloat", hi))
         Spacer(Modifier.height(8.dp))
         Text(
-            "A 7-day morning plan to drop face puffiness. Tap a day to open its checklist.",
+            Strings.s("debloat_sub", hi),
             fontSize = 13.sp,
             color = PslGrey,
             modifier = Modifier.padding(bottom = 8.dp)
         )
-        DEBLOAT_DAYS.forEach { (day, titleToItems) ->
-            val (title, items) = titleToItems
-            ExpandableDayCard(day, title, items)
+        DEBLOAT_DAYS.forEachIndexed { di, (day, titleToItems) ->
+            val (_, items) = titleToItems
+            val tKey = "debloat_d${di}t"
+            val title = Strings.s(tKey, hi).let { if (it == tKey) titleToItems.first else it }
+            val hiItems = items.mapIndexed { ii, item ->
+                val iKey = "debloat_d${di}i$ii"
+                Strings.s(iKey, hi).let { if (it == iKey) item else it }
+            }
+            ExpandableDayCard(day, title, hiItems)
         }
         Spacer(Modifier.height(10.dp))
         SectionCard(
-            title = "Desi Sodium Guide",
-            subtitle = "Salt hides in desi staples — here's where."
+            title = Strings.s("sod_title", hi),
+            subtitle = Strings.s("sod_sub", hi)
         ) {
-            Text("HIGH SODIUM — go easy", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PslBlue)
-            Bullet("Pickles / achaar — one spoonful can carry half a day's salt")
-            Bullet("Papad — roasted or fried, both are salt bombs")
-            Bullet("Instant noodles — the masala sachet is the culprit")
-            Bullet("Chips & namkeen — portion it out, never eat from the bag")
-            Bullet("Restaurant gravies — loaded with butter and salt")
+            Text(Strings.s("sod_high", hi), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PslBlue)
+            for (i in 0 until 5) Bullet(Strings.s("sod_h$i", hi))
             Spacer(Modifier.height(8.dp))
-            Text("DEBLOAT FRIENDLY — eat more", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PslBlue)
-            Bullet("Banana — potassium helps flush excess sodium")
-            Bullet("Coconut water — hydration + potassium")
-            Bullet("Palak — potassium-rich, low sodium")
-            Bullet("Dahi — light, keeps digestion calm")
-            Bullet("Cucumber — water-rich and cooling")
+            Text(Strings.s("sod_low", hi), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PslBlue)
+            for (i in 0 until 5) Bullet(Strings.s("sod_l$i", hi))
         }
     }
 }
@@ -405,22 +424,28 @@ private val HAIR_BY_SHAPE = listOf(
 
 @Composable
 fun HairSection(report: PslReport?) {
+    // v2.6-hinglish: hair advice translated via hair_shape_<shape> keys.
+    val hi = LanguageStore.isHinglish
+    fun adviceFor(name: String, fallback: String): String {
+        val key = "hair_shape_${name.lowercase()}"
+        return Strings.s(key, hi).let { if (it == key) fallback else it }
+    }
     val shape = report?.faceShape.orEmpty().trim()
     val matched = HAIR_BY_SHAPE.firstOrNull { it.first.equals(shape, ignoreCase = true) }
 
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel("HAIR & STYLING")
+        CapsLabel(Strings.s("caps_hair", hi))
         Spacer(Modifier.height(8.dp))
         if (matched != null) {
             SectionCard(
-                title = "Your cut: ${matched.first} face",
-                subtitle = "Matched from your scan."
+                title = Strings.fmt("hair_your_cut", hi, "s" to matched.first),
+                subtitle = Strings.s("hair_matched_sub", hi)
             ) {
-                Text(matched.second, fontSize = 14.sp, color = PslText)
+                Text(adviceFor(matched.first, matched.second), fontSize = 14.sp, color = PslText)
             }
             Spacer(Modifier.height(10.dp))
             Text(
-                "Other face shapes",
+                Strings.s("hair_other", hi),
                 fontSize = 13.sp,
                 color = PslGrey,
                 fontWeight = FontWeight.SemiBold,
@@ -428,7 +453,7 @@ fun HairSection(report: PslReport?) {
             )
         } else {
             Text(
-                "Take a scan to get your shape-matched cut. General guide below:",
+                Strings.s("hair_no_scan", hi),
                 fontSize = 13.sp,
                 color = PslGrey,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -465,46 +490,45 @@ fun HairSection(report: PslReport?) {
                     }
                     if (expanded) {
                         Spacer(Modifier.height(6.dp))
-                        Text(advice, fontSize = 14.sp, color = PslText)
+                        Text(adviceFor(name, advice), fontSize = 14.sp, color = PslText)
                     }
                 }
             }
         }
         Spacer(Modifier.height(10.dp))
         SectionCard(
-            title = "What to tell your barber",
-            subtitle = "Copy-paste script for the chair."
+            title = Strings.s("barber_title", hi),
+            subtitle = Strings.s("barber_sub", hi)
         ) {
             Text(
-                "\"3 on the sides, scissors on top, keep some length to style, taper the neckline, clean up the edges.\"",
+                Strings.s("barber_script", hi),
                 fontSize = 14.sp,
                 color = PslText,
                 fontWeight = FontWeight.Medium
             )
             Spacer(Modifier.height(6.dp))
-            Bullet("Bring a photo of the cut you want — words mean different things to different barbers.")
-            Bullet("If it feels off halfway through, speak up then — not after.")
+            Bullet(Strings.s("barber_b1", hi))
+            Bullet(Strings.s("barber_b2", hi))
         }
         Spacer(Modifier.height(10.dp))
         SectionCard(
-            title = "Curly hair playbook",
-            subtitle = "Curls need a different routine, not more products."
+            title = Strings.s("curly_title", hi),
+            subtitle = Strings.s("curly_sub", hi)
         ) {
-            Bullet("Wash 2x a week with sulfate-free shampoo — daily washing dries curls out.")
-            Bullet("Condition every wash, then leave-in conditioner on damp hair.")
-            Bullet("Never brush dry curls — detangle wet with fingers or a wide-tooth comb.")
-            Bullet("Sleep on a satin pillowcase to cut overnight frizz.")
-            Bullet("Less heat, more patience — curls reward consistency.")
+            for (i in 0 until 5) Bullet(Strings.s("curly_b$i", hi))
         }
         Spacer(Modifier.height(10.dp))
         SectionCard(
-            title = "5-minute styling routine",
-            subtitle = "The daily minimum that actually works."
+            title = Strings.s("style_title", hi),
+            subtitle = Strings.s("style_sub", hi)
         ) {
-            RoutineStep("1", "Damp hair", "Start with towel-dried, slightly damp hair — never soaking, never dry.")
-            RoutineStep("2", "Pea-size product", "Matte clay for texture, cream for a neat look. Less than you think.")
-            RoutineStep("3", "Blow direction", "Blow-dry in the direction you want it to sit — heat sets the shape.")
-            RoutineStep("4", "Finish", "Style with fingers, not a comb, for a natural finish. Done.")
+            for (i in 0 until 4) {
+                RoutineStep(
+                    "${i + 1}",
+                    Strings.s("style_s$i", hi),
+                    Strings.s("style_s${i}d", hi)
+                )
+            }
         }
     }
 }
@@ -535,18 +559,26 @@ private val POSTURE_WEEKS = listOf(
 
 @Composable
 fun PostureSection() {
+    // v2.6-hinglish: posture weeks translated by index key.
+    val hi = LanguageStore.isHinglish
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel("POSTURE CHALLENGE")
+        CapsLabel(Strings.s("caps_posture", hi))
         Spacer(Modifier.height(8.dp))
         Text(
-            "30 days to fix forward head posture — the silent jawline killer. Tick weeks as you finish them.",
+            Strings.s("posture_sub", hi),
             fontSize = 13.sp,
             color = PslGrey,
             modifier = Modifier.padding(bottom = 8.dp)
         )
-        POSTURE_WEEKS.forEach { (week, items) ->
+        POSTURE_WEEKS.forEachIndexed { wi, (week, items) ->
             var done by remember { mutableStateOf(false) }
             var expanded by remember { mutableStateOf(false) }
+            val wKey = "posture_w$wi"
+            val weekTitle = Strings.s(wKey, hi).let { if (it == wKey) week else it }
+            val hiItems = items.mapIndexed { ii, item ->
+                val iKey = "posture_w${wi}i$ii"
+                Strings.s(iKey, hi).let { if (it == iKey) item else it }
+            }
             Card(
                 colors = CardDefaults.cardColors(containerColor = PslCard),
                 shape = RoundedCornerShape(16.dp),
@@ -567,7 +599,7 @@ fun PostureSection() {
                             colors = CheckboxDefaults.colors(checkedColor = PslBlue)
                         )
                         Text(
-                            week,
+                            weekTitle,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = if (done) PslGrey else PslText,
@@ -583,13 +615,13 @@ fun PostureSection() {
                     }
                     if (expanded) {
                         Spacer(Modifier.height(6.dp))
-                        items.forEach { Bullet(it) }
+                        hiItems.forEach { Bullet(it) }
                     }
                 }
             }
         }
         Text(
-            "Full habit tracking lives in the Routine tab — this is the challenge plan.",
+            Strings.s("posture_foot", hi),
             fontSize = 12.sp,
             color = PslGrey,
             modifier = Modifier.padding(top = 6.dp)
@@ -625,18 +657,32 @@ private val SEASON_QUESTIONS = listOf(
 
 @Composable
 fun SeasonQuizCard(report: PslReport?) {
+    // v2.6-hinglish: season quiz translated by index key.
+    val hi = LanguageStore.isHinglish
+    val questions = remember(hi) {
+        SEASON_QUESTIONS.mapIndexed { qi, q ->
+            val tKey = "season_q$qi"
+            val wKey = "season_q${qi}w"
+            val cKey = "season_q${qi}c"
+            SeasonQuestion(
+                Strings.s(tKey, hi).let { if (it == tKey) q.title else it },
+                Strings.s(wKey, hi).let { if (it == wKey) q.warmOption else it },
+                Strings.s(cKey, hi).let { if (it == cKey) q.coolOption else it }
+            )
+        }
+    }
     val answers = remember { mutableStateListOf<Boolean?>().apply { repeat(SEASON_QUESTIONS.size) { add(null) } } }
     val done = answers.all { it != null }
 
     Column(Modifier.fillMaxWidth()) {
-        CapsLabel("COLOR SEASON")
+        CapsLabel(Strings.s("caps_season", hi))
         Spacer(Modifier.height(8.dp))
         if (!done) {
             SectionCard(
-                title = "Find your season",
-                subtitle = "3 questions — wear the colors that make your skin look alive."
+                title = Strings.s("season_title", hi),
+                subtitle = Strings.s("season_sub", hi)
             ) {
-                SEASON_QUESTIONS.forEachIndexed { qi, q ->
+                questions.forEachIndexed { qi, q ->
                     Text(q.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = PslText)
                     Spacer(Modifier.height(4.dp))
                     QuizOption(q.warmOption, answers[qi] == true) { answers[qi] = true }
@@ -651,7 +697,7 @@ fun SeasonQuizCard(report: PslReport?) {
             SeasonResultContent(season)
             Spacer(Modifier.height(6.dp))
             Text(
-                "Retake quiz",
+                Strings.s("retake_quiz", hi),
                 fontSize = 13.sp,
                 color = PslBlue,
                 fontWeight = FontWeight.SemiBold,
