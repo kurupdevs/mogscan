@@ -1,38 +1,32 @@
 package com.kurupdevs.moggr.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val MogPurple = Color(0xFF7C5CFF)
-private val MogPurpleDark = Color(0xFF5A3FD4)
+private val MogBlue = Color(0xFF2F6BFF)
+private val MogBlueDark = Color(0xFF1E4FD1)
 
-private val DarkColors = darkColorScheme(
-    primary = MogPurple,
-    onPrimary = Color.White,
-    background = Color(0xFF0E0E12),
-    surface = Color(0xFF15151C),
-    surfaceVariant = Color(0xFF1E1E28),
-    onBackground = Color(0xFFF2F0FA),
-    onSurface = Color(0xFFF2F0FA),
-    onSurfaceVariant = Color(0xFFB9B4CC)
-)
-
+/** Always-light fintech theme: white cards on a soft blue-grey background. */
 private val LightColors = lightColorScheme(
-    primary = MogPurpleDark,
-    onPrimary = Color.White
+    primary = MogBlue,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFE3EBFF),
+    onPrimaryContainer = MogBlueDark,
+    background = Color(0xFFF4F6FB),
+    onBackground = Color(0xFF101828),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF101828),
+    surfaceVariant = Color(0xFFEAF0FA),
+    onSurfaceVariant = Color(0xFF667085),
+    outline = Color(0xFFD0D5DD)
 )
 
 @Composable
-fun MoggrTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
+fun MoggrTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
+        colorScheme = LightColors,
         content = content
     )
 }
