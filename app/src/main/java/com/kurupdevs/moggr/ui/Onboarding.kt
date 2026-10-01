@@ -46,6 +46,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -59,12 +61,56 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import java.util.Calendar
 
-val PslBlue = Color(0xFF2F6BFF)
-val PslBlack = Color(0xFFF4F6FB)
+val PslBlue = Color(0xFFE07856)
+val PslBlack = Color(0xFFFAF7F1)
 val PslCard = Color(0xFFFFFFFF)
-val PslGrey = Color(0xFF667085)
-val PslText = Color(0xFF101828)
-val PslDeep = Color(0xFF1B2A6B)
+val PslGrey = Color(0xFF78716C)
+val PslText = Color(0xFF1C1917)
+val PslDeep = Color(0xFF1C1917)
+val MogSerif = FontFamily.Serif
+
+/** Small letter-spaced uppercase label, e.g. "TODAY'S THOUGHT". */
+@Composable
+fun CapsLabel(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text.uppercase(),
+        fontSize = 11.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = PslGrey,
+        letterSpacing = 2.sp,
+        modifier = modifier
+    )
+}
+
+/** Rounded pill chip; selected state is filled ink like the reference UI. */
+@Composable
+fun MogChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (selected) PslText else Color.Transparent)
+            .border(
+                1.dp,
+                if (selected) PslText else Color(0xFFE2DCD2),
+                RoundedCornerShape(50)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (selected) PslBlack else PslText
+        )
+    }
+}
 
 // ---------- Intro: full-screen looping video, Get started only ----------
 
@@ -104,10 +150,20 @@ fun IntroVideoScreen(onGetStarted: () -> Unit) {
                 .fillMaxWidth()
                 .padding(24.dp)
                 .height(56.dp),
-            shape = RoundedCornerShape(14.dp)
+            shape = RoundedCornerShape(50)
         ) {
             Text("Get started", fontSize = 17.sp, fontWeight = FontWeight.Bold)
         }
+        Text(
+            "Moggr",
+            fontFamily = MogSerif,
+            fontStyle = FontStyle.Italic,
+            fontSize = 30.sp,
+            color = Color.White,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 64.dp)
+        )
     }
 }
 
@@ -162,11 +218,15 @@ fun QuestionFlow(
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp)),
                 color = PslBlue,
-                trackColor = Color(0xFFE4E9F2)
+                trackColor = Color(0xFFEDE7DB)
             )
             Spacer(Modifier.size(40.dp))
         }
         Spacer(Modifier.height(24.dp))
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            CapsLabel("STEP ${step + 1} OF $totalSteps")
+        }
+        Spacer(Modifier.height(16.dp))
 
         when (step) {
             0 -> {
@@ -381,10 +441,12 @@ private fun WheelColumn(
 private fun QuestionTitle(title: String, subtitle: String) {
     Text(
         title,
-        fontSize = 24.sp,
+        fontFamily = MogSerif,
+        fontSize = 30.sp,
         fontWeight = FontWeight.Bold,
         color = PslText,
         textAlign = TextAlign.Center,
+        lineHeight = 36.sp,
         modifier = Modifier.fillMaxWidth()
     )
     Spacer(Modifier.height(10.dp))
@@ -400,7 +462,7 @@ private fun QuestionTitle(title: String, subtitle: String) {
     Spacer(Modifier.height(28.dp))
 }
 
-/** White option cards with a checkbox square, like the reference. */
+/** Pill option rows — full-width rounded pills, selected fills ink. */
 @Composable
 private fun OptionList(options: List<String>, selected: String, onSelect: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -409,41 +471,24 @@ private fun OptionList(options: List<String>, selected: String, onSelect: (Strin
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color.White)
+                    .clip(RoundedCornerShape(50))
+                    .background(if (isSel) PslText else Color.White)
                     .border(
-                        width = if (isSel) 2.dp else 1.dp,
-                        color = if (isSel) PslBlue else Color(0xFFE4E9F2),
-                        shape = RoundedCornerShape(14.dp)
+                        width = 1.dp,
+                        color = if (isSel) PslText else Color(0xFFEDE7DB),
+                        shape = RoundedCornerShape(50)
                     )
                     .clickable { onSelect(opt) }
-                    .padding(horizontal = 18.dp, vertical = 17.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(22.dp)
-                        .border(
-                            2.dp,
-                            if (isSel) PslBlue else Color(0xFFD0D5DD),
-                            RoundedCornerShape(6.dp)
-                        )
-                        .background(
-                            if (isSel) PslBlue else Color.Transparent,
-                            RoundedCornerShape(6.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isSel) {
-                        Text("✓", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-                Spacer(Modifier.size(14.dp))
                 Text(
                     opt,
-                    fontSize = 17.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = PslText
+                    color = if (isSel) PslBlack else PslText,
+                    textAlign = TextAlign.Center
                 )
             }
         }
@@ -457,14 +502,14 @@ private fun PslNextButton(text: String, enabled: Boolean, onClick: () -> Unit) {
         enabled = enabled,
         colors = ButtonDefaults.buttonColors(
             containerColor = PslBlue,
-            disabledContainerColor = Color(0xFFE4E9F2),
+            disabledContainerColor = Color(0xFFEDE7DB),
             contentColor = Color.White,
             disabledContentColor = Color(0xFF98A2B3)
         ),
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp),
-        shape = RoundedCornerShape(14.dp)
+        shape = RoundedCornerShape(50)
     ) {
         Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
     }
@@ -485,7 +530,7 @@ private fun textFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedTextColor = PslText,
     unfocusedTextColor = PslText,
     focusedBorderColor = PslBlue,
-    unfocusedBorderColor = Color(0xFFD0D5DD),
+    unfocusedBorderColor = Color(0xFFD8D0C2),
     cursorColor = PslBlue,
     focusedContainerColor = PslCard,
     unfocusedContainerColor = PslCard
