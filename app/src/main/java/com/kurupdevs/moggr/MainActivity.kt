@@ -41,6 +41,7 @@ import com.kurupdevs.moggr.analysis.AnalysisViewModel
 import com.kurupdevs.moggr.camera.CameraCapture
 import com.kurupdevs.moggr.ui.AnalysisErrorState
 import com.kurupdevs.moggr.ui.AnalyzingScreen
+import com.kurupdevs.moggr.ui.CoachScreen
 import com.kurupdevs.moggr.ui.InfoSlidesScreen
 import com.kurupdevs.moggr.ui.IntroVideoScreen
 import com.kurupdevs.moggr.ui.PslBlack
