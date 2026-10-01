@@ -46,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -190,46 +191,60 @@ fun CoachScreen(
             .fillMaxSize()
             .background(MoggrBg)
     ) {
-        // Top bar
-        Row(
+        // Full photo header — this is the Coach now
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .height(210.dp)
         ) {
-            TextButton(onClick = onBack) {
-                Text("‹ Back", color = PslBlue, fontSize = 16.sp)
-            }
             Image(
                 painter = painterResource(id = R.drawable.moggr_coach),
                 contentDescription = "Moggr Coach",
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(CircleShape),
+                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
-            Spacer(Modifier.width(10.dp))
-            Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.35f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.55f)
+                            )
+                        )
+                    )
+            )
+            TextButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.88f))
+            ) {
+                Text("‹ Back", color = PslText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            }
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(16.dp)
+            ) {
                 Text(
                     "Moggr Coach",
                     fontFamily = MogSerif,
-                    color = PslText,
-                    fontSize = 20.sp,
+                    color = Color.White,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     "Looksmaxing AI · softmaxxing guidance · blunt & honest",
-                    color = PslGrey,
+                    color = Color.White.copy(alpha = 0.85f),
                     fontSize = 12.sp
                 )
             }
         }
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(Color(0xFFEDE7DB))
-        )
 
         // Messages
         LazyColumn(
