@@ -1,6 +1,8 @@
 package com.kurupdevs.moggr.ui
 
 import android.content.Intent
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -33,12 +36,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kurupdevs.moggr.analysis.AnalysisUiState
+import com.kurupdevs.moggr.analysis.FeatureScore
+import com.kurupdevs.moggr.analysis.PillarScore
 import com.kurupdevs.moggr.analysis.PslReport
 import com.kurupdevs.moggr.util.ProfileStore
 import com.kurupdevs.moggr.util.UserProfile
@@ -136,101 +143,136 @@ fun AnalyzingScreen() {
     }
 }
 
-// ---------- Results ----------
+// ---------- Results (home style: photo + Overall + stat cards) ----------
 
 @Composable
 fun ResultScreen(
     report: PslReport,
     profile: UserProfile?,
+    photo: Bitmap?,
     onRescan: () -> Unit,
-    onAskCoach: () -> Unit
+    onNext: () -> Unit
 ) {
     val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(PslBlack)
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp)
     ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp)
+        ) {
+            ReportBody(report = report, profile = profile, photo = photo)
+            Spacer(Modifier.height(20.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onRescan,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(54.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("Scan again", color = Color.White)
+                }
+                OutlinedButton(
+                    onClick = { shareReport(context, profile, report) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(54.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("Share", color = Color.White)
+                }
+            }
+        }
+        Button(
+            onClick = onNext,
+            colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Text("NEXT", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+        }
+    }
+}
+
+@Composable
+fun ReportBody(
+    report: PslReport,
+    profile: UserProfile?,
+    photo: Bitmap?
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        photo?.let {
+            Image(
+                bitmap = it.asImageBitmap(),
+                contentDescription = "Your scan photo",
+                modifier = Modifier
+                    .size(170.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .align(Alignment.CenterHorizontally),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(Modifier.height(16.dp))
+        }
         Text(
-            text = "You Will Ascend By",
-            fontSize = 13.sp,
-            color = PslGrey,
+            text = if (profile != null) "${profile.name}'s Overall" else "Overall",
+            fontSize = 27.sp,
+            fontWeight = FontWeight.Bold,
+            color = PslBlue,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = if (profile != null) "${profile.name}'s PSL report" else "Your PSL report",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
             text = "Read from ${report.anglesRead} of 3 angles · 100% on-device · free forever",
             fontSize = 12.sp,
-            color = PslGrey
-        )
-        if (profile != null) {
-            val age = ProfileStore.ageYears(profile.dobMillis)
-            if (age in 1..20) {
-                Spacer(Modifier.height(8.dp))
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E2A38)),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        "You're $age — your growth plates may still be open, so posture, " +
-                            "sleep and habits move the needle even more for you right now.",
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(12.dp)
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(20.dp))
-        // Hero score
-        Card(
-            colors = CardDefaults.cardColors(containerColor = PslCard),
-            shape = RoundedCornerShape(20.dp),
+            color = PslGrey,
+            textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(14.dp))
+
+        val potential = (report.overallPsl + 1.5).coerceAtMost(8.0)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    String.format(Locale.US, "%.1f", report.overallPsl),
-                    fontSize = 72.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = PslBlue
-                )
-                Text(
-                    "≈ ${String.format(Locale.US, "%.1f", report.decile)}/10 decile · ~${ordinal(report.percentile)} percentile",
-                    fontSize = 16.sp,
-                    color = PslGrey,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(pslLabel(report.overallPsl), fontSize = 15.sp, color = Color.White)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "${report.failoCount} failos · ${report.haloCount} halos",
-                    fontSize = 12.sp,
-                    color = PslGrey
-                )
-            }
+            HeroCard(
+                title = "PSL",
+                score = report.overallPsl,
+                sub = pslTierShort(report.overallPsl),
+                barColor = scoreColor(report.overallPsl),
+                modifier = Modifier.weight(1f)
+            )
+            HeroCard(
+                title = "POTENTIAL",
+                score = potential,
+                sub = pslTierShort(potential) + " est.",
+                barColor = Color(0xFF4ADE80),
+                modifier = Modifier.weight(1f)
+            )
         }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "${report.failoCount} failos · ${report.haloCount} halos · potential is a rough ceiling with consistent softmaxxing",
+            fontSize = 11.sp,
+            color = PslGrey,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         if (report.photoNotes.isNotEmpty()) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(14.dp))
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2113)),
                 shape = RoundedCornerShape(14.dp),
@@ -240,112 +282,57 @@ fun ResultScreen(
                     Text("Photo check", fontWeight = FontWeight.SemiBold, color = Color(0xFFFBBF24), fontSize = 15.sp)
                     Spacer(Modifier.height(6.dp))
                     report.photoNotes.forEach { n ->
-                        Text("⚠ $n", fontSize = 13.sp, color = Color.White)
+                        Text("• $n", fontSize = 13.sp, color = Color.White)
                         Spacer(Modifier.height(4.dp))
                     }
                 }
             }
         }
 
+        Spacer(Modifier.height(18.dp))
+        SectionTitle("Feature scores")
+        Text(
+            "Every measurement, scored 1–8 against community ideals",
+            fontSize = 13.sp,
+            color = PslGrey
+        )
+        Spacer(Modifier.height(10.dp))
+        report.features.chunked(2).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                row.forEach { f -> FeatureCard(f, Modifier.weight(1f)) }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
         if (report.pillars.isNotEmpty()) {
-            Spacer(Modifier.height(24.dp))
-            SectionTitle("The 4 Pillars")
+            Spacer(Modifier.height(10.dp))
+            SectionTitle("The 4 pillars")
             Text(
-                "How experienced raters actually score a face — harmony first",
+                "How experienced raters actually weigh a face — harmony first",
                 fontSize = 13.sp,
                 color = PslGrey
             )
             Spacer(Modifier.height(10.dp))
-            report.pillars.forEach { p ->
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = PslCard),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 5.dp)
+            report.pillars.chunked(2).forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(p.name, fontWeight = FontWeight.SemiBold, color = Color.White, fontSize = 16.sp)
-                            Text(
-                                String.format(Locale.US, "%.1f", p.score),
-                                fontWeight = FontWeight.Bold,
-                                color = scoreColor(p.score),
-                                fontSize = 18.sp
-                            )
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        LinearProgressIndicator(
-                            progress = { (p.score / 8.0).toFloat() },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(7.dp)
-                                .clip(RoundedCornerShape(4.dp)),
-                            color = scoreColor(p.score),
-                            trackColor = Color(0xFF2A2A2A)
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Text(p.note, fontSize = 13.sp, color = PslGrey)
-                    }
+                    row.forEach { p -> PillarCard(p, Modifier.weight(1f)) }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
                 }
-            }
-        }
-
-        Spacer(Modifier.height(24.dp))
-        SectionTitle("Facial Geometry Analysis")
-        Spacer(Modifier.height(10.dp))
-        report.features.forEach { f ->
-            Card(
-                colors = CardDefaults.cardColors(containerColor = PslCard),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 5.dp)
-            ) {
-                Column(Modifier.padding(14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(f.name, fontWeight = FontWeight.SemiBold, color = Color.White, fontSize = 16.sp)
-                        Text(
-                            String.format(Locale.US, "%.1f", f.score),
-                            fontWeight = FontWeight.Bold,
-                            color = scoreColor(f.score),
-                            fontSize = 18.sp
-                        )
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = { (f.score / 8.0).toFloat() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(7.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                        color = scoreColor(f.score),
-                        trackColor = Color(0xFF2A2A2A)
-                    )
-                    if (f.note.isNotBlank()) {
-                        Spacer(Modifier.height(6.dp))
-                        Text(f.note, fontSize = 13.sp, color = PslGrey)
-                    }
-                }
+                Spacer(Modifier.height(12.dp))
             }
         }
 
         if (report.strengths.isNotEmpty()) {
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(10.dp))
             SectionTitle("Halos")
-            Text(
-                "Your best features, in order of importance",
-                fontSize = 13.sp,
-                color = PslGrey
-            )
+            Text("Your best features, in order of importance", fontSize = 13.sp, color = PslGrey)
             Spacer(Modifier.height(10.dp))
             report.strengths.forEach { s ->
                 Card(
@@ -364,8 +351,8 @@ fun ResultScreen(
         }
 
         if (report.improvements.isNotEmpty()) {
-            Spacer(Modifier.height(24.dp))
-            SectionTitle("Your Ascension Roadmap")
+            Spacer(Modifier.height(18.dp))
+            SectionTitle("Your ascension roadmap")
             Text(
                 "Concrete steps for your weakest features — no surgery, ever",
                 fontSize = 13.sp,
@@ -397,50 +384,13 @@ fun ResultScreen(
         }
 
         if (report.summary.isNotBlank()) {
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(18.dp))
             SectionTitle("Summary")
             Spacer(Modifier.height(8.dp))
             Text(report.summary, color = Color.White, fontSize = 15.sp)
         }
 
-        Spacer(Modifier.height(28.dp))
-        // Bottom options
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            OutlinedButton(
-                onClick = onRescan,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(54.dp),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Text("Scan again", color = Color.White)
-            }
-            Button(
-                onClick = { shareReport(context, profile, report) },
-                colors = ButtonDefaults.buttonColors(containerColor = PslBlue),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(54.dp),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Text("Share report", fontWeight = FontWeight.Bold)
-            }
-        }
-        Spacer(Modifier.height(12.dp))
-        Button(
-            onClick = onAskCoach,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E2A38)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp),
-            shape = RoundedCornerShape(14.dp)
-        ) {
-            Text("Ask Moggr Coach", color = PslBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
         Text(
             "Community-benchmark estimate, not a medical measurement — PSL ratios are " +
                 "looksmaxxing-community conventions, not validated science. Scores come from " +
@@ -452,11 +402,154 @@ fun ResultScreen(
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(Modifier.height(20.dp))
     }
 }
 
-private fun shareReport(context: android.content.Context, profile: UserProfile?, report: PslReport) {
+@Composable
+private fun HeroCard(
+    title: String,
+    score: Double,
+    sub: String,
+    barColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = PslCard),
+        shape = RoundedCornerShape(18.dp),
+        modifier = modifier
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                title,
+                color = PslBlue,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                letterSpacing = 1.sp
+            )
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    String.format(Locale.US, "%.1f", score),
+                    fontSize = 34.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("• $sub", fontSize = 13.sp, color = PslGrey)
+            }
+            Spacer(Modifier.height(10.dp))
+            LinearProgressIndicator(
+                progress = { (score / 8.0).toFloat().coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = barColor,
+                trackColor = Color(0xFF2A2A2A)
+            )
+        }
+    }
+}
+
+@Composable
+private fun FeatureCard(f: FeatureScore, modifier: Modifier = Modifier) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = PslCard),
+        shape = RoundedCornerShape(18.dp),
+        modifier = modifier
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Text(
+                f.name.uppercase(),
+                color = PslBlue,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                letterSpacing = 0.5.sp
+            )
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    String.format(Locale.US, "%.1f", f.score),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("• ${featLabel(f.score)}", fontSize = 12.sp, color = PslGrey)
+            }
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { (f.score / 8.0).toFloat().coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(7.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = scoreColor(f.score),
+                trackColor = Color(0xFF2A2A2A)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PillarCard(p: PillarScore, modifier: Modifier = Modifier) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = PslCard),
+        shape = RoundedCornerShape(18.dp),
+        modifier = modifier
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Text(
+                p.name.uppercase(),
+                color = PslBlue,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                letterSpacing = 0.5.sp
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                String.format(Locale.US, "%.1f", p.score),
+                fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White
+            )
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { (p.score / 8.0).toFloat().coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(7.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = scoreColor(p.score),
+                trackColor = Color(0xFF2A2A2A)
+            )
+            if (p.note.isNotBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Text(p.note, fontSize = 12.sp, color = PslGrey)
+            }
+        }
+    }
+}
+
+private fun featLabel(score: Double): String = when {
+    score >= 7.0 -> "Excellent"
+    score >= 6.0 -> "Good"
+    score >= 4.5 -> "Average"
+    score >= 3.0 -> "Below avg"
+    else -> "Weak"
+}
+
+private fun pslTierShort(psl: Double): String = when {
+    psl >= 7.75 -> "Gigachad"
+    psl >= 7.0 -> "Chad"
+    psl >= 6.0 -> "Chadlite"
+    psl >= 5.0 -> "HTN"
+    psl >= 3.0 -> "MTN"
+    psl >= 1.4 -> "LTN"
+    else -> "Sub-5"
+}
+
+fun shareReport(context: android.content.Context, profile: UserProfile?, report: PslReport) {
     val top = report.features.sortedByDescending { it.score }.take(3)
         .joinToString(", ") { "${it.name} ${String.format(Locale.US, "%.1f", it.score)}" }
     val text = buildString {

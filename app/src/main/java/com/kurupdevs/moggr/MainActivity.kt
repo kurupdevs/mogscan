@@ -41,9 +41,9 @@ import com.kurupdevs.moggr.analysis.AnalysisViewModel
 import com.kurupdevs.moggr.camera.CameraCapture
 import com.kurupdevs.moggr.ui.AnalysisErrorState
 import com.kurupdevs.moggr.ui.AnalyzingScreen
-import com.kurupdevs.moggr.ui.CoachScreen
 import com.kurupdevs.moggr.ui.InfoSlidesScreen
 import com.kurupdevs.moggr.ui.IntroVideoScreen
+import com.kurupdevs.moggr.ui.MainTabs
 import com.kurupdevs.moggr.ui.PslBlack
 import com.kurupdevs.moggr.ui.PslBlue
 import com.kurupdevs.moggr.ui.PslGrey
@@ -51,10 +51,11 @@ import com.kurupdevs.moggr.ui.QuestionFlow
 import com.kurupdevs.moggr.ui.ResultScreen
 import com.kurupdevs.moggr.ui.theme.MoggrTheme
 import com.kurupdevs.moggr.util.ProfileStore
+import com.kurupdevs.moggr.util.ReportStore
 import com.kurupdevs.moggr.util.UserProfile
 import kotlinx.coroutines.delay
 
-private enum class Screen { INTRO, INFO, QUESTIONS, CAMERA, ANALYZING, RESULT, COACH }
+private enum class Screen { INTRO, INFO, QUESTIONS, CAMERA, ANALYZING, RESULT, MAIN }
 
 class MainActivity : ComponentActivity() {
 
@@ -101,11 +102,16 @@ private fun MoggrApp() {
     val analysisState by vm.uiState.collectAsState()
 
     // Advance from ANALYZING once the animation has played AND the result is ready.
+    // The report + front photo are saved permanently so the user never re-scans.
     LaunchedEffect(analysisState, analyzingMinDone, screen) {
         if (screen != Screen.ANALYZING) return@LaunchedEffect
         if (!analyzingMinDone) return@LaunchedEffect
-        when (analysisState) {
-            is AnalysisUiState.Success -> screen = Screen.RESULT
+        val s = analysisState
+        when (s) {
+            is AnalysisUiState.Success -> {
+                ReportStore.save(context, s.report, pendingPhotos?.first)
+                screen = Screen.RESULT
+            }
             is AnalysisUiState.Error -> {
                 pendingPhotos = null
                 vm.reset()
@@ -120,7 +126,11 @@ private fun MoggrApp() {
             IntroVideoScreen(
                 onGetStarted = {
                     profile = ProfileStore.load(context)
-                    screen = if (profile != null) Screen.CAMERA else Screen.INFO
+                    screen = when {
+                        profile != null && ReportStore.hasSaved(context) -> Screen.MAIN
+                        profile != null -> Screen.CAMERA
+                        else -> Screen.INFO
+                    }
                 }
             )
         }
@@ -187,23 +197,31 @@ private fun MoggrApp() {
                 ResultScreen(
                     report = s.report,
                     profile = profile ?: ProfileStore.load(context),
+                    photo = pendingPhotos?.first,
                     onRescan = {
                         vm.reset()
                         pendingPhotos = null
                         screen = Screen.CAMERA
                     },
-                    onAskCoach = { screen = Screen.COACH }
+                    onNext = { screen = Screen.MAIN }
                 )
             } else {
                 LaunchedEffect(Unit) { screen = Screen.CAMERA }
             }
         }
-        Screen.COACH -> {
+        Screen.MAIN -> {
             val s = analysisState
-            CoachScreen(
-                report = (s as? AnalysisUiState.Success)?.report,
+            MainTabs(
+                report = (s as? AnalysisUiState.Success)?.report
+                    ?: ReportStore.loadReport(context),
+                profile = profile ?: ProfileStore.load(context),
+                frontPhoto = pendingPhotos?.first ?: ReportStore.loadPhoto(context),
                 userName = (profile ?: ProfileStore.load(context))?.name.orEmpty(),
-                onBack = { screen = Screen.RESULT }
+                onRescan = {
+                    vm.reset()
+                    pendingPhotos = null
+                    screen = Screen.CAMERA
+                }
             )
         }
     }
