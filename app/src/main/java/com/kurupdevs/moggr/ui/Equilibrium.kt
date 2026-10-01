@@ -311,3 +311,47 @@ fun EqBody(text: String, modifier: Modifier = Modifier, size: Int = 14) {
         color = EqInkSoft
     )
 }
+
+/** Frosted dark-glass card for full-bleed photo backgrounds (reference screen-2 style).
+ * Translucent white over a dark scrim; content is expected to use white text. */
+@Composable
+fun EqDarkGlassCard(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(28.dp))
+            .background(Color.White.copy(alpha = 0.14f))
+            .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(28.dp))
+            .padding(20.dp),
+        contentAlignment = Alignment.TopStart
+    ) {
+        content()
+    }
+}
+
+/** Frosted translucent pill button for photo backgrounds. */
+@Composable
+fun EqFrostPillButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(Color.White.copy(alpha = 0.20f))
+            .border(1.dp, Color.White.copy(alpha = 0.30f), RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 26.dp, vertical = 14.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+            color = Color.White
+        )
+    }
+}

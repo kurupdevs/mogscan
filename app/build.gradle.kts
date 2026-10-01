@@ -14,8 +14,8 @@ android {
         applicationId = "com.kurupdevs.moggr"
         minSdk = 26
         targetSdk = 34
-        versionCode = 19
-        versionName = "2.8"
+        versionCode = 20
+        versionName = "2.9"
     }
 
     // Release signing comes ONLY from environment (GitHub Actions secrets).

@@ -44,6 +44,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import com.kurupdevs.moggr.R
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -118,8 +122,8 @@ fun MainTabs(
                         .clip(RoundedCornerShape(24.dp))
                         .background(Color.White.copy(alpha = 0.72f))
                         .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(24.dp))
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(1.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     tabs.forEachIndexed { idx, t ->
@@ -131,16 +135,16 @@ fun MainTabs(
                                 .clip(RoundedCornerShape(18.dp))
                                 .background(if (selected) EqPillDark else Color.Transparent)
                                 .clickable { tab = idx }
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                                .padding(horizontal = 13.dp, vertical = 7.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
                                 t.icon,
                                 contentDescription = label,
                                 tint = if (selected) Color.White else EqMuted,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(1.dp))
                             Text(
                                 label,
                                 fontSize = 10.sp,
@@ -274,12 +278,27 @@ private fun HomeTab(
     // v2.6-voice: voice check overlay toggle
     var showVoice by remember { mutableStateOf(false) }
     if (report == null) {
-        // v2.6-hinglish begin: welcome screen — toggle up top, translated copy.
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MoggrBg)
-        ) {
+        // v2.9: full-bleed photo welcome, reference screen-1 style.
+        Box(modifier = Modifier.fillMaxSize()) {
+            Image(
+                painter = painterResource(id = R.drawable.moggr_hero_bg),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = 0.35f),
+                                Color.Black.copy(alpha = 0.10f),
+                                Color.Black.copy(alpha = 0.70f)
+                            )
+                        )
+                    )
+            )
             LanguageToggle(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -288,212 +307,279 @@ private fun HomeTab(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                CapsLabel(Strings.s("home_welcome_caps", hi))
-                Spacer(Modifier.height(14.dp))
-                EqHeadline(
-                    text = Strings.s("home_hero1", hi) + "\n" + Strings.s("home_hero2", hi),
-                    size = 36,
-                    align = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = Strings.s("home_hero_sub", hi),
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                    color = PslGrey,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(28.dp))
-                EqPillButton(
-                    text = Strings.s("home_start_scan", hi),
-                    onClick = onRescan,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Spacer(Modifier.height(56.dp))
+                Column {
+                    Text(
+                        if (hi) "Apna best face\npao." else "Find your best\nface.",
+                        fontFamily = EqSerif,
+                        fontSize = 46.sp,
+                        lineHeight = 52.sp,
+                        color = Color.White
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        Strings.s("home_hero_sub", hi),
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp,
+                        color = Color.White.copy(alpha = 0.75f)
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.White.copy(alpha = 0.22f))
+                        .border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(50))
+                        .clickable { onRescan() }
+                        .padding(vertical = 18.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        Strings.s("home_start_scan", hi),
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
+                    )
+                }
             }
         }
         return
         // v2.6-hinglish end
     }
+    // v2.9: full-bleed photo home with frosted glass, reference screen-2 style.
     Box(modifier = Modifier.fillMaxSize()) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MoggrBg)
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp)
-    ) {
-        // v2.8: frosted greeting header, reference style.
-        val daypart = remember {
-            when (java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)) {
-                in 5..11 -> "morning"
-                in 12..16 -> "afternoon"
-                in 17..21 -> "evening"
-                else -> "night"
-            }
+        if (photo != null) {
+            Image(
+                bitmap = photo.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(40.dp),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Image(
+                painter = painterResource(id = R.drawable.moggr_home_bg),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
         }
-        EqGlassCard(modifier = Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (photo != null) {
-                    Image(
-                        bitmap = photo.asImageBitmap(),
-                        contentDescription = "You",
-                        modifier = Modifier.size(48.dp).clip(CircleShape),
-                        contentScale = ContentScale.Crop
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.Black.copy(alpha = 0.55f),
+                            Color.Black.copy(alpha = 0.35f),
+                            Color.Black.copy(alpha = 0.65f)
+                        )
                     )
-                } else {
+                )
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp)
+        ) {
+            val daypart = remember {
+                when (java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)) {
+                    in 5..11 -> "morning"
+                    in 12..16 -> "afternoon"
+                    in 17..21 -> "evening"
+                    else -> "night"
+                }
+            }
+            EqDarkGlassCard(modifier = Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (photo != null) {
+                        Image(
+                            bitmap = photo.asImageBitmap(),
+                            contentDescription = "You",
+                            modifier = Modifier.size(48.dp).clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier.size(48.dp).clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.25f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                (profile?.name?.firstOrNull()?.uppercase() ?: "M"),
+                                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            Strings.fmt("greet_good", hi, "d" to Strings.s("greet_$daypart", hi)),
+                            fontSize = 13.sp, color = Color.White.copy(alpha = 0.65f)
+                        )
+                        Text(
+                            if (hi) "Aaj ka glow kaisa hai?" else "How's your glow today?",
+                            fontFamily = EqSerif, fontStyle = FontStyle.Italic,
+                            fontSize = 18.sp, color = Color.White
+                        )
+                    }
+                    LanguageToggle()
+                }
+            }
+            Spacer(Modifier.height(18.dp))
+            Text(
+                if (hi) "AAJ KA FOCUS" else "TODAY'S FOCUS",
+                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 2.sp),
+                color = Color.White.copy(alpha = 0.55f)
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                Strings.s("home_know1", hi),
+                fontFamily = EqSerif, fontSize = 34.sp, color = Color.White, lineHeight = 38.sp
+            )
+            Text(
+                Strings.s("home_know2", hi),
+                fontFamily = EqSerif, fontStyle = FontStyle.Italic,
+                fontSize = 34.sp, color = Color.White, lineHeight = 38.sp
+            )
+            Spacer(Modifier.height(18.dp))
+
+            var showBreakdown by remember { mutableStateOf(false) }
+            val cal = remember { java.util.Calendar.getInstance() }
+            EqDarkGlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (hi) "TUMHARA SCORE" else "YOUR SCORE",
+                            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp),
+                            color = Color.White.copy(alpha = 0.55f),
+                            modifier = Modifier.weight(1f)
+                        )
+                        EqDateBadge(
+                            day = cal.get(java.util.Calendar.DAY_OF_MONTH).toString(),
+                            month = java.text.SimpleDateFormat("MMM", java.util.Locale.US).format(cal.time)
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            String.format(java.util.Locale.US, "%.1f", report.overallPsl),
+                            fontFamily = EqSerif, fontSize = 52.sp, color = Color.White, lineHeight = 54.sp
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.padding(bottom = 8.dp)) {
+                            Text(pslTierShort(report.overallPsl), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                            Text("PSL · 1–8 scale", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        report.summary,
+                        fontSize = 13.sp, lineHeight = 19.sp,
+                        color = Color.White.copy(alpha = 0.82f)
+                    )
+                    Spacer(Modifier.height(14.dp))
                     Box(
-                        modifier = Modifier.size(48.dp).clip(CircleShape).background(EqPillDark),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .clickable { showBreakdown = !showBreakdown }
+                            .padding(vertical = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            (profile?.name?.firstOrNull()?.uppercase() ?: "M"),
-                            color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp
+                            if (showBreakdown) (if (hi) "Chhupao" else "Hide breakdown")
+                            else (if (hi) "Poora breakdown" else "Full breakdown"),
+                            color = EqPillDark, fontWeight = FontWeight.Bold, fontSize = 15.sp
                         )
                     }
                 }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        Strings.fmt("greet_good", hi, "d" to Strings.s("greet_$daypart", hi)),
-                        fontSize = 13.sp, color = EqMuted
-                    )
-                    Text(
-                        if (hi) "Aaj ka glow kaisa hai?" else "How's your glow today?",
-                        fontFamily = EqSerif, fontStyle = FontStyle.Italic,
-                        fontSize = 18.sp, color = EqInk
-                    )
-                }
-                LanguageToggle()
             }
-        }
-        Spacer(Modifier.height(18.dp))
-        EqSectionLabel(if (hi) "AAJ KA FOCUS" else "TODAY'S FOCUS")
-        Spacer(Modifier.height(8.dp))
-        EqHeadline(text = Strings.s("home_know1", hi), size = 34)
-        Text(
-            Strings.s("home_know2", hi),
-            fontFamily = EqSerif, fontStyle = FontStyle.Italic,
-            fontSize = 34.sp, color = EqInk, lineHeight = 38.sp
-        )
-        Spacer(Modifier.height(18.dp))
+            if (showBreakdown) {
+                Spacer(Modifier.height(12.dp))
+                ReportBody(report = report, profile = profile, photo = photo)
+            }
+            Spacer(Modifier.height(20.dp))
 
-        // v2.8: score card, "Your Condition" style.
-        var showBreakdown by remember { mutableStateOf(false) }
-        val cal = remember { java.util.Calendar.getInstance() }
-        EqGlassCard(modifier = Modifier.fillMaxWidth()) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        if (hi) "TUMHARA SCORE" else "YOUR SCORE",
-                        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp),
-                        color = EqMuted, modifier = Modifier.weight(1f)
-                    )
-                    EqDateBadge(
-                        day = cal.get(java.util.Calendar.DAY_OF_MONTH).toString(),
-                        month = java.text.SimpleDateFormat("MMM", java.util.Locale.US).format(cal.time)
-                    )
-                }
-                Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        String.format(java.util.Locale.US, "%.1f", report.overallPsl),
-                        fontFamily = EqSerif, fontSize = 52.sp, color = EqInk, lineHeight = 54.sp
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.padding(bottom = 8.dp)) {
-                        Text(pslTierShort(report.overallPsl), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = EqInk)
-                        Text("PSL · 1–8 scale", fontSize = 12.sp, color = EqMuted)
-                    }
-                }
-                Spacer(Modifier.height(6.dp))
-                EqBody(report.summary, size = 13)
-                Spacer(Modifier.height(14.dp))
-                EqDarkPillButton(
-                    text = if (showBreakdown) (if (hi) "Chhupao" else "Hide breakdown")
-                           else (if (hi) "Poora breakdown" else "Full breakdown"),
-                    onClick = { showBreakdown = !showBreakdown },
-                    modifier = Modifier.fillMaxWidth()
+            Text(
+                if (hi) "QUICK ACTIONS" else "QUICK ACTIONS",
+                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 2.sp),
+                color = Color.White.copy(alpha = 0.55f)
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                EqPastelTile(
+                    title = if (hi) "Naya Scan" else "New Scan",
+                    subtitle = if (hi) "3 angle" else "3 angles",
+                    chip = if (hi) "Scan" else "Scan",
+                    tileColor = EqLavender, onClick = onRescan, modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(12.dp))
+                EqPastelTile(
+                    title = if (hi) "Coach" else "Coach",
+                    subtitle = if (hi) "Kuch bhi puchho" else "Ask anything",
+                    chip = if (hi) "Chat" else "Chat",
+                    tileColor = EqSage, onClick = { onGoTab(2) }, modifier = Modifier.weight(1f)
                 )
             }
-        }
-        if (showBreakdown) {
             Spacer(Modifier.height(12.dp))
-            ReportBody(report = report, profile = profile, photo = photo)
+            Row(modifier = Modifier.fillMaxWidth()) {
+                EqPastelTile(
+                    title = if (hi) "Routine" else "Routine",
+                    subtitle = if (hi) "Aaj ke tasks" else "Today's tasks",
+                    chip = if (hi) "Kholo" else "Open",
+                    tileColor = EqPeach, onClick = { onGoTab(3) }, modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(12.dp))
+                EqPastelTile(
+                    title = if (hi) "Voice" else "Voice",
+                    subtitle = if (hi) "10-sec check" else "10-sec check",
+                    chip = if (hi) "Check" else "Check",
+                    tileColor = EqRose, onClick = { showVoice = true }, modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(Modifier.height(20.dp))
+            Text(
+                Strings.s("caps_progress", hi),
+                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 2.sp),
+                color = Color.White.copy(alpha = 0.55f)
+            )
+            Spacer(Modifier.height(10.dp))
+            ProgressTimeline()
+            Spacer(Modifier.height(14.dp))
+            SleepMiniCard()
+            DebloatMorningMini()
+            Spacer(Modifier.height(14.dp))
+            ChallengesPromoCard(onChallenges = onChallenges)
+            Spacer(Modifier.height(6.dp))
+            VoiceCheckCard(onOpen = { showVoice = true })
+            Spacer(Modifier.height(20.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                EqFrostPillButton(
+                    text = Strings.s("scan_again", hi),
+                    onClick = onRescan,
+                    modifier = Modifier.weight(1f)
+                )
+                EqFrostPillButton(
+                    text = Strings.s("share_btn", hi),
+                    onClick = { shareReport(context, profile, report) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(Modifier.height(20.dp))
         }
-        Spacer(Modifier.height(20.dp))
-
-        // v2.8: quick-action pastel tiles.
-        EqSectionLabel(if (hi) "QUICK ACTIONS" else "QUICK ACTIONS")
-        Spacer(Modifier.height(10.dp))
-        Row(modifier = Modifier.fillMaxWidth()) {
-            EqPastelTile(
-                title = if (hi) "Naya Scan" else "New Scan",
-                subtitle = if (hi) "3 angle" else "3 angles",
-                chip = if (hi) "Scan" else "Scan",
-                tileColor = EqLavender, onClick = onRescan, modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(12.dp))
-            EqPastelTile(
-                title = if (hi) "Coach" else "Coach",
-                subtitle = if (hi) "Kuch bhi puchho" else "Ask anything",
-                chip = if (hi) "Chat" else "Chat",
-                tileColor = EqSage, onClick = { onGoTab(2) }, modifier = Modifier.weight(1f)
-            )
+        if (showVoice) {
+            VoiceCheckScreen(onClose = { showVoice = false })
         }
-        Spacer(Modifier.height(12.dp))
-        Row(modifier = Modifier.fillMaxWidth()) {
-            EqPastelTile(
-                title = if (hi) "Routine" else "Routine",
-                subtitle = if (hi) "Aaj ke tasks" else "Today's tasks",
-                chip = if (hi) "Kholo" else "Open",
-                tileColor = EqPeach, onClick = { onGoTab(3) }, modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(12.dp))
-            EqPastelTile(
-                title = if (hi) "Voice" else "Voice",
-                subtitle = if (hi) "10-sec check" else "10-sec check",
-                chip = if (hi) "Check" else "Check",
-                tileColor = EqRose, onClick = { showVoice = true }, modifier = Modifier.weight(1f)
-            )
-        }
-        Spacer(Modifier.height(20.dp))
-        EqSectionLabel(Strings.s("caps_progress", hi))
-        Spacer(Modifier.height(10.dp))
-        ProgressTimeline()
-        Spacer(Modifier.height(14.dp))
-        SleepMiniCard()
-        DebloatMorningMini()
-        Spacer(Modifier.height(14.dp))
-        ChallengesPromoCard(onChallenges = onChallenges)
-        Spacer(Modifier.height(6.dp))
-        VoiceCheckCard(onOpen = { showVoice = true })
-        Spacer(Modifier.height(20.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            EqTealPillButton(
-                text = Strings.s("scan_again", hi),
-                onClick = onRescan,
-                modifier = Modifier.weight(1f)
-            )
-            EqDarkPillButton(
-                text = Strings.s("share_btn", hi),
-                onClick = { shareReport(context, profile, report) },
-                modifier = Modifier.weight(1f)
-            )
-        }
-        Spacer(Modifier.height(20.dp))
-    }
-    if (showVoice) {
-        VoiceCheckScreen(onClose = { showVoice = false })
-    }
     }
 }
 
