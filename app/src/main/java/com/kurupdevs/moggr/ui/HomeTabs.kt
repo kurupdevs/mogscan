@@ -29,6 +29,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,12 +54,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kurupdevs.moggr.analysis.PslReport
-import com.kurupdevs.moggr.ui.theme.EqGreige
+import com.kurupdevs.moggr.ui.theme.EqInk
+import com.kurupdevs.moggr.ui.theme.EqLavender
 import com.kurupdevs.moggr.ui.theme.EqLine
 import com.kurupdevs.moggr.ui.theme.EqMuted
 import com.kurupdevs.moggr.ui.theme.EqPeach
 import com.kurupdevs.moggr.ui.theme.EqPillDark
+import com.kurupdevs.moggr.ui.theme.EqRose
 import com.kurupdevs.moggr.ui.theme.EqSage
+import com.kurupdevs.moggr.ui.theme.EqSerif
+import com.kurupdevs.moggr.ui.theme.EqTeal
 import com.kurupdevs.moggr.ui.theme.MogCoral
 import com.kurupdevs.moggr.util.PlanStore
 import com.kurupdevs.moggr.util.ReportStore
@@ -112,7 +117,7 @@ fun MainTabs(
                     modifier = Modifier
                         .shadow(16.dp, RoundedCornerShape(24.dp))
                         .clip(RoundedCornerShape(24.dp))
-                        .background(EqGreige.copy(alpha = 0.88f))
+                        .background(Color.White.copy(alpha = 0.72f))
                         .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(24.dp))
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -165,9 +170,10 @@ fun MainTabs(
                         profile = profile,
                         photo = frontPhoto,
                         onRescan = onRescan,
-                        onChallenges = { showChallenges = true }
+                        onChallenges = { showChallenges = true },
+                        onGoTab = { tab = it }
                     )
-                    1 -> MethodScreen(report = report)
+                    1 -> MethodScreen(report = report, onGoTab = { tab = it }, onRescan = onRescan)
                     // v2.6-hinglish: CoachScreen reads LanguageStore.isHinglish itself.
                     2 -> CoachScreen(report = report, userName = userName, onBack = { tab = 0 })
                     3 -> RoutineScreen(onChallenges = { showChallenges = true })
@@ -260,7 +266,8 @@ private fun HomeTab(
     profile: UserProfile?,
     photo: Bitmap?,
     onRescan: () -> Unit,
-    onChallenges: () -> Unit
+    onChallenges: () -> Unit,
+    onGoTab: (Int) -> Unit
 ) {
     val context = LocalContext.current
     // v2.6-hinglish: current app language.
@@ -304,7 +311,7 @@ private fun HomeTab(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(28.dp))
-                EqCoralPillButton(
+                EqPillButton(
                     text = Strings.s("home_start_scan", hi),
                     onClick = onRescan,
                     modifier = Modifier.fillMaxWidth()
@@ -322,7 +329,7 @@ private fun HomeTab(
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        // Greeting header, reference style
+        // v2.8: frosted greeting header, reference style.
         val daypart = remember {
             when (java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)) {
                 in 5..11 -> "morning"
@@ -331,71 +338,133 @@ private fun HomeTab(
                 else -> "night"
             }
         }
-        // v2.6-hinglish begin: translated greeting + EN/HI toggle in the header.
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (photo != null) {
-                Image(
-                    bitmap = photo.asImageBitmap(),
-                    contentDescription = "You",
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(PslDeep),
-                    contentAlignment = Alignment.Center
-                ) {
+        EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (photo != null) {
+                    Image(
+                        bitmap = photo.asImageBitmap(),
+                        contentDescription = "You",
+                        modifier = Modifier.size(48.dp).clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.size(48.dp).clip(CircleShape).background(EqPillDark),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            (profile?.name?.firstOrNull()?.uppercase() ?: "M"),
+                            color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp
+                        )
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
                     Text(
-                        (profile?.name?.firstOrNull()?.uppercase() ?: "M"),
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
+                        Strings.fmt("greet_good", hi, "d" to Strings.s("greet_$daypart", hi)),
+                        fontSize = 13.sp, color = EqMuted
+                    )
+                    Text(
+                        if (hi) "Aaj ka glow kaisa hai?" else "How's your glow today?",
+                        fontFamily = EqSerif, fontStyle = FontStyle.Italic,
+                        fontSize = 18.sp, color = EqInk
                     )
                 }
+                LanguageToggle()
             }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    Strings.fmt("greet_good", hi, "d" to Strings.s("greet_$daypart", hi)),
-                    fontSize = 13.sp,
-                    color = PslGrey
-                )
-                Text(
-                    if (!profile?.name.isNullOrBlank())
-                        Strings.fmt("home_hello_name", hi, "n" to profile!!.name)
-                    else Strings.s("home_hello", hi),
-                    fontFamily = EqSerif,
-                    fontStyle = FontStyle.Italic,
-                    fontSize = 18.sp,
-                    color = PslText
-                )
-            }
-            LanguageToggle()
         }
-        // v2.6-hinglish end
-        Spacer(Modifier.height(20.dp))
-        // v2.6-hinglish: translated hero lines.
-        EqHeadline(
-            text = Strings.s("home_know1", hi),
-            size = 34
-        )
+        Spacer(Modifier.height(18.dp))
+        EqSectionLabel(if (hi) "AAJ KA FOCUS" else "TODAY'S FOCUS")
+        Spacer(Modifier.height(8.dp))
+        EqHeadline(text = Strings.s("home_know1", hi), size = 34)
         Text(
             Strings.s("home_know2", hi),
-            fontFamily = EqSerif,
-            fontStyle = FontStyle.Italic,
-            fontSize = 34.sp,
-            color = PslText,
-            lineHeight = 38.sp
+            fontFamily = EqSerif, fontStyle = FontStyle.Italic,
+            fontSize = 34.sp, color = EqInk, lineHeight = 38.sp
         )
         Spacer(Modifier.height(18.dp))
-        ReportBody(report = report, profile = profile, photo = photo)
+
+        // v2.8: score card, "Your Condition" style.
+        var showBreakdown by remember { mutableStateOf(false) }
+        val cal = remember { java.util.Calendar.getInstance() }
+        EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (hi) "TUMHARA SCORE" else "YOUR SCORE",
+                        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp),
+                        color = EqMuted, modifier = Modifier.weight(1f)
+                    )
+                    EqDateBadge(
+                        day = cal.get(java.util.Calendar.DAY_OF_MONTH).toString(),
+                        month = java.text.SimpleDateFormat("MMM", java.util.Locale.US).format(cal.time)
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        String.format(java.util.Locale.US, "%.1f", report.overallPsl),
+                        fontFamily = EqSerif, fontSize = 52.sp, color = EqInk, lineHeight = 54.sp
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.padding(bottom = 8.dp)) {
+                        Text(pslTierShort(report.overallPsl), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = EqInk)
+                        Text("PSL · 1–8 scale", fontSize = 12.sp, color = EqMuted)
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                EqBody(report.summary, size = 13)
+                Spacer(Modifier.height(14.dp))
+                EqDarkPillButton(
+                    text = if (showBreakdown) (if (hi) "Chhupao" else "Hide breakdown")
+                           else (if (hi) "Poora breakdown" else "Full breakdown"),
+                    onClick = { showBreakdown = !showBreakdown },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+        if (showBreakdown) {
+            Spacer(Modifier.height(12.dp))
+            ReportBody(report = report, profile = profile, photo = photo)
+        }
         Spacer(Modifier.height(20.dp))
-        CapsLabel(Strings.s("caps_progress", hi))
+
+        // v2.8: quick-action pastel tiles.
+        EqSectionLabel(if (hi) "QUICK ACTIONS" else "QUICK ACTIONS")
+        Spacer(Modifier.height(10.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            EqPastelTile(
+                title = if (hi) "Naya Scan" else "New Scan",
+                subtitle = if (hi) "3 angle" else "3 angles",
+                chip = if (hi) "Scan" else "Scan",
+                tileColor = EqLavender, onClick = onRescan, modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(12.dp))
+            EqPastelTile(
+                title = if (hi) "Coach" else "Coach",
+                subtitle = if (hi) "Kuch bhi puchho" else "Ask anything",
+                chip = if (hi) "Chat" else "Chat",
+                tileColor = EqSage, onClick = { onGoTab(2) }, modifier = Modifier.weight(1f)
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            EqPastelTile(
+                title = if (hi) "Routine" else "Routine",
+                subtitle = if (hi) "Aaj ke tasks" else "Today's tasks",
+                chip = if (hi) "Kholo" else "Open",
+                tileColor = EqPeach, onClick = { onGoTab(3) }, modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(12.dp))
+            EqPastelTile(
+                title = if (hi) "Voice" else "Voice",
+                subtitle = if (hi) "10-sec check" else "10-sec check",
+                chip = if (hi) "Check" else "Check",
+                tileColor = EqRose, onClick = { showVoice = true }, modifier = Modifier.weight(1f)
+            )
+        }
+        Spacer(Modifier.height(20.dp))
+        EqSectionLabel(Strings.s("caps_progress", hi))
         Spacer(Modifier.height(10.dp))
         ProgressTimeline()
         Spacer(Modifier.height(14.dp))
@@ -410,12 +479,12 @@ private fun HomeTab(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            EqPillButton(
+            EqTealPillButton(
                 text = Strings.s("scan_again", hi),
                 onClick = onRescan,
                 modifier = Modifier.weight(1f)
             )
-            EqCoralPillButton(
+            EqDarkPillButton(
                 text = Strings.s("share_btn", hi),
                 onClick = { shareReport(context, profile, report) },
                 modifier = Modifier.weight(1f)
@@ -475,9 +544,13 @@ private fun VoiceCheckCard(onOpen: () -> Unit) {
 // ---------- Method: how the rating works ----------
 
 @Composable
-private fun MethodScreen(report: PslReport?) {
+@Composable
+private fun MethodScreen(
+    report: PslReport?,
+    onGoTab: (Int) -> Unit,
+    onRescan: () -> Unit
+) {
     val measuredCount = report?.features?.size ?: 15
-    // v2.6-hinglish begin: full Method tab translation.
     val hi = LanguageStore.isHinglish
     Column(
         modifier = Modifier
@@ -486,126 +559,173 @@ private fun MethodScreen(report: PslReport?) {
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        EqSectionLabel(Strings.s("caps_how", hi))
-        Spacer(Modifier.height(8.dp))
-        EqHeadline(
-            text = Strings.s("method_head1", hi),
-            size = 32
-        )
-        Text(
-            Strings.s("method_head2", hi),
-            fontFamily = EqSerif,
-            fontStyle = FontStyle.Italic,
-            fontSize = 32.sp,
-            color = PslText,
-            lineHeight = 36.sp
-        )
-        Spacer(Modifier.height(8.dp))
-        EqBody(Strings.s("method_sub", hi))
-        Spacer(Modifier.height(18.dp))
+        // v2.8: header with back chevron, reference style.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.6f))
+                    .clickable { onGoTab(0) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("‹", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = EqInk)
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                if (hi) "Scoring Kaise Hoti Hai" else "How Scoring Works",
+                fontFamily = EqSerif, fontSize = 22.sp, color = EqInk,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Spacer(Modifier.height(16.dp))
 
         SeasonCard(report)
         Spacer(Modifier.height(12.dp))
 
-        MethodSection(Strings.s("sec_how_scoring", hi)) {
-            EqBody(Strings.fmt("scoring_body", hi, "n" to "$measuredCount"))
+        EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column {
+                Text(
+                    if (hi) "Method" else "The Method",
+                    fontWeight = FontWeight.Bold, fontSize = 16.sp, color = EqInk
+                )
+                Spacer(Modifier.height(4.dp))
+                EqBody(Strings.fmt("scoring_body", hi, "n" to "$measuredCount"), size = 13)
+            }
         }
+        Spacer(Modifier.height(18.dp))
 
-        MethodSection(Strings.s("sec_pillars", hi)) {
-            PillarRow(Strings.s("pillar_harmony", hi), "40%", Strings.s("pillar_harmony_d", hi))
-            PillarRow(Strings.s("pillar_features", hi), "25%", Strings.s("pillar_features_d", hi))
-            PillarRow(Strings.s("pillar_dimorphism", hi), "20%", Strings.s("pillar_dimorphism_d", hi))
-            PillarRow(Strings.s("pillar_angularity", hi), "15%", Strings.s("pillar_angularity_d", hi))
-        }
-
-        MethodSection(Strings.fmt("sec_measurements", hi, "n" to "$measuredCount")) {
-            // v2.6-science: study citation per measurement; v2.6-hinglish: translated names/descs
-            val cites = listOf(
-                "Rhodes et al. (2006)",
-                "Farkas anthropometry",
-                "Farkas anthropometry",
-                "community benchmark \u2014 not a clinical measure",
-                "community benchmark \u2014 not a clinical measure",
-                "Carr\u00e9 & McCormick (2008)",
-                "community benchmark \u2014 not a clinical measure",
-                "community benchmark \u2014 not a clinical measure",
-                "community benchmark \u2014 not a clinical measure",
-                "community benchmark \u2014 not a clinical measure",
-                "community benchmark \u2014 not a clinical measure",
-                "community benchmark \u2014 not a clinical measure",
-                "community benchmark \u2014 not a clinical measure",
-                "community benchmark \u2014 not a clinical measure",
-                "community benchmark \u2014 not a clinical measure"
+        EqSectionLabel(if (hi) "TUMHARE PILLARS" else "YOUR PILLARS")
+        Spacer(Modifier.height(10.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            EqPastelTile(
+                title = Strings.s("pillar_harmony", hi),
+                subtitle = Strings.s("pillar_harmony_d", hi),
+                chip = "40%", tileColor = EqLavender, onClick = {}, modifier = Modifier.weight(1f)
             )
-            for (i in 0 until 15) {
-                Column(Modifier.padding(vertical = 5.dp)) {
-                    Row {
-                        Text("\u2022 ", color = PslBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text(
-                            buildString {
-                                append(Strings.s("meas_${i}_name", hi))
-                                append(" \u2014 ")
-                                append(Strings.s("meas_${i}_desc", hi))
-                            },
-                            fontSize = 14.sp,
-                            color = PslText
-                        )
+            Spacer(Modifier.width(12.dp))
+            EqPastelTile(
+                title = Strings.s("pillar_features", hi),
+                subtitle = Strings.s("pillar_features_d", hi),
+                chip = "25%", tileColor = EqSage, onClick = {}, modifier = Modifier.weight(1f)
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            EqPastelTile(
+                title = Strings.s("pillar_dimorphism", hi),
+                subtitle = Strings.s("pillar_dimorphism_d", hi),
+                chip = "20%", tileColor = EqPeach, onClick = {}, modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(12.dp))
+            EqPastelTile(
+                title = Strings.s("pillar_angularity", hi),
+                subtitle = Strings.s("pillar_angularity_d", hi),
+                chip = "15%", tileColor = EqRose, onClick = {}, modifier = Modifier.weight(1f)
+            )
+        }
+        Spacer(Modifier.height(18.dp))
+
+        EqSectionLabel(Strings.fmt("sec_measurements", hi, "n" to "$measuredCount"))
+        Spacer(Modifier.height(10.dp))
+        EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column {
+                val cites = listOf(
+                    "fwhr" to "Weston et al. 2007",
+                    "esr" to "Farkas 1994",
+                    "pfh" to "Farkas 1994",
+                    "jaw_frontal" to "Moggr landmark mesh",
+                    "cheek" to "Moggr landmark mesh",
+                    "chin" to "Moggr landmark mesh",
+                    "midface" to "Farkas 1994",
+                    "nasal" to "Farkas 1994",
+                    "lips" to "Farkas 1994",
+                    "jaw_side" to "Moggr landmark mesh",
+                    "ramus" to "Moggr landmark mesh",
+                    "gonial" to "Moggr landmark mesh",
+                    "dorsal" to "Moggr landmark mesh",
+                    "projection" to "Moggr landmark mesh",
+                    "symmetry" to "Rhodes 2006"
+                )
+                for (i in 0 until 15) {
+                    val name = Strings.s("m_$i", hi)
+                    val cite = cites.getOrNull(i)?.second ?: ""
+                    Column(Modifier.padding(vertical = 6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(name, color = EqInk, fontSize = 14.sp)
+                            Text(cite, color = EqMuted, fontSize = 11.sp)
+                        }
                     }
-                    Text(
-                        "Source: ${cites[i]}",
-                        fontSize = 11.sp,
-                        fontStyle = FontStyle.Italic,
-                        color = PslGrey,
-                        modifier = Modifier.padding(start = 16.dp, top = 2.dp)
-                    )
                 }
             }
-            // v2.6-science end
         }
+        Spacer(Modifier.height(18.dp))
 
-        MethodSection(Strings.s("sec_tiers", hi)) {
-            val tierScores = listOf("7.75+", "7.0+", "6.0+", "5.0+", "3.0+", "1.4+", "< 1.4")
-            tierScores.forEachIndexed { i, score ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(score, color = PslText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(Strings.s("tier_desc_$i", hi), color = PslGrey, fontSize = 14.sp)
+        EqSectionLabel(Strings.s("sec_tiers", hi))
+        Spacer(Modifier.height(10.dp))
+        EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column {
+                val tierScores = listOf("7.75+", "7.0+", "6.0+", "5.0+", "3.0+", "1.4+", "< 1.4")
+                tierScores.forEachIndexed { i, score ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(score, color = EqInk, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(Strings.s("tier_desc_$i", hi), color = EqMuted, fontSize = 14.sp)
+                    }
                 }
+                Spacer(Modifier.height(6.dp))
+                Text(Strings.s("tiers_note", hi), fontSize = 12.sp, color = EqMuted)
             }
-            Spacer(Modifier.height(6.dp))
-            Text(
-                Strings.s("tiers_note", hi),
-                fontSize = 12.sp,
-                color = PslGrey
-            )
         }
+        Spacer(Modifier.height(12.dp))
 
-        EqGlassCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 6.dp),
-            corner = EqRoundSm
-        ) {
+        EqGlassCard(modifier = Modifier.fillMaxWidth(), corner = EqRoundSm) {
             GuidesSection()
         }
+        Spacer(Modifier.height(18.dp))
 
-        MethodSection(Strings.s("caps_accurate", hi)) {
-            for (i in 0 until 5) {
-                Row(Modifier.padding(vertical = 4.dp)) {
-                    Text("• ", color = PslBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(Strings.s("scan_tip_$i", hi), fontSize = 14.sp, color = PslText)
+        EqSectionLabel(Strings.s("caps_accurate", hi))
+        Spacer(Modifier.height(10.dp))
+        EqGlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column {
+                for (i in 0 until 5) {
+                    Row(Modifier.padding(vertical = 4.dp)) {
+                        Text("• ", color = EqTeal, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(Strings.s("scan_tip_$i", hi), fontSize = 14.sp, color = EqInk)
+                    }
                 }
             }
         }
+        Spacer(Modifier.height(18.dp))
 
-        MethodSection(Strings.s("caps_honest", hi)) {
+        EqSectionLabel(Strings.s("caps_honest", hi))
+        Spacer(Modifier.height(10.dp))
+        EqGlassCard(modifier = Modifier.fillMaxWidth()) {
             EqBody(Strings.s("honest_body", hi))
         }
+        Spacer(Modifier.height(20.dp))
 
+        // v2.8: bottom CTAs, reference style.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            EqTealPillButton(
+                text = if (hi) "Coach se puchho" else "Ask Coach",
+                onClick = { onGoTab(2) },
+                modifier = Modifier.weight(1f)
+            )
+            EqDarkPillButton(
+                text = Strings.s("scan_again", hi),
+                onClick = onRescan,
+                modifier = Modifier.weight(1f)
+            )
+        }
         Spacer(Modifier.height(20.dp))
     }
     // v2.6-hinglish end

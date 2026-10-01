@@ -31,6 +31,9 @@ val EqSky = Color(0xFFD4E2EE)
 // Dark pill
 val EqPillDark = Color(0xFF23201B)
 
+// Teal accent (secondary pills, reference style)
+val EqTeal = Color(0xFF6FA8A0)
+
 /** Always-light warm greige theme: equilibrium-style calm, Moggr coral accent. */
 private val LightColors = lightColorScheme(
     primary = MogCoral,

@@ -35,6 +35,7 @@ import com.kurupdevs.moggr.ui.theme.EqInkSoft
 import com.kurupdevs.moggr.ui.theme.EqLine
 import com.kurupdevs.moggr.ui.theme.EqMuted
 import com.kurupdevs.moggr.ui.theme.EqPillDark
+import com.kurupdevs.moggr.ui.theme.EqTeal
 import com.kurupdevs.moggr.ui.theme.MogCoral
 
 /**
@@ -140,6 +141,31 @@ fun EqDarkPillButton(
         modifier = modifier
             .clip(RoundedCornerShape(50))
             .background(if (enabled) EqPillDark else EqMuted.copy(alpha = 0.5f))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 26.dp, vertical = 14.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+            color = Color.White
+        )
+    }
+}
+
+/** Teal pill button (secondary CTA, reference style). */
+@Composable
+fun EqTealPillButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (enabled) EqTeal else EqMuted.copy(alpha = 0.5f))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 26.dp, vertical = 14.dp),
         contentAlignment = Alignment.Center
