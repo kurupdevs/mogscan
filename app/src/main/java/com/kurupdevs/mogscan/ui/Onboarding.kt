@@ -206,17 +206,19 @@ fun QuestionFlow(
                 )
                 OutlinedTextField(
                     value = heightText,
-                    onValueChange = { heightText = it.filter { c -> c.isDigit() }.take(3) },
-                    placeholder = { Text("Height in cm", color = PslGrey) },
+                    onValueChange = { input ->
+                        val filtered = input.filter { c -> c.isDigit() || c == '.' }.take(5)
+                        if (filtered.count { it == '.' } <= 1) heightText = filtered
+                    },
+                    placeholder = { Text("cm or ft — e.g. 175 or 5.8", color = PslGrey) },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     colors = textFieldColors()
                 )
                 Spacer(Modifier.height(24.dp))
-                val h = heightText.toIntOrNull() ?: 0
-                PslNextButton("Next", enabled = h in 100..250, onClick = ::next)
+                PslNextButton("Next", enabled = parseHeightCm(heightText) != null, onClick = ::next)
             }
 
             3 -> {
@@ -280,7 +282,7 @@ fun QuestionFlow(
                             UserProfile(
                                 name = name.trim(),
                                 language = language,
-                                heightCm = heightText.toIntOrNull() ?: 0,
+                                heightCm = parseHeightCm(heightText) ?: 0,
                                 dobMillis = cal.timeInMillis,
                                 goal = goal
                             )
@@ -463,6 +465,16 @@ private fun PslNextButton(text: String, enabled: Boolean, onClick: () -> Unit) {
         shape = RoundedCornerShape(14.dp)
     ) {
         Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+/** Accepts cm (100-250) or feet (3.0-8.9, e.g. 5.8) and returns cm. */
+private fun parseHeightCm(input: String): Int? {
+    val v = input.toDoubleOrNull() ?: return null
+    return when {
+        v in 100.0..250.0 -> v.toInt()
+        v in 3.0..8.9 -> (v * 30.48).toInt()
+        else -> null
     }
 }
 
