@@ -9,8 +9,8 @@
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:label="MogScan"
-        android:theme="@style/Theme.MogScan"
+        android:label="Moggr"
+        android:theme="@style/Theme.Moggr"
         android:supportsRtl="true">
         <activity
             android:name=".MainActivity"
