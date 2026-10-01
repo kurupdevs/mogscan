@@ -53,7 +53,7 @@ fun InfoSlidesScreen(onDone: () -> Unit) {
                 .fillMaxWidth()
                 .weight(1f)
                 .background(Color.White, RoundedCornerShape(16.dp))
-                .border(1.dp, Color(0xFFE4E9F2), RoundedCornerShape(16.dp))
+                .border(1.dp, Color(0xFFEDE7DB), RoundedCornerShape(16.dp))
                 .padding(20.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -90,7 +90,7 @@ fun InfoSlidesScreen(onDone: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.White, RoundedCornerShape(24.dp))
-                .border(1.dp, Color(0xFFE4E9F2), RoundedCornerShape(24.dp))
+                .border(1.dp, Color(0xFFEDE7DB), RoundedCornerShape(24.dp))
                 .padding(horizontal = 24.dp, vertical = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -110,11 +110,12 @@ fun InfoSlidesScreen(onDone: () -> Unit) {
             }
             Text(
                 cardTitle,
-                fontSize = 30.sp,
+                fontFamily = MogSerif,
+                fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 color = PslText,
                 textAlign = TextAlign.Center,
-                lineHeight = 36.sp
+                lineHeight = 38.sp
             )
             Spacer(Modifier.height(14.dp))
             Text(
@@ -168,7 +169,7 @@ private fun HaloVisual() {
 private fun HaloCard(mark: String, markColor: Color, label: String, sub: String) {
     Column(
         modifier = Modifier
-            .border(1.dp, Color(0xFFE4E9F2), RoundedCornerShape(12.dp))
+            .border(1.dp, Color(0xFFEDE7DB), RoundedCornerShape(12.dp))
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -205,7 +206,7 @@ private fun BarsVisual(title: String, bars: List<HBar>) {
                         .weight(1f)
                         .height(26.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFFE4E9F2))
+                        .background(Color(0xFFEDE7DB))
                 ) {
                     Box(
                         modifier = Modifier
@@ -272,7 +273,7 @@ private fun LikesVisual() {
                             .width(22.dp)
                             .height((8 + (v / max) * 120).dp)
                             .clip(RoundedCornerShape(4.dp))
-                            .background(if (i >= 8) PslBlue else Color(0xFFD0D5DD))
+                            .background(if (i >= 8) PslBlue else Color(0xFFD8D0C2))
                     )
                     Spacer(Modifier.height(4.dp))
                     Text("${(i + 1) * 10}%", fontSize = 8.sp, color = PslGrey)
