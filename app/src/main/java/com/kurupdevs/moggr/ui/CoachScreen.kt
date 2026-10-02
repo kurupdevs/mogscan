@@ -667,11 +667,27 @@ private fun CoachChat(
         messages = messages + ChatMsg(true, clean)
         input = ""
         waiting = true
-        CoachClient.ask(baseSystem, h, clean) { reply ->
-            waiting = false
-            messages = messages + ChatMsg(false, reply ?: coachFallback(hi))
-            if (reply == null) showCrisisLink = true
-        }
+        // Empty coach bubble: tokens stream into it word-by-word.
+        messages = messages + ChatMsg(false, "")
+        CoachClient.askStream(baseSystem, h, clean,
+            onToken = { token ->
+                val last = messages.lastOrNull()
+                if (last != null && !last.isUser) {
+                    messages = messages.dropLast(1) + last.copy(text = last.text + token)
+                }
+            },
+            onDone = { reply ->
+                waiting = false
+                val last = messages.lastOrNull()
+                val finalText = reply ?: coachFallback(hi)
+                messages = if (last != null && !last.isUser) {
+                    messages.dropLast(1) + last.copy(text = finalText)
+                } else {
+                    messages + ChatMsg(false, finalText)
+                }
+                if (reply == null) showCrisisLink = true
+            }
+        )
     }
 
     // Guided-flow prompt arriving from the home screen.
@@ -798,7 +814,10 @@ private fun CoachChat(
                 if (msg.isUser) UserBubble(msg = msg, name = name)
                 else AiMessage(msg = msg)
             }
-            if (waiting) {
+            // "Thinking" shows only until the coach bubble has text; once tokens
+            // stream in, the bubble itself is the indicator.
+            val lastMsg = messages.lastOrNull()
+            if (waiting && (lastMsg == null || lastMsg.isUser || lastMsg.text.isEmpty())) {
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         SparkleAvatar(size = 30)

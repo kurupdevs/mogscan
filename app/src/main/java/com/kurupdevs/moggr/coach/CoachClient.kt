@@ -98,50 +98,169 @@ object CoachClient {
             }
             lastCallMs = System.currentTimeMillis()
 
-            val transcript = buildString {
-                append("Conversation so far:\n")
-                for ((isUser, text) in history.takeLast(10)) {
-                    append(if (isUser) "User: " else "Coach: ")
-                    append(text.trim().take(500)).append('\n')
-                }
-                append("User: ").append(newMessage.trim().take(800))
-                append("\nCoach:")
+            val reply = fetchOnce(buildMessagesJson(system, history, newMessage))
+            main.post { cb(reply) }
+        }.start()
+    }
+
+    /**
+     * Builds the OpenAI-style messages array JSON shared by [ask] and [askStream].
+     */
+    private fun buildMessagesJson(
+        system: String,
+        history: List<Pair<Boolean, String>>,
+        newMessage: String
+    ): String {
+        val transcript = buildString {
+            append("Conversation so far:\n")
+            for ((isUser, text) in history.takeLast(10)) {
+                append(if (isUser) "User: " else "Coach: ")
+                append(text.trim().take(500)).append('\n')
             }
-            // POST /openai with an OpenAI-style body: no transcript or system
-            // text in the URL anymore, so nothing user-identifying leaks into
-            // request lines / server logs the way GET query strings do.
-            val messagesJson = buildString {
-                append("{\"role\":\"system\",\"content\":").append(jsonEscape(system))
-                append("},{\"role\":\"user\",\"content\":").append(jsonEscape(transcript))
-                for ((isUser, text) in history.takeLast(10)) {
-                    append(",{\"role\":").append(if (isUser) "\"user\"" else "\"assistant\"")
-                    append(",\"content\":").append(jsonEscape(text.trim().take(500)))
-                    append("}")
+            append("User: ").append(newMessage.trim().take(800))
+            append("\nCoach:")
+        }
+        // POST /openai with an OpenAI-style body: no transcript or system
+        // text in the URL anymore, so nothing user-identifying leaks into
+        // request lines / server logs the way GET query strings do.
+        return buildString {
+            append("{\"role\":\"system\",\"content\":").append(jsonEscape(system))
+            append("},{\"role\":\"user\",\"content\":").append(jsonEscape(transcript))
+            for ((isUser, text) in history.takeLast(10)) {
+                append(",{\"role\":").append(if (isUser) "\"user\"" else "\"assistant\"")
+                append(",\"content\":").append(jsonEscape(text.trim().take(500)))
+                append("}")
+            }
+        }
+    }
+
+    /**
+     * One-shot (non-streaming) chat completion. Returns the sanitized reply,
+     * or null on failure.
+     */
+    private fun fetchOnce(messagesJson: String): String? {
+        val payload =
+            "{\"model\":\"openai-fast\",\"messages\":[" + messagesJson + "],\"private\":true}"
+        return try {
+            val reqBody = payload.toRequestBody(JSON_MEDIA_TYPE)
+            val req = Request.Builder()
+                .url("https://text.pollinations.ai/openai")
+                .post(reqBody)
+                .build()
+            http.newCall(req).execute().use { resp ->
+                val raw = resp.body?.string()?.trim()
+                if (!resp.isSuccessful || raw.isNullOrBlank()) {
+                    null
+                } else if (raw.contains("\"error\"")) {
+                    // API error payload, not a chat reply.
+                    null
+                } else {
+                    sanitizeReply(extractChatContent(raw) ?: raw)
                 }
             }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Extracts choices[0].delta.content from one SSE data chunk.
+     */
+    private fun extractDeltaContent(chunk: String): String? {
+        if (!chunk.startsWith("{")) return null
+        return try {
+            val delta = JSONObject(chunk)
+                .optJSONArray("choices")?.optJSONObject(0)
+                ?.optJSONObject("delta") ?: return null
+            if (delta.isNull("content")) null
+            else delta.optString("content").takeIf { it.isNotEmpty() }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Streaming chat completion. Each token is posted to [onToken] on the main
+     * thread as it arrives; returns the full raw reply, or null when the stream
+     * produced nothing (caller should fall back).
+     */
+    private fun streamReply(
+        messagesJson: String,
+        onToken: (String) -> Unit
+    ): String? {
+        return try {
             val payload =
-                "{\"model\":\"openai-fast\",\"messages\":[" + messagesJson + "],\"private\":true}"
-            val reply: String? = try {
-                val reqBody = payload.toRequestBody(JSON_MEDIA_TYPE)
-                val req = Request.Builder()
-                    .url("https://text.pollinations.ai/openai")
-                    .post(reqBody)
-                    .build()
-                http.newCall(req).execute().use { resp ->
-                    val raw = resp.body?.string()?.trim()
-                    if (!resp.isSuccessful || raw.isNullOrBlank()) {
-                        null
-                    } else if (raw.contains("\"error\"")) {
-                        // API error payload, not a chat reply.
-                        null
-                    } else {
-                        sanitizeReply(extractChatContent(raw) ?: raw)
+                "{\"model\":\"openai-fast\",\"stream\":true,\"messages\":[" + messagesJson + "],\"private\":true}"
+            val reqBody = payload.toRequestBody(JSON_MEDIA_TYPE)
+            val req = Request.Builder()
+                .url("https://text.pollinations.ai/openai")
+                .post(reqBody)
+                .build()
+            val out = StringBuilder()
+            var gotToken = false
+            http.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) return null
+                val source = resp.body?.source() ?: return null
+                while (!source.exhausted()) {
+                    val line = source.readUtf8Line() ?: break
+                    if (!line.startsWith("data:")) continue
+                    val data = line.removePrefix("data:").trim()
+                    if (data == "[DONE]") break
+                    val token = extractDeltaContent(data)
+                    if (!token.isNullOrEmpty()) {
+                        gotToken = true
+                        out.append(token)
+                        val t = token
+                        main.post { onToken(t) }
                     }
                 }
-            } catch (_: Exception) {
-                null
             }
-            main.post { cb(reply) }
+            if (gotToken) out.toString() else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Streaming variant of [ask]: reply tokens are delivered to [onToken] on
+     * the main thread as they arrive, so the answer appears word-by-word
+     * instead of after the full response. [onDone] receives the sanitized full
+     * reply, or null on failure (caller should show the offline fallback).
+     * Falls back to a one-shot request when streaming yields nothing.
+     */
+    fun askStream(
+        system: String,
+        history: List<Pair<Boolean, String>>,
+        newMessage: String,
+        onToken: (String) -> Unit,
+        onDone: (String?) -> Unit
+    ) {
+        Thread {
+            // Anonymous tier ≈ 1 req / 5 s: pace client-side.
+            val wait = 6000L - (System.currentTimeMillis() - lastCallMs)
+            if (wait > 0) {
+                try {
+                    Thread.sleep(wait)
+                } catch (_: InterruptedException) {
+                    main.post { onDone(null) }
+                    return@Thread
+                }
+            }
+            lastCallMs = System.currentTimeMillis()
+
+            val messagesJson = buildMessagesJson(system, history, newMessage)
+            val streamed = streamReply(messagesJson, onToken)
+            if (streamed != null) {
+                val final = sanitizeReply(streamed).takeIf { it.isNotBlank() }
+                main.post { onDone(final) }
+            } else {
+                // Stream produced nothing: one-shot fallback, delivered whole.
+                val once = fetchOnce(messagesJson)
+                main.post {
+                    if (once != null) onToken(once)
+                    onDone(once?.takeIf { it.isNotBlank() })
+                }
+            }
         }.start()
     }
 
