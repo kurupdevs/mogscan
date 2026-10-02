@@ -4,14 +4,15 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -26,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -40,7 +42,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kurupdevs.moggr.BuildConfig
 import com.kurupdevs.moggr.analysis.AnalysisUiState
 import com.kurupdevs.moggr.analysis.AnalysisViewModel
 import com.kurupdevs.moggr.camera.CameraCapture
@@ -58,6 +63,9 @@ import com.kurupdevs.moggr.ui.ResultScreen
 import com.kurupdevs.moggr.ui.theme.MoggrTheme
 import com.kurupdevs.moggr.util.ProfileStore
 import com.kurupdevs.moggr.util.ReportStore
+import com.kurupdevs.moggr.util.AppLock
+import com.kurupdevs.moggr.util.SignatureCheck
+import com.kurupdevs.moggr.util.UpdateCheck
 // v2.6-science begin
 import com.kurupdevs.moggr.util.ScanCooldown
 // v2.6-science end
@@ -66,10 +74,23 @@ import kotlinx.coroutines.delay
 
 private enum class Screen { INTRO, INFO, QUESTIONS, CAMERA, ANALYZING, RESULT, MAIN }
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // v2.8-sec: fail closed on tampered installs. Inert until the release
+        // cert hash is filled into SignatureCheck.EXPECTED_SIG_SHA256.
+        if (SignatureCheck.EXPECTED_SIG_SHA256 != "REPLACE_ME" &&
+            !SignatureCheck.isIntact(this)
+        ) {
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Security check failed")
+                .setMessage("This copy of Moggr looks tampered. Please reinstall from the official release.")
+                .setCancelable(false)
+                .setPositiveButton("Close") { _, _ -> finish() }
+                .show()
+            return
+        }
         setContent {
             MoggrTheme {
                 Surface(
@@ -123,6 +144,53 @@ private fun MoggrApp() {
     // v2.6-landmark begin
     val recomputing by vm.recomputing.collectAsState()
     // v2.6-landmark end
+
+    // v2.8-sec begin: FLAG_SECURE on camera/scan/result screens — no
+    // screenshots, no screen recording, no recents thumbnails of faces.
+    val activity = context as? android.app.Activity
+    DisposableEffect(screen) {
+        val secure = screen == Screen.CAMERA || screen == Screen.ANALYZING ||
+            screen == Screen.RESULT
+        if (secure) {
+            activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
+
+    // v2.8-sec begin: biometric app lock. Fresh process starts unlocked;
+    // returning from background requires auth.
+    var showLock by remember { mutableStateOf(AppLock.isLocked()) }
+    DisposableEffect(activity) {
+        val obs = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                showLock = AppLock.isLocked()
+            }
+        }
+        activity?.lifecycle?.addObserver(obs)
+        onDispose { activity?.lifecycle?.removeObserver(obs) }
+    }
+
+    // v2.8-sec begin: non-blocking update check (never forced).
+    var updateInfo by remember { mutableStateOf<UpdateCheck.UpdateInfo?>(null) }
+    var updateDismissed by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        updateInfo = try {
+            UpdateCheck.checkLatest(BuildConfig.VERSION_NAME)
+        } catch (_: Exception) {
+            null
+        }
+    }
+    // v2.8-sec end
+
+    if (showLock && activity != null) {
+        LockGate(
+            onUnlocked = { showLock = false },
+            onFailed = { activity.finish() }
+        )
+        return
+    }
 
     // Advance from ANALYZING once the animation has played AND the result is ready.
     // The report + front photo are saved permanently so the user never re-scans.
@@ -280,6 +348,17 @@ private fun MoggrApp() {
                 BackHandler { showProfile = false }
                 ProfileScreen(onBack = { showProfile = false })
             } else {
+            // v2.8-sec: non-blocking update banner (never forced).
+            if (!updateDismissed) {
+                updateInfo?.let { info ->
+                    if (info.isNewer) {
+                        UpdateCheck.UpdateBanner(
+                            info = info,
+                            onDismiss = { updateDismissed = true }
+                        )
+                    }
+                }
+            }
             val s = analysisState
             MainTabs(
                 report = (s as? AnalysisUiState.Success)?.report
@@ -300,9 +379,46 @@ private fun MoggrApp() {
     }
 }
 
+// v2.8-sec: biometric gate shown when the app returns from background locked.
 @Composable
-private fun CameraPermissionRationale(denied: Boolean, onRequest: () -> Unit) {
+private fun LockGate(onUnlocked: () -> Unit, onFailed: () -> Unit) {
+    val context = LocalContext.current
+    val activity = context as? FragmentActivity
+    fun tryUnlock() {
+        if (activity != null) {
+            AppLock.unlock(activity) { ok ->
+                if (ok) onUnlocked() else onFailed()
+            }
+        } else {
+            onFailed()
+        }
+    }
+    // Prompt immediately; the button is a fallback if it gets dismissed.
+    LaunchedEffect(Unit) { tryUnlock() }
     Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MoggrBg),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(text = "Moggr is locked", fontSize = 20.sp, color = PslText)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Verify it's you to continue.",
+            fontSize = 13.sp,
+            color = PslGrey
+        )
+        Spacer(Modifier.height(24.dp))
+        Button(
+            onClick = { tryUnlock() },
+            colors = ButtonDefaults.buttonColors(containerColor = PslBlue)
+        ) { Text("Unlock") }
+    }
+}
+
+@Composable
+private fun CameraPermissionRationale(denied: Boolean, onRequest: () -> Unit) {    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MoggrBg)

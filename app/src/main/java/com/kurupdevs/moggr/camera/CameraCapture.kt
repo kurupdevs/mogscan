@@ -293,6 +293,13 @@ fun CameraCapture(
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(results: ImageCapture.OutputFileResults) {
                     val bmp = BitmapFactory.decodeFile(file.absolutePath)
+                    // sec-hardening: the bitmap lives in memory from here on, so the
+                    // temp capture file is no longer needed. Delete best-effort —
+                    // never break the capture flow (covers the decode-failure path too).
+                    try {
+                        file.delete()
+                    } catch (_: Exception) {
+                    }
                     capturing = false
                     if (bmp != null) {
                         // Quality gate: grade off the main thread, then show the sheet.

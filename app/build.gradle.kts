@@ -8,14 +8,14 @@ plugins {
 
 android {
     namespace = "com.kurupdevs.moggr"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.kurupdevs.moggr"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 26
-        versionName = "3.5"
+        targetSdk = 35
+        versionCode = 27
+        versionName = "3.6"
     }
 
     // Release signing comes ONLY from environment (GitHub Actions secrets).
@@ -44,7 +44,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             signingConfig = signingConfigs.getByName("moggr")
         }
     }
@@ -92,4 +97,13 @@ dependencies {
 
     // OkHttp for the keyless Moggr Coach chat (free tier, no API key)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // Biometric app lock (never hand-roll a PIN)
+    implementation("androidx.biometric:biometric:1.1.0")
+
+    // ProcessLifecycleOwner for the app-lock background observer
+    implementation("androidx.lifecycle:lifecycle-process:2.8.6")
+
+    // EncryptedSharedPreferences for profile PII
+    implementation("androidx.security:security-crypto:1.0.0")
 }

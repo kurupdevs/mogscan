@@ -2,9 +2,11 @@ package com.kurupdevs.moggr.coach
 
 import android.os.Handler
 import android.os.Looper
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.net.URLEncoder
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -24,11 +26,54 @@ object CoachClient {
 
     private val main = Handler(Looper.getMainLooper())
 
+    private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+
     @Volatile
     private var lastCallMs = 0L
 
-    private fun enc(s: String): String =
-        URLEncoder.encode(s, "UTF-8").replace("+", "%20")
+    /**
+     * Escape a raw string for embedding in a hand-built JSON payload.
+     */
+    private fun jsonEscape(s: String): String = buildString {
+        append('"')
+        for (ch in s) {
+            when (ch) {
+                '"' -> append("\\\"")
+                '\\' -> append("\\\\")
+                '\n' -> append("\\n")
+                '\t' -> append("\\t")
+                '\r' -> append("\\r")
+                '\b' -> append("\\b")
+                '\u000C' -> append("\\f")
+                else -> if (ch < ' ') append("\\u%04x".format(ch.code)) else append(ch)
+            }
+        }
+        append('"')
+    }
+
+    /**
+     * Tolerant parse of an OpenAI-style chat-completions response:
+     * choices[0].message.content. Returns null when the body is plain text
+     * (or any shape we don't recognize), in which case the raw body is used.
+     */
+    private fun extractChatContent(raw: String): String? {
+        if (!raw.startsWith("{")) return null
+        return try {
+            JSONObject(raw)
+                .optJSONArray("choices")?.optJSONObject(0)
+                ?.optJSONObject("message")?.optString("content")
+                ?.takeIf { it.isNotBlank() }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Keep replies safe for Compose Text: trimmed, capped, and stripped of
+     * control characters except \n and \t.
+     */
+    private fun sanitizeReply(s: String): String =
+        s.filter { ch -> ch == '\n' || ch == '\t' || ch >= ' ' }.trim().take(2000)
 
     /**
      * @param history list of (isUser, text) pairs, oldest first.
@@ -62,22 +107,35 @@ object CoachClient {
                 append("User: ").append(newMessage.trim().take(800))
                 append("\nCoach:")
             }
-            val url = "https://text.pollinations.ai/${enc(transcript)}" +
-                "?model=openai-fast" +
-                "&system=${enc(system)}" +
-                "&private=true" +
-                "&referrer=moggr"
+            // POST /openai with an OpenAI-style body: no transcript or system
+            // text in the URL anymore, so nothing user-identifying leaks into
+            // request lines / server logs the way GET query strings do.
+            val messagesJson = buildString {
+                append("{\"role\":\"system\",\"content\":").append(jsonEscape(system))
+                append("},{\"role\":\"user\",\"content\":").append(jsonEscape(transcript))
+                for ((isUser, text) in history.takeLast(10)) {
+                    append(",{\"role\":").append(if (isUser) "\"user\"" else "\"assistant\"")
+                    append(",\"content\":").append(jsonEscape(text.trim().take(500)))
+                    append("}")
+                }
+            }
+            val payload =
+                "{\"model\":\"openai-fast\",\"messages\":[" + messagesJson + "],\"private\":true}"
             val reply: String? = try {
-                val req = Request.Builder().url(url).get().build()
+                val reqBody = payload.toRequestBody(JSON_MEDIA_TYPE)
+                val req = Request.Builder()
+                    .url("https://text.pollinations.ai/openai")
+                    .post(reqBody)
+                    .build()
                 http.newCall(req).execute().use { resp ->
-                    val body = resp.body?.string()?.trim()
-                    if (!resp.isSuccessful || body.isNullOrBlank()) {
+                    val raw = resp.body?.string()?.trim()
+                    if (!resp.isSuccessful || raw.isNullOrBlank()) {
                         null
-                    } else if (body.contains("\"error\"")) {
+                    } else if (raw.contains("\"error\"")) {
                         // API error payload, not a chat reply.
                         null
                     } else {
-                        body
+                        sanitizeReply(extractChatContent(raw) ?: raw)
                     }
                 }
             } catch (_: Exception) {

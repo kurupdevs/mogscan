@@ -589,7 +589,7 @@ private fun CoachChat(
     var checkinNonce by remember { mutableStateOf(0) }
     val baseSystem = remember(report, vibe, checkinNonce, hi) {
         CoachClient.systemPrompt(
-            name.ifBlank { "there" },
+            "User",
             metricsCtx,
             CoachMemory.getMemoryContext(context),
             teen = teen,
