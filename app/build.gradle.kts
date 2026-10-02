@@ -63,6 +63,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -105,5 +106,5 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-process:2.8.6")
 
     // EncryptedSharedPreferences for profile PII
-    implementation("androidx.security:security-crypto:1.0.0")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }

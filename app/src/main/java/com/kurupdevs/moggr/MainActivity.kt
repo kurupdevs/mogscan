@@ -147,7 +147,7 @@ private fun MoggrApp() {
 
     // v2.8-sec begin: FLAG_SECURE on camera/scan/result screens — no
     // screenshots, no screen recording, no recents thumbnails of faces.
-    val activity = context as? android.app.Activity
+    val activity = context as? androidx.activity.ComponentActivity
     DisposableEffect(screen) {
         val secure = screen == Screen.CAMERA || screen == Screen.ANALYZING ||
             screen == Screen.RESULT
