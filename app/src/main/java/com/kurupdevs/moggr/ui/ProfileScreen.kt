@@ -248,7 +248,7 @@ fun ProfileScreen(onBack: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 PkProjectCard(
-                    icon = R.drawable.ic_launcher_foreground,
+                    icon = R.drawable.ic_moggr_project,
                     title = "Moggr",
                     desc = "On-device face rating & glow-up coach. 100% private.",
                     onClick = { uri.openUri("https://github.com/kurupdevs/mogscan") }
@@ -260,7 +260,7 @@ fun ProfileScreen(onBack: () -> Unit) {
                     onClick = { uri.openUri("https://github.com/kurupdevs/KuruBeats") }
                 )
                 PkProjectCard(
-                    monogram = "K",
+                    icon = R.drawable.ic_userbot,
                     title = "KURUPUSERBOT",
                     desc = "Telegram userbot with 26 modules.",
                     onClick = { uri.openUri("https://github.com/kurupdevs/KURUPUSERBOT") }
@@ -327,13 +327,13 @@ private fun PkSocialBox(logo: Int, label: String, onClick: () -> Unit, modifier:
             .clip(RoundedCornerShape(20.dp))
             .background(Color.White)
             .clickable(onClick = onClick)
-            .padding(vertical = 16.dp, horizontal = 4.dp),
+            .padding(vertical = 20.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
             painter = painterResource(logo),
             contentDescription = label,
-            modifier = Modifier.size(46.dp),
+            modifier = Modifier.size(50.dp),
             contentScale = ContentScale.Fit
         )
         Spacer(Modifier.height(8.dp))
